@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS 3v3 League Scheduler v9.3</title>
+<title>MSS 3v3 League Scheduler v9.4</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -22,7 +22,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;max-height:600px}table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}th{background:#eef3f9;position:sticky;top:0}
 .status{padding:10px;border-radius:8px;margin:10px 0}.ok{background:#eaf7e3;color:var(--ok)}.warn{background:#fff4d6;color:var(--warn)}.bad{background:#feeceb;color:var(--danger)}
 .item{padding:9px 0;border-bottom:1px solid #edf1f6}.item:last-child{border-bottom:0}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-.score{width:64px}.hidden{display:none!important}.kpi{font-size:26px;font-weight:800}.public-title{font-size:22px;font-weight:800;margin-bottom:4px}
+.score{width:64px}.hidden{display:none!important}.kpi{font-size:26px;font-weight:800}.metric-card{background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:10px;min-width:130px}.team-link{background:none;border:0;padding:0;color:var(--blue);font-weight:700;text-decoration:underline;cursor:pointer}.team-link:hover{text-decoration:none}.public-title{font-size:22px;font-weight:800;margin-bottom:4px}
 .board{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px}.division-board{min-width:620px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:12px}
 .division-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}.pools{display:flex;gap:10px;align-items:flex-start}.pool{min-width:250px;flex:1;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:10px;padding:10px}.pool.over{border-color:#d92d20;background:#fff4f2}.pool.approved{border-style:solid;border-color:#12b76a}
 .team-card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px;margin:7px 0;cursor:grab}.team-card.dragging{opacity:.45}.team-card b{display:block}.pool-title{display:flex;justify-content:space-between;align-items:center;font-weight:700}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS 3v3 League Scheduler v9.3</h1><div class="sub">Registration Import → Pools → Court Groups & Division Windows → Approval → Weekly Scheduling</div></div>
+  <div><h1>MSS 3v3 League Scheduler v9.4</h1><div class="sub">Registration Import → Pools → Court Groups & Division Windows → Approval → Weekly Scheduling</div></div>
 </header>
 <div class="viewbar">
   <button data-view="admin">Admin View</button>
@@ -173,7 +173,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   </div>
 </section>
 
-<section id="admin-results" class="panel"><div class="card"><h2>Score Entry</h2><p class="hint">Enter final scores. Pool standings update automatically.</p><div class="table-wrap"><table id="resultsTable"></table></div></div></section>
+<section id="admin-results" class="panel"><div class="card"><div class="toolbar"><button class="secondary" id="sampleScoresBtn">Create Sample Scores</button><button class="danger" id="clearScoresBtn">Clear All Scores</button></div><h2>Score Entry</h2><p class="hint">Enter final scores. Pool standings update automatically.</p><div class="table-wrap"><table id="resultsTable"></table></div></div></section>
 <section id="admin-standings" class="panel"><div id="standingsAdmin"></div></section>
 
 <section id="coach-view" class="panel">
@@ -188,6 +188,15 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <div class="card" style="margin-top:14px"><h2>Standings</h2><div id="publicStandings"></div></div>
 </section>
 </main>
+<div id="teamModal" class="hidden" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1000;padding:24px;overflow:auto">
+  <div class="card" style="max-width:760px;margin:40px auto">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div><h2 id="teamModalTitle" style="margin:0"></h2><div id="teamModalSubtitle" class="hint"></div></div>
+      <button class="secondary" id="closeTeamModal">Close</button>
+    </div>
+    <div id="teamModalBody" style="margin-top:14px"></div>
+  </div>
+</div>
 
 <script>
 const KEY='mss3v3LeagueV8';
@@ -631,13 +640,58 @@ function groupOptions(select){const current=select.value||select.dataset.lastVal
 function renderSchedule(){groupOptions($('scheduleFilter'));const f=$('scheduleFilter').value||'ALL',g=state.games.filter(x=>f==='ALL'||poolKey(x.division,x.pool)===f).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));$('scheduleTable').innerHTML='<thead><tr><th>Week</th><th>Date</th><th>Time</th><th>Playing Surface</th><th>Division / Pool</th><th>Matchup</th><th>Result</th></tr></thead><tbody>'+g.map(x=>`<tr><td>${x.week||''}</td><td>${x.date}</td><td>${fmtTime(x.time)}</td><td>${esc(x.court)}</td><td>${esc(divisionLabel(x.division))} — Pool ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td>${x.sa==null?'—':x.sa+'–'+x.sb}</td></tr>`).join('')+'</tbody>'}
 function renderResults(){const g=[...state.games].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('resultsTable').innerHTML='<thead><tr><th>Week</th><th>Date</th><th>Pool</th><th>Game</th><th>Score</th></tr></thead><tbody>'+g.map(x=>`<tr><td>${x.week||''}</td><td>${x.date} ${fmtTime(x.time)}</td><td>${esc(divisionLabel(x.division))} — ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td><input class="score" data-score-id="${x.id}" data-side="a" type="number" value="${x.sa??''}"> - <input class="score" data-score-id="${x.id}" data-side="b" type="number" value="${x.sb??''}"></td></tr>`).join('')+'</tbody>';document.querySelectorAll('[data-score-id]').forEach(i=>i.addEventListener('change',()=>setScore(i.dataset.scoreId,i.dataset.side,i.value)))}
 function setScore(id,side,v){const g=state.games.find(x=>x.id===id);g['s'+side]=v===''?null:+v;persist();renderAll()}
+
+function createSampleScores(){
+  if(!state.games.length)return alert('Generate a schedule first.');
+  state.games.forEach(g=>{
+    let a=8+Math.floor(Math.random()*18),b=8+Math.floor(Math.random()*18);
+    if(a===b)b+=1+Math.floor(Math.random()*4);
+    g.sa=a;g.sb=b;
+  });
+  persist();renderAll();setTab('results')
+}
+function clearAllScores(){
+  if(!confirm('Clear every entered score?'))return;
+  state.games.forEach(g=>{g.sa=null;g.sb=null});persist();renderAll();setTab('results')
+}
+function teamGameHistory(teamId){
+  return state.games.filter(g=>g.aId===teamId||g.bId===teamId).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time))
+}
+function openTeamModal(teamId){
+  const t=teamById(teamId),games=teamGameHistory(teamId),completed=games.filter(g=>g.sa!=null&&g.sb!=null);
+  let w=0,l=0,pf=0,pa=0;
+  completed.forEach(g=>{
+    const isA=g.aId===teamId,forPts=isA?g.sa:g.sb,against=isA?g.sb:g.sa;
+    pf+=forPts;pa+=against;if(forPts>against)w++;else if(forPts<against)l++
+  });
+  $('teamModalTitle').textContent=t.name;
+  $('teamModalSubtitle').textContent=`${divisionLabel(divisionKey(t))} • Coach: ${t.coach||'Not entered'}`;
+  $('teamModalBody').innerHTML=`<div class="row">
+    <div class="metric-card"><div class="hint">Record</div><div class="kpi">${w}-${l}</div></div>
+    <div class="metric-card"><div class="hint">Points For</div><div class="kpi">${pf}</div></div>
+    <div class="metric-card"><div class="hint">Points Against</div><div class="kpi">${pa}</div></div>
+    <div class="metric-card"><div class="hint">Point Differential</div><div class="kpi">${pf-pa}</div></div>
+  </div>
+  <div class="table-wrap" style="margin-top:14px"><table>
+    <thead><tr><th>Week</th><th>Date</th><th>Time</th><th>Opponent</th><th>Score</th><th>Result</th></tr></thead>
+    <tbody>${games.map(g=>{
+      const isA=g.aId===teamId,opp=teamById(isA?g.bId:g.aId),forPts=isA?g.sa:g.sb,against=isA?g.sb:g.sa;
+      const score=forPts==null?'—':`${forPts}-${against}`;
+      const result=forPts==null?'Scheduled':forPts>against?'Win':forPts<against?'Loss':'Tie';
+      return `<tr><td>${g.week||''}</td><td>${g.date}</td><td>${fmtTime(g.time)}</td><td>${esc(opp.name)}</td><td>${score}</td><td>${result}</td></tr>`
+    }).join('')}</tbody>
+  </table></div>`;
+  $('teamModal').classList.remove('hidden')
+}
+function closeTeamModal(){$('teamModal').classList.add('hidden')}
 function standingsData(){const by={};Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{const k=poolKey(d,pool);by[k]=Object.fromEntries(ids.map(id=>[id,{id,name:teamById(id).name,gp:0,w:0,l:0,pf:0,pa:0,pd:0}]))}));state.games.forEach(g=>{if(g.sa==null||g.sb==null)return;const s=by[poolKey(g.division,g.pool)],a=s?.[g.aId],b=s?.[g.bId];if(!a||!b)return;a.gp++;b.gp++;a.pf+=g.sa;a.pa+=g.sb;b.pf+=g.sb;b.pa+=g.sa;if(g.sa>g.sb){a.w++;b.l++}else if(g.sb>g.sa){b.w++;a.l++}});Object.values(by).forEach(s=>Object.values(s).forEach(x=>x.pd=x.pf-x.pa));return by}
-function standingsHTML(filter='ALL'){const by=standingsData();return Object.entries(by).filter(([k])=>filter==='ALL'||k===filter).map(([k,s])=>{const[d,p]=k.split('::'),rows=Object.values(s).sort((a,b)=>b.w-a.w||b.pd-a.pd||a.pa-b.pa||a.name.localeCompare(b.name));return `<div class="card" style="margin-bottom:14px"><h3>${esc(divisionLabel(d))} — Pool ${p}</h3><div class="table-wrap"><table><thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>PD</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${x.gp}</td><td>${x.w}</td><td>${x.l}</td><td>${x.pf}</td><td>${x.pa}</td><td>${x.pd}</td></tr>`).join('')}</tbody></table></div></div>`}).join('')||'<p class="hint">No pools available.</p>'}
-function renderStandings(){$('standingsAdmin').innerHTML=standingsHTML()}
+function standingsHTML(filter='ALL'){const by=standingsData();return Object.entries(by).filter(([k])=>filter==='ALL'||k===filter).map(([k,s])=>{const[d,p]=k.split('::'),rows=Object.values(s).sort((a,b)=>b.w-a.w||b.pd-a.pd||a.pa-b.pa||a.name.localeCompare(b.name));return `<div class="card" style="margin-bottom:14px"><h3>${esc(divisionLabel(d))} — Pool ${p}</h3><div class="table-wrap"><table><thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>PD</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td><button class="team-link" data-team-detail="${x.id}">${esc(x.name)}</button></td><td>${x.gp}</td><td>${x.w}</td><td>${x.l}</td><td>${x.pf}</td><td>${x.pa}</td><td>${x.pd}</td></tr>`).join('')}</tbody></table></div></div>`}).join('')||'<p class="hint">No pools available.</p>'}
+function bindTeamLinks(){document.querySelectorAll('[data-team-detail]').forEach(b=>b.addEventListener('click',()=>openTeamModal(b.dataset.teamDetail)))}
+function renderStandings(){$('standingsAdmin').innerHTML=standingsHTML();bindTeamLinks()}
 function scheduleCards(g){return g.map(x=>`<div class="item"><b>${x.date} • ${fmtTime(x.time)} • ${esc(x.court)}</b><br>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}<br><span class="hint">${esc(divisionLabel(x.division))} • Pool ${x.pool}${x.sa==null?'':' • Final '+x.sa+'–'+x.sb}</span></div>`).join('')||'<p class="hint">No scheduled games.</p>'}
 function renderCoachSelectors(){const coaches=[...new Set(state.teams.map(t=>t.coach).filter(Boolean))].sort(),prev=$('coachSelect').value;$('coachSelect').innerHTML='<option value="">All coaches</option>'+coaches.map(c=>`<option>${esc(c)}</option>`).join('');if(coaches.includes(prev))$('coachSelect').value=prev;const c=$('coachSelect').value,teams=state.teams.filter(t=>!c||t.coach===c),pt=$('coachTeamSelect').value;$('coachTeamSelect').innerHTML='<option value="">All teams</option>'+teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');if(teams.some(t=>t.id===pt))$('coachTeamSelect').value=pt}
-function renderCoach(){renderCoachSelectors();const c=$('coachSelect').value,tid=$('coachTeamSelect').value,ids=new Set(state.teams.filter(t=>(!c||t.coach===c)&&(!tid||t.id===tid)).map(t=>t.id));const g=state.games.filter(x=>ids.has(x.aId)||ids.has(x.bId)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('coachSchedule').innerHTML='<h2>Schedule</h2>'+scheduleCards(g);const groups=new Set(g.map(x=>poolKey(x.division,x.pool)));$('coachStandings').innerHTML='<h2>Standings</h2>'+[...groups].map(k=>standingsHTML(k)).join('')}
-function renderPublic(){groupOptions($('publicDivision'));const f=$('publicDivision').value||'ALL';$('publicHeader').innerHTML=`<div class="public-title">${esc(state.settings.leagueName||'MSS 3v3 League')}</div><div class="hint">Public schedule, results and pool standings</div>`;const g=state.games.filter(x=>f==='ALL'||poolKey(x.division,x.pool)===f).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('publicSchedule').innerHTML=scheduleCards(g);$('publicStandings').innerHTML=standingsHTML(f)}
+function renderCoach(){renderCoachSelectors();const c=$('coachSelect').value,tid=$('coachTeamSelect').value,ids=new Set(state.teams.filter(t=>(!c||t.coach===c)&&(!tid||t.id===tid)).map(t=>t.id));const g=state.games.filter(x=>ids.has(x.aId)||ids.has(x.bId)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('coachSchedule').innerHTML='<h2>Schedule</h2>'+scheduleCards(g);const groups=new Set(g.map(x=>poolKey(x.division,x.pool)));$('coachStandings').innerHTML='<h2>Standings</h2>'+[...groups].map(k=>standingsHTML(k)).join('');bindTeamLinks()}
+function renderPublic(){groupOptions($('publicDivision'));const f=$('publicDivision').value||'ALL';$('publicHeader').innerHTML=`<div class="public-title">${esc(state.settings.leagueName||'MSS 3v3 League')}</div><div class="hint">Public schedule, results and pool standings</div>`;const g=state.games.filter(x=>f==='ALL'||poolKey(x.division,x.pool)===f).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('publicSchedule').innerHTML=scheduleCards(g);$('publicStandings').innerHTML=standingsHTML(f);bindTeamLinks()}
 function exportSchedule(){const rows=[['Week','Date','Time','Playing Surface','Division','Pool','Team A','Team B','Score A','Score B'],...state.games.map(g=>[g.week||'',g.date,g.time,g.court,divisionLabel(g.division),g.pool,teamById(g.aId).name,teamById(g.bId).name,g.sa??'',g.sb??''])];download(rows.map(r=>r.map(csv).join(',')).join('\n'),'3v3-league-schedule.csv','text/csv')}
 function csv(v){v=String(v);return /[,"\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v}
 function exportSetup(){download(JSON.stringify(state,null,2),'3v3-league-setup.json','application/json')}
@@ -651,7 +705,7 @@ $('teamSearch').addEventListener('input',renderTeams);$('rebalanceBtn').addEvent
 $('addExceptionBtn').addEventListener('click',addException);$('addCourtBtn').addEventListener('click',addCourt);$('addCourtGroupBtn').addEventListener('click',addCourtGroup);$('saveBtn').addEventListener('click',save);$('exportSetupBtn').addEventListener('click',exportSetup);
 $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',generateSchedule);
 $('exportScheduleBtn').addEventListener('click',exportSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});
-$('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());
+$('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());$('sampleScoresBtn').addEventListener('click',createSampleScores);$('clearScoresBtn').addEventListener('click',clearAllScores);$('closeTeamModal').addEventListener('click',closeTeamModal);$('teamModal').addEventListener('click',e=>{if(e.target===$('teamModal'))closeTeamModal()});
 document.querySelectorAll('#admin-settings input,#admin-settings select').forEach(e=>e.addEventListener('change',()=>{syncSettings();state.approved=false;ensurePools();persist();renderAll()}));
 load();
 </script>
