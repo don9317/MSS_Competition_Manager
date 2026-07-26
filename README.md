@@ -1,11 +1,12 @@
-# MSS 3v3 League Scheduler v9.2
+# MSS 3v3 League Scheduler v9.3
 
-## Fixes
-- A Court Group named **All Courts** now dynamically includes every current playing surface.
-- Existing saved groups named All Courts are automatically converted to dynamic groups.
-- Adding or removing a playing surface automatically changes what All Courts contains.
-- Capacity calculations and schedule generation now use the resolved current surfaces in the group.
-- Added a defensive check preventing a team from being scheduled against itself.
+## Matchup corrections
+- A team can never be scheduled against itself.
+- Duplicate team IDs in saved pool data are automatically removed.
+- Every team is prioritized to play all other teams in its pool before opponents repeat.
+- Immediate rematches are strongly avoided.
+- Opponent history is carried across all Sundays in the season.
+- Regenerating a selected pool replaces that pool's old schedule while preserving other pools.
 
-## Important
-For custom court groups, the scheduler still uses only the surfaces manually selected when that group was created.
+## Testing note
+After installing v9.3, select the affected pool and click Generate Schedule again. The previously generated self-games and unfair matchup sequence will be replaced.

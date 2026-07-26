@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS 3v3 League Scheduler v9.2</title>
+<title>MSS 3v3 League Scheduler v9.3</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS 3v3 League Scheduler v9.2</h1><div class="sub">Registration Import → Pools → Court Groups & Division Windows → Approval → Weekly Scheduling</div></div>
+  <div><h1>MSS 3v3 League Scheduler v9.3</h1><div class="sub">Registration Import → Pools → Court Groups & Division Windows → Approval → Weekly Scheduling</div></div>
 </header>
 <div class="viewbar">
   <button data-view="admin">Admin View</button>
@@ -168,7 +168,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <button class="secondary" id="printBtn">Print</button>
       <label style="margin:0;min-width:260px">Schedule / Display Scope<select id="scheduleFilter"></select></label>
     </div>
-    <div id="genSummary"></div>
+    <div class="hint" style="margin-bottom:8px">Matchup rules: no self-games, no immediate rematches, and all pool opponents are prioritized before repeats.</div><div id="genSummary"></div>
     <div class="table-wrap"><table id="scheduleTable"></table></div>
   </div>
 </section>
@@ -337,6 +337,19 @@ function ensurePools(force=false){
     }
   });
   Object.keys(state.pools).filter(d=>!groups[d]).forEach(d=>delete state.pools[d]);
+  Object.entries(state.pools).forEach(([d,p])=>{
+    const valid=new Set((groups[d]||[]).map(t=>t.id)),seen=new Set();
+    Object.keys(p.lists).forEach(pool=>{
+      p.lists[pool]=(p.lists[pool]||[]).filter(id=>{
+        if(!valid.has(id)||seen.has(id))return false;
+        seen.add(id);return true
+      })
+    });
+    [...valid].filter(id=>!seen.has(id)).forEach(id=>{
+      const target=Object.keys(p.lists).sort((a,b)=>p.lists[a].length-p.lists[b].length)[0];
+      p.lists[target].push(id);seen.add(id)
+    })
+  });
   ensureDivisionConfig();
 }
 function ensureDivisionConfig(){
@@ -376,7 +389,7 @@ function boardValidation(){
   Object.entries(state.pools).forEach(([d,p])=>{
     Object.entries(p.lists).forEach(([name,ids])=>{all.push(...ids);if(ids.length>p.max)errors.push(`${divisionLabel(d)} Pool ${name} exceeds ${p.max} teams.`);if(ids.length<2)errors.push(`${divisionLabel(d)} Pool ${name} has fewer than 2 teams.`)});
   });
-  if(new Set(all).size!==state.teams.length)errors.push('One or more teams are unassigned or duplicated.');
+  if(all.length!==state.teams.length||new Set(all).size!==state.teams.length)errors.push('One or more teams are unassigned or duplicated.');
   return errors;
 }
 function approveBoard(){
@@ -499,20 +512,43 @@ function divisionSlots(d,date){
   });
   return out.sort((a,b)=>a.stamp-b.stamp||a.court.localeCompare(b.court))
 }
-function roundRobin(ids){const a=[...ids];if(a.length%2)a.push(null);const rounds=[];for(let r=0;r<a.length-1;r++){const pairs=[];for(let i=0;i<a.length/2;i++){const x=a[i],y=a[a.length-1-i];if(x&&y)pairs.push([x,y])}rounds.push(pairs);a.splice(1,0,a.pop())}return rounds}
-function weeklyGameQueue(ids,gamesPerTeam,weekIndex){
-  const rounds=roundRobin(ids),counts=Object.fromEntries(ids.map(id=>[id,0])),q=[];
-  let r=weekIndex%Math.max(1,rounds.length),guard=0;
-  while(ids.some(id=>counts[id]<gamesPerTeam)&&guard++<500){
-    const rd=rounds[r%rounds.length];
-    for(const [a,b] of rd){
+function pairId(a,b){return [a,b].sort().join('|')}
+function chooseRound(activeIds,counts,target,pairCounts,lastOpponent,roundIndex){
+  const available=activeIds.filter(id=>counts[id]<target);
+  const candidates=[];
+  for(let i=0;i<available.length;i++)for(let j=i+1;j<available.length;j++){
+    const a=available[i],b=available[j],played=pairCounts[pairId(a,b)]||0;
+    const immediate=(lastOpponent[a]===b||lastOpponent[b]===a)?1:0;
+    const balance=Math.abs(counts[a]-counts[b]);
+    candidates.push({a,b,score:played*1000+immediate*100+balance*10+((i+j+roundIndex)%7)})
+  }
+  candidates.sort((x,y)=>x.score-y.score);
+  const used=new Set(),pairs=[];
+  for(const c of candidates){
+    if(used.has(c.a)||used.has(c.b))continue;
+    used.add(c.a);used.add(c.b);pairs.push([c.a,c.b])
+  }
+  return pairs
+}
+function weeklyGameQueue(rawIds,gamesPerTeam,weekIndex,pairCounts,lastOpponent){
+  const ids=[...new Set(rawIds)].filter(Boolean),counts=Object.fromEntries(ids.map(id=>[id,0])),q=[];
+  let roundIndex=0,guard=0;
+  while(ids.some(id=>counts[id]<gamesPerTeam)&&guard++<100){
+    let pairs=chooseRound(ids,counts,gamesPerTeam,pairCounts,lastOpponent,roundIndex+weekIndex);
+    if(!pairs.length)break;
+    const roundLast={};
+    for(const[a,b]of pairs){
       if(!a||!b||a===b)continue;
       if(counts[a]>=gamesPerTeam||counts[b]>=gamesPerTeam)continue;
-      q.push([a,b]);counts[a]++;counts[b]++;
+      q.push([a,b,roundIndex]);
+      counts[a]++;counts[b]++;
+      pairCounts[pairId(a,b)]=(pairCounts[pairId(a,b)]||0)+1;
+      roundLast[a]=b;roundLast[b]=a
     }
-    r++;
+    Object.assign(lastOpponent,roundLast);
+    roundIndex++
   }
-  return q
+  return {queue:q,counts}
 }
 function allowed(team,slot){const d=new Date(slot.date+'T00:00:00'),h=+slot.time.slice(0,2);if(team.request==='no_sat_am'&&d.getDay()===6&&h<12)return false;if(team.request==='no_sun'&&d.getDay()===0)return false;if(team.request==='no_am'&&h<12)return false;if(team.request==='no_pm'&&h>=12)return false;return true}
 function selectedScheduleTargets(){
@@ -552,12 +588,16 @@ function generateSchedule(){
   const retainedGames=scope==='ALL'?[]:state.games.filter(g=>poolKey(g.division,g.pool)!==scope);
   seedConflictMaps(retainedGames,used,teamTimes,coachTimes);
 
-  targets.forEach(({division:d,pool,ids})=>{
+  targets.forEach(({division:d,pool,ids:rawIds})=>{
+    const ids=[...new Set(rawIds)].filter(Boolean);
     if(ids.length<2)return;
+    const pairCounts={},lastOpponent={};
     dates.forEach((date,weekIndex)=>{
-      const available=divisionSlots(d,date),queue=weeklyGameQueue(ids,state.settings.gamesPerWeek,weekIndex);
-      const weeklyCounts=Object.fromEntries(ids.map(id=>[id,0]));
+      const available=divisionSlots(d,date);
+      const weekly=weeklyGameQueue(ids,state.settings.gamesPerWeek,weekIndex,pairCounts,lastOpponent);
+      const queue=weekly.queue,weeklyCounts=weekly.counts;
       for(const[a,b]of queue){
+        if(!a||!b||a===b){warnings.push(`Week ${weekIndex+1}: invalid self-match was blocked.`);continue}
         const ta=teamById(a),tb=teamById(b);let found=null;
         for(const s of available){
           const sk=`${s.date}|${s.time}|${s.court}`;if(used.has(sk)||!allowed(ta,s)||!allowed(tb,s))continue;
@@ -576,7 +616,6 @@ function generateSchedule(){
         (teamTimes[a]??=new Set()).add(found.stamp);(teamTimes[b]??=new Set()).add(found.stamp);
         if(ta.coach)(coachTimes[ta.coach]??=new Set()).add(found.stamp);
         if(tb.coach)(coachTimes[tb.coach]??=new Set()).add(found.stamp);
-        weeklyCounts[a]++;weeklyCounts[b]++;
         newGames.push({id:uid('g'),division:d,pool,aId:a,bId:b,date:found.date,time:found.time,court:found.court,sa:null,sb:null,week:weekIndex+1})
       }
       ids.filter(id=>weeklyCounts[id]<state.settings.gamesPerWeek).forEach(id=>warnings.push(`Week ${weekIndex+1}: ${teamById(id).name} received ${weeklyCounts[id]} of ${state.settings.gamesPerWeek} games.`))
