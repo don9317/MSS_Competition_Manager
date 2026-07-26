@@ -1,90 +1,467 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS Competition Scheduler v0.1</title>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MSS 3v3 League Scheduler v8</title>
 <style>
-:root{--navy:#102a43;--blue:#1677c8;--light:#f4f7fb;--line:#d8e2ec;--text:#243b53;--green:#16825d;--amber:#a86500;--red:#b42318}
-*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--light);color:var(--text)}
-header{background:linear-gradient(135deg,#102a43,#1d4f7a);color:#fff;padding:22px 28px}header h1{margin:0 0 5px;font-size:28px}header p{margin:0;opacity:.9}
-nav{display:flex;gap:8px;flex-wrap:wrap;padding:12px 20px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}.tab{border:0;background:#e8eef5;color:var(--navy);padding:10px 14px;border-radius:8px;font-weight:700;cursor:pointer}.tab.active{background:var(--blue);color:#fff}
-main{max-width:1280px;margin:auto;padding:20px}.section{display:none}.section.active{display:block}.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:0 2px 8px #102a4310}.card h2{margin:0 0 14px;color:var(--navy)}.card h3{margin:14px 0 8px}.grid{display:grid;grid-template-columns:repeat(4,minmax(170px,1fr));gap:12px}.grid2{display:grid;grid-template-columns:repeat(2,minmax(260px,1fr));gap:14px}.grid3{display:grid;grid-template-columns:repeat(3,minmax(190px,1fr));gap:12px}
-label{display:block;font-size:12px;font-weight:700;margin:0 0 5px;color:#52677b}input,select,textarea{width:100%;padding:9px 10px;border:1px solid #b9c8d6;border-radius:7px;background:#fff}button{border:0;border-radius:8px;background:var(--blue);color:#fff;padding:10px 14px;font-weight:700;cursor:pointer;margin:4px 4px 4px 0}button.secondary{background:var(--green)}button.light{background:#e8eef5;color:var(--navy)}button.danger{background:var(--red)}button.small{padding:5px 8px;font-size:12px}
-.note{background:#fff7e6;border-left:4px solid #f0a429;padding:10px 12px;border-radius:6px}.success{background:#eaf8f1;border-left:4px solid var(--green);padding:10px 12px;border-radius:6px}.muted{color:#627d98;font-size:13px}.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#e8eef5;margin:2px;font-size:12px}.mode-card{border:2px solid var(--line);border-radius:12px;padding:16px;cursor:pointer}.mode-card.selected{border-color:var(--blue);background:#eff7ff}.mode-card h3{margin-top:0}
-table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:9px;border-bottom:1px solid var(--line);vertical-align:top}th{background:#edf3f8;color:var(--navy);position:sticky;top:58px}.table-wrap{overflow:auto;max-height:560px;border:1px solid var(--line);border-radius:8px}.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.metric{background:#f6f9fc;border:1px solid var(--line);border-radius:10px;padding:14px}.metric b{display:block;font-size:24px;color:var(--navy)}.bracket{display:flex;gap:18px;overflow:auto}.round{min-width:245px}.match{background:#fff;border:1px solid #cbd8e5;border-radius:8px;margin:10px 0;padding:9px}.winner{font-weight:700;color:var(--green)}
-@media(max-width:900px){.grid,.grid2,.grid3,.summary{grid-template-columns:1fr 1fr}}@media(max-width:600px){.grid,.grid2,.grid3,.summary{grid-template-columns:1fr}main{padding:10px}}
-@media print{nav,.no-print,button{display:none!important}.section{display:none}.section.active{display:block}.card{box-shadow:none;break-inside:avoid}body{background:#fff}th{position:static}}
-</style></head><body>
-<header><h1>My Sport Space Competition Scheduler</h1><p>Prototype v0.2 — Unified scheduling for leagues, tournaments, camps, clinics, tryouts, and showcases</p></header>
-<nav id="nav"></nav><main>
-<section id="home" class="section active"><div class="card"><h2>Create a Competition</h2><div class="grid3" id="modeCards"></div><div class="note" style="margin-top:14px">All three formats share facilities, courts, divisions, teams, scheduling, results, and public schedule views.</div></div>
-<div class="card"><h2>Competition Details</h2><div class="grid"><div><label>Name</label><input id="competitionName"></div><div><label>Start Date</label><input id="startDate" type="date"></div><div><label>End Date</label><input id="endDate" type="date"></div><div><label>Game Length</label><select id="gameLength"><option value="60">60 minutes</option><option value="75">75 minutes</option></select></div></div><div id="modeOptions" style="margin-top:12px"></div><div class="actions"><button onclick="saveBasics()">Save Details</button><button class="secondary" onclick="loadSample()">Load Sample Competition</button><button class="light" onclick="exportData()">Export Setup</button><label style="display:inline-block"><span style="display:none">Import</span><input id="importFile" type="file" accept=".json" onchange="importData(event)" style="max-width:220px"></label><button class="danger" onclick="resetAll()">Reset</button></div><div id="homeMsg"></div></div></section>
-<section id="facilities" class="section"><div class="card"><h2>Facilities & Courts</h2><div class="grid"><div><label>Facility Name</label><input id="facilityName" placeholder="The HIVE"></div><div><label>Location / Address</label><input id="facilityAddress"></div><div><label>Travel Group</label><input id="travelGroup" placeholder="Edmond"></div><div><label>Minimum Travel Minutes</label><input id="travelMinutes" type="number" value="20"></div></div><button onclick="addFacility()">Add Facility</button><div id="facilityList"></div></div>
-<div class="card"><h2>Court Availability</h2><div class="grid"><div><label>Facility</label><select id="courtFacility"></select></div><div><label>Court</label><input id="courtName" placeholder="Court 1"></div><div><label>Date</label><input id="courtDate" type="date"></div><div><label>Start</label><input id="courtStart" type="time" value="08:00"></div><div><label>End</label><input id="courtEnd" type="time" value="20:00"></div></div><button onclick="addCourtWindow()">Add Court Window</button><div id="courtList"></div></div></section>
-<section id="teams" class="section"><div class="card"><h2>Divisions</h2><div class="grid3"><div><label>Division Name</label><input id="divisionName" placeholder="6th Grade Girls"></div><div><label>Gender</label><select id="divisionGender"><option>Girls</option><option>Boys</option><option>Coed</option></select></div><div><label>Level</label><select id="divisionLevel"><option>Open</option><option>Competitive</option><option>Recreational</option></select></div></div><button onclick="addDivision()">Add Division</button><div id="divisionList"></div></div>
-<div class="card"><h2>Teams</h2><div class="grid"><div><label>Division</label><select id="teamDivision"></select></div><div><label>Team Name</label><input id="teamName"></div><div><label>Coach</label><input id="coachName"></div><div><label>Preferred Facility</label><select id="teamFacility"></select></div></div><div class="grid2" style="margin-top:10px"><div><label>Unavailable Dates (comma separated YYYY-MM-DD)</label><input id="teamBlackouts"></div><div><label>Notes</label><input id="teamNotes"></div></div><button onclick="addTeam()">Add Team</button><div id="teamList"></div></div></section>
-<section id="generate" class="section"><div class="card"><h2>Generate Schedule</h2><div id="generationSummary" class="summary"></div><div id="generateControls"></div><div class="actions"><button class="secondary" onclick="generateSchedule()">Generate / Regenerate Schedule</button><button class="light" onclick="showTab('schedule')">View Schedule</button></div><div id="generateMsg"></div></div></section>
-<section id="schedule" class="section"><div class="card"><h2>Master Schedule</h2><div class="actions no-print"><select id="scheduleDivisionFilter" onchange="renderSchedule()" style="max-width:250px"></select><select id="scheduleFacilityFilter" onchange="renderSchedule()" style="max-width:250px"></select><button class="light" onclick="window.print()">Print</button><button class="light" onclick="downloadCSV()">Download CSV</button></div><div id="scheduleTable"></div></div></section>
-<section id="results" class="section"><div class="card"><h2>Scores & Standings</h2><p class="muted">Enter completed scores. Standings update automatically for regular-season and pool-play games.</p><div id="scoreTable"></div></div><div class="card"><h2>Standings</h2><div id="standings"></div></div></section>
-<section id="postseason" class="section"><div class="card"><h2>Postseason / Brackets</h2><div id="postseasonControls"></div><div class="actions no-print"><button class="secondary" onclick="buildPostseason()">Build Brackets from Standings</button></div><div id="brackets"></div></div></section>
-<section id="public" class="section"><div class="card"><h2 id="publicTitle">Public Competition Schedule</h2><p class="muted">Coach and family view. Use the filters to find a division, team, facility, or date.</p><div class="grid no-print"><div><label>Division</label><select id="publicDivision" onchange="renderPublic()"></select></div><div><label>Team Search</label><input id="publicTeam" oninput="renderPublic()" placeholder="Swarm"></div><div><label>Facility</label><select id="publicFacility" onchange="renderPublic()"></select></div><div><label>Date</label><input id="publicDate" type="date" onchange="renderPublic()"></div></div><div id="publicSchedule"></div></div></section>
+:root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
+*{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+header{background:var(--navy);color:#fff;padding:12px 18px;display:flex;align-items:center;gap:15px}
+header img{height:58px;background:#fff;border-radius:8px;padding:3px}header h1{margin:0;font-size:24px}header .sub{font-size:13px;opacity:.82}
+.viewbar,.tabs{display:flex;gap:8px;flex-wrap:wrap;background:#fff;padding:9px 15px;border-bottom:1px solid var(--line)}
+button{font:inherit;cursor:pointer}.viewbar button,.tabs button{border:1px solid var(--line);background:#eef2f7;padding:9px 13px;border-radius:8px;font-weight:700}
+.viewbar button.active,.tabs button.active{background:var(--navy);color:#fff}
+main{max-width:1380px;margin:16px auto;padding:0 15px 40px}.panel{display:none}.panel.active{display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:0 2px 9px rgba(18,34,72,.05)}
+h2,h3{margin-top:0}.row{display:flex;gap:9px;flex-wrap:wrap;align-items:end}.field{flex:1;min-width:130px}
+label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select,textarea{width:100%;padding:9px;border:1px solid #c9d4e3;border-radius:7px;background:#fff}
+.primary,.secondary,.danger,.success{border-radius:7px;padding:9px 13px}.primary{background:var(--navy);color:#fff;border:0}.secondary{background:#eef2f7;border:1px solid var(--line)}.danger{background:#fff0ef;color:var(--danger);border:1px solid #f2b9b2}.success{background:#08783e;color:#fff;border:0}
+.hint{color:var(--muted);font-size:13px}.pill{display:inline-block;background:#eef2f7;border-radius:999px;padding:4px 8px;margin:2px;font-size:12px}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;max-height:600px}table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}th{background:#eef3f9;position:sticky;top:0}
+.status{padding:10px;border-radius:8px;margin:10px 0}.ok{background:#eaf7e3;color:var(--ok)}.warn{background:#fff4d6;color:var(--warn)}.bad{background:#feeceb;color:var(--danger)}
+.item{padding:9px 0;border-bottom:1px solid #edf1f6}.item:last-child{border-bottom:0}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.score{width:64px}.hidden{display:none!important}.kpi{font-size:26px;font-weight:800}.public-title{font-size:22px;font-weight:800;margin-bottom:4px}
+.board{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px}.division-board{min-width:620px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:12px}
+.division-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}.pools{display:flex;gap:10px;align-items:flex-start}.pool{min-width:250px;flex:1;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:10px;padding:10px}.pool.over{border-color:#d92d20;background:#fff4f2}.pool.approved{border-style:solid;border-color:#12b76a}
+.team-card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px;margin:7px 0;cursor:grab}.team-card.dragging{opacity:.45}.team-card b{display:block}.pool-title{display:flex;justify-content:space-between;align-items:center;font-weight:700}
+.locked .team-card{cursor:default}.approval-banner{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+@media(max-width:700px){header img{height:43px}header h1{font-size:19px}.viewbar,.tabs{overflow:auto;flex-wrap:nowrap}.division-board{min-width:560px}}
+@media print{.viewbar,.tabs,.toolbar,.admin-only{display:none!important}body{background:#fff}.card{box-shadow:none;border:0}}
+</style>
+</head>
+<body>
+<header>
+  <img src="logo.png" alt="My Sport Space logo">
+  <div><h1>MSS 3v3 League Scheduler v8</h1><div class="sub">Registration Import → Division & Pool Board → Director Approval → Scheduling</div></div>
+</header>
+<div class="viewbar">
+  <button data-view="admin">Admin View</button>
+  <button data-view="coach">Coach View</button>
+  <button data-view="public">Public View</button>
+</div>
+<div class="tabs admin-tabs">
+  <button data-tab="registrations">Registrations</button>
+  <button data-tab="board">Division Board</button>
+  <button data-tab="settings">Settings</button>
+  <button data-tab="schedule">Schedule</button>
+  <button data-tab="results">Results</button>
+  <button data-tab="standings">Standings</button>
+</div>
 
-<section id="registrations" class="section"><div class="card"><h2>MSS Registration Feed</h2><p class="muted">Import a registration CSV exported from MSS, or use the manual setup screens. The prototype recognizes common fields such as participant/team name, grade, division, coach, email, and event type.</p><div class="grid2"><div><label>Registration CSV</label><input id="registrationFile" type="file" accept=".csv" onchange="importRegistrationCSV(event)"></div><div><label>Import As</label><select id="registrationImportType"><option value="teams">Teams / League or Tournament Entries</option><option value="participants">Participants / Camp, Tryout, or Showcase</option></select></div></div><div class="actions"><button class="light" onclick="downloadRegistrationTemplate()">Download CSV Template</button></div><div id="registrationStatus" class="note">No registration file loaded. Manual entry remains available.</div></div><div class="card"><h2>Imported Registration Summary</h2><div id="registrationSummary" class="summary"></div><div id="registrationTable"></div></div></section>
-<section id="sessions" class="section"><div class="card"><h2>Sessions, Stations & Staff</h2><p class="muted">Used primarily for camps, clinics, tryouts, and showcases. Competition formats may also use sessions for check-in, meetings, skills contests, or awards.</p><div class="grid"><div><label>Session Name</label><input id="sessionName" placeholder="6th Grade Evaluation"></div><div><label>Group / Division</label><select id="sessionDivision"></select></div><div><label>Assigned Staff</label><input id="sessionStaff" placeholder="Coach Rob"></div><div><label>Capacity</label><input id="sessionCapacity" type="number" value="24"></div></div><div class="grid" style="margin-top:10px"><div><label>Date</label><input id="sessionDate" type="date"></div><div><label>Start</label><input id="sessionStart" type="time" value="09:00"></div><div><label>End</label><input id="sessionEnd" type="time" value="10:00"></div><div><label>Facility / Space</label><select id="sessionFacility"></select></div></div><button onclick="addSession()">Add Session</button><div id="sessionList"></div></div></section>
-</main><script>
-const defaultState={mode:'tournament',competition:{name:'MSS Competition',start:'',end:'',gameLength:60,leagueGames:8,poolGames:3,postseasonTeams:8,restMinutes:60},facilities:[],courts:[],divisions:[],teams:[],games:[],brackets:[],registrations:[],sessions:[]};
-let S=JSON.parse(localStorage.getItem('mssCompetitionV01')||'null')||structuredClone(defaultState); const $=id=>document.getElementById(id); const uid=p=>p+Math.random().toString(36).slice(2,9);
-const tabs=[['home','Event Setup'],['registrations','Registrations'],['facilities','Facilities & Spaces'],['teams','Divisions / Groups'],['sessions','Sessions & Staff'],['generate','Generate'],['schedule','Master Schedule'],['results','Results'],['postseason','Postseason'],['public','Public View']];
-function persist(){localStorage.setItem('mssCompetitionV01',JSON.stringify(S));renderAll()}
-function init(){ $('nav').innerHTML=tabs.map((t,i)=>`<button class="tab ${i===0?'active':''}" onclick="showTab('${t[0]}',this)">${t[1]}</button>`).join(''); renderAll() }
-function showTab(id,btn){document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));$(id).classList.add('active');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');else [...document.querySelectorAll('.tab')].find(x=>x.textContent===tabs.find(t=>t[0]===id)[1])?.classList.add('active'); if(id==='schedule')renderSchedule();if(id==='public')renderPublic();}
-function renderModes(){const modes=[['tournament','Tournament','Pool play and/or elimination bracket; one or multiple locations.'],['league','League','Regular-season games and standings; one or multiple locations.'],['league_postseason','League + Postseason','Regular season followed by seeded season-ending tournament.']];$('modeCards').innerHTML=modes.map(m=>`<div class="mode-card ${S.mode===m[0]?'selected':''}" onclick="S.mode='${m[0]}';persist()"><h3>${m[1]}</h3><p>${m[2]}</p></div>`).join('');
-$('modeOptions').innerHTML=S.mode==='tournament'?`<div class="grid"><div><label>Pool Games Per Team</label><input id="poolGames" type="number" min="0" value="${S.competition.poolGames}"></div><div><label>Guaranteed Rest Minutes</label><input id="restMinutes" type="number" min="0" value="${S.competition.restMinutes}"></div></div>`:`<div class="grid"><div><label>Regular-Season Games Per Team</label><input id="leagueGames" type="number" min="1" value="${S.competition.leagueGames}"></div>${S.mode==='league_postseason'?`<div><label>Teams Per Postseason Bracket</label><input id="postseasonTeams" type="number" min="2" value="${S.competition.postseasonTeams}"></div>`:''}<div><label>Guaranteed Rest Minutes</label><input id="restMinutes" type="number" min="0" value="${S.competition.restMinutes}"></div></div>`;}
-function saveBasics(){S.competition={...S.competition,name:$('competitionName').value||'MSS Competition',start:$('startDate').value,end:$('endDate').value,gameLength:+$('gameLength').value,leagueGames:+($('leagueGames')?.value||S.competition.leagueGames),poolGames:+($('poolGames')?.value||S.competition.poolGames),postseasonTeams:+($('postseasonTeams')?.value||S.competition.postseasonTeams),restMinutes:+($('restMinutes')?.value||S.competition.restMinutes)};persist();$('homeMsg').innerHTML='<p class="success">Competition details saved.</p>'}
-function addFacility(){if(!$('facilityName').value.trim())return alert('Enter a facility name.');S.facilities.push({id:uid('f'),name:$('facilityName').value.trim(),address:$('facilityAddress').value.trim(),group:$('travelGroup').value.trim(),travel:+$('travelMinutes').value||20});$('facilityName').value='';persist()}
-function del(arr,id){S[arr]=S[arr].filter(x=>x.id!==id);if(arr==='facilities'){S.courts=S.courts.filter(x=>x.facilityId!==id);S.teams.forEach(t=>{if(t.facilityId===id)t.facilityId=''})}if(arr==='divisions')S.teams=S.teams.filter(x=>x.divisionId!==id);persist()}
-function addCourtWindow(){if(!$('courtFacility').value||!$('courtName').value||!$('courtDate').value)return alert('Complete facility, court, and date.');S.courts.push({id:uid('c'),facilityId:$('courtFacility').value,name:$('courtName').value.trim(),date:$('courtDate').value,start:$('courtStart').value,end:$('courtEnd').value});persist()}
-function addDivision(){if(!$('divisionName').value.trim())return;S.divisions.push({id:uid('d'),name:$('divisionName').value.trim(),gender:$('divisionGender').value,level:$('divisionLevel').value});$('divisionName').value='';persist()}
-function addTeam(){if(!$('teamDivision').value||!$('teamName').value.trim())return alert('Choose a division and enter a team.');S.teams.push({id:uid('t'),divisionId:$('teamDivision').value,name:$('teamName').value.trim(),coach:$('coachName').value.trim(),facilityId:$('teamFacility').value,blackouts:$('teamBlackouts').value.split(',').map(x=>x.trim()).filter(Boolean),notes:$('teamNotes').value.trim()});$('teamName').value='';$('coachName').value='';$('teamBlackouts').value='';$('teamNotes').value='';persist()}
-function options(items,all=''){return `<option value="">${all}</option>`+items.map(x=>`<option value="${x.id}">${x.name}</option>`).join('')}
-function renderSetupLists(){ $('facilityList').innerHTML=S.facilities.length?`<table><tr><th>Facility</th><th>Location</th><th>Travel Group</th><th></th></tr>${S.facilities.map(f=>`<tr><td>${f.name}</td><td>${f.address||'—'}</td><td>${f.group||'—'} (${f.travel} min)</td><td><button class="danger small" onclick="del('facilities','${f.id}')">Remove</button></td></tr>`).join('')}</table>`:'<p class="muted">No facilities added.</p>';
-$('courtFacility').innerHTML=options(S.facilities,'Select facility');$('teamFacility').innerHTML=options(S.facilities,'No preference');$('courtList').innerHTML=S.courts.length?`<table><tr><th>Date</th><th>Facility</th><th>Court</th><th>Window</th><th></th></tr>${S.courts.sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start)).map(c=>`<tr><td>${c.date}</td><td>${nameOf(S.facilities,c.facilityId)}</td><td>${c.name}</td><td>${c.start}–${c.end}</td><td><button class="danger small" onclick="del('courts','${c.id}')">Remove</button></td></tr>`).join('')}</table>`:'<p class="muted">No court availability entered.</p>';
-$('divisionList').innerHTML=S.divisions.length?S.divisions.map(d=>`<span class="pill">${d.name} · ${d.level} <button class="danger small" onclick="del('divisions','${d.id}')">×</button></span>`).join(''):'<p class="muted">No divisions added.</p>';$('teamDivision').innerHTML=options(S.divisions,'Select division');$('teamList').innerHTML=S.teams.length?`<table><tr><th>Division</th><th>Team</th><th>Coach</th><th>Preferred Facility</th><th>Restrictions</th><th></th></tr>${S.teams.map(t=>`<tr><td>${nameOf(S.divisions,t.divisionId)}</td><td>${t.name}</td><td>${t.coach||'—'}</td><td>${nameOf(S.facilities,t.facilityId)||'—'}</td><td>${t.blackouts.join(', ')||'—'}</td><td><button class="danger small" onclick="del('teams','${t.id}')">Remove</button></td></tr>`).join('')}</table>`:'<p class="muted">No teams added.</p>'}
-function nameOf(arr,id){return arr.find(x=>x.id===id)?.name||''}
-function timeToMin(t){let[a,b]=t.split(':').map(Number);return a*60+b}function minToTime(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
-function slots(){let out=[];for(const c of S.courts){for(let m=timeToMin(c.start);m+S.competition.gameLength<=timeToMin(c.end);m+=S.competition.gameLength)out.push({courtId:c.id,facilityId:c.facilityId,court:c.name,date:c.date,time:minToTime(m),minute:m})}return out.sort((a,b)=>(a.date+a.time+a.facilityId+a.court).localeCompare(b.date+b.time+b.facilityId+b.court))}
-function pairingsRoundRobin(teams,target){let pairs=[];for(let i=0;i<teams.length;i++)for(let j=i+1;j<teams.length;j++)pairs.push([teams[i],teams[j]]);let counts=Object.fromEntries(teams.map(t=>[t.id,0])),out=[];let safety=0;while(Object.values(counts).some(x=>x<target)&&safety++<1000){let candidates=pairs.filter(([a,b])=>counts[a.id]<target&&counts[b.id]<target).sort((p,q)=>(counts[p[0].id]+counts[p[1].id])-(counts[q[0].id]+counts[q[1].id]));if(!candidates.length)break;let p=candidates[0];out.push(p);counts[p[0].id]++;counts[p[1].id]++;pairs=pairs.filter(x=>x!==p);if(!pairs.length&&Object.values(counts).some(x=>x<target)){pairs=[];for(let i=0;i<teams.length;i++)for(let j=i+1;j<teams.length;j++)pairs.push([teams[i],teams[j]])}}return out}
-function generateSchedule(){saveBasics();if(!S.courts.length||!S.teams.length)return alert('Add teams and court availability first.');let pairs=[];for(const d of S.divisions){const ts=S.teams.filter(t=>t.divisionId===d.id);const target=S.mode==='tournament'?S.competition.poolGames:S.competition.leagueGames;pairingsRoundRobin(ts,target).forEach(p=>pairs.push({divisionId:d.id,home:p[0],away:p[1],type:S.mode==='tournament'?'Pool Play':'Regular Season'}))}let sl=slots(),games=[],teamLast={};for(const p of pairs){let pick=sl.findIndex(s=>!p.home.blackouts.includes(s.date)&&!p.away.blackouts.includes(s.date)&&(!teamLast[p.home.id]||gapOK(teamLast[p.home.id],s))&&(!teamLast[p.away.id]||gapOK(teamLast[p.away.id],s)));if(pick<0)pick=sl.findIndex(s=>!p.home.blackouts.includes(s.date)&&!p.away.blackouts.includes(s.date));if(pick<0){games.push({id:uid('g'),divisionId:p.divisionId,type:p.type,homeId:p.home.id,awayId:p.away.id,date:'UNSCHEDULED',time:'',facilityId:'',court:'',homeScore:'',awayScore:''});continue}let s=sl.splice(pick,1)[0],g={id:uid('g'),divisionId:p.divisionId,type:p.type,homeId:p.home.id,awayId:p.away.id,...s,homeScore:'',awayScore:''};games.push(g);teamLast[p.home.id]=s;teamLast[p.away.id]=s}S.games=games;S.brackets=[];persist();$('generateMsg').innerHTML=`<p class="success">Generated ${games.filter(g=>g.date!=='UNSCHEDULED').length} games. ${games.filter(g=>g.date==='UNSCHEDULED').length} could not be placed in available slots.</p>`;showTab('schedule')}
-function gapOK(last,s){if(last.date!==s.date)return true;return Math.abs(s.minute-last.minute)>=S.competition.gameLength+S.competition.restMinutes}
-function renderGenerate(){const cap=slots().length,needed=S.divisions.reduce((n,d)=>{let ct=S.teams.filter(t=>t.divisionId===d.id).length,target=S.mode==='tournament'?S.competition.poolGames:S.competition.leagueGames;return n+Math.ceil(ct*target/2)},0);$('generationSummary').innerHTML=[['Teams',S.teams.length],['Available Slots',cap],['Estimated Games',needed],['Unplaced Risk',Math.max(0,needed-cap)]].map(x=>`<div class="metric"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('');$('generateControls').innerHTML=`<p class="note">The prototype balances game counts, avoids team blackout dates, and tries to provide ${S.competition.restMinutes} minutes of rest. Advanced travel optimization and coach conflict rules are planned next.</p>`}
-function filterOptions(){let divOpts='<option value="">All divisions</option>'+S.divisions.map(d=>`<option value="${d.id}">${d.name}</option>`).join(''),facOpts='<option value="">All facilities</option>'+S.facilities.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');['scheduleDivisionFilter','publicDivision'].forEach(id=>{let v=$(id)?.value;$(id).innerHTML=divOpts;$(id).value=v||''});['scheduleFacilityFilter','publicFacility'].forEach(id=>{let v=$(id)?.value;$(id).innerHTML=facOpts;$(id).value=v||''})}
-function gameRows(games,scoreInputs=false){if(!games.length)return '<p class="muted">No games match these filters.</p>';return `<div class="table-wrap"><table><tr><th>Date</th><th>Time</th><th>Division</th><th>Type</th><th>Facility / Court</th><th>Matchup</th>${scoreInputs?'<th>Score</th>':''}</tr>${games.map(g=>`<tr><td>${g.date}</td><td>${g.time||'—'}</td><td>${nameOf(S.divisions,g.divisionId)}</td><td>${g.type}</td><td>${nameOf(S.facilities,g.facilityId)||'—'}${g.court?' / '+g.court:''}</td><td>${nameOf(S.teams,g.homeId)} vs. ${nameOf(S.teams,g.awayId)}</td>${scoreInputs?`<td><input style="width:60px" type="number" value="${g.homeScore}" onchange="score('${g.id}','home',this.value)"> – <input style="width:60px" type="number" value="${g.awayScore}" onchange="score('${g.id}','away',this.value)"></td>`:''}</tr>`).join('')}</table></div>`}
-function renderSchedule(){filterOptions();let d=$('scheduleDivisionFilter').value,f=$('scheduleFacilityFilter').value;let gs=S.games.filter(g=>(!d||g.divisionId===d)&&(!f||g.facilityId===f)).sort(gameSort);$('scheduleTable').innerHTML=gameRows(gs)}function gameSort(a,b){return (a.date+a.time+a.court).localeCompare(b.date+b.time+b.court)}
-function score(id,side,val){let g=S.games.find(x=>x.id===id);g[side+'Score']=val===''?'':+val;localStorage.setItem('mssCompetitionV01',JSON.stringify(S));renderStandings()}
-function standingsFor(divId){let ts=S.teams.filter(t=>t.divisionId===divId),rows=Object.fromEntries(ts.map(t=>[t.id,{team:t,gp:0,w:0,l:0,pf:0,pa:0,pd:0}]));S.games.filter(g=>g.divisionId===divId&&['Regular Season','Pool Play'].includes(g.type)&&g.homeScore!==''&&g.awayScore!=='').forEach(g=>{let h=rows[g.homeId],a=rows[g.awayId];if(!h||!a)return;h.gp++;a.gp++;h.pf+=+g.homeScore;h.pa+=+g.awayScore;a.pf+=+g.awayScore;a.pa+=+g.homeScore;if(+g.homeScore>+g.awayScore){h.w++;a.l++}else if(+g.awayScore>+g.homeScore){a.w++;h.l++}h.pd=h.pf-h.pa;a.pd=a.pf-a.pa});return Object.values(rows).sort((a,b)=>b.w-a.w||b.pd-a.pd||b.pf-a.pf)}
-function renderStandings(){$('scoreTable').innerHTML=gameRows(S.games.filter(g=>['Regular Season','Pool Play'].includes(g.type)).sort(gameSort),true);$('standings').innerHTML=S.divisions.map(d=>`<h3>${d.name}</h3><table><tr><th>Seed</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>Diff.</th></tr>${standingsFor(d.id).map((r,i)=>`<tr><td>${i+1}</td><td>${r.team.name}</td><td>${r.gp}</td><td>${r.w}</td><td>${r.l}</td><td>${r.pf}</td><td>${r.pa}</td><td>${r.pd}</td></tr>`).join('')}</table>`).join('')||'<p class="muted">Add divisions and teams.</p>'}
-function buildPostseason(){S.brackets=[];for(const d of S.divisions){let ranked=standingsFor(d.id),n=S.mode==='tournament'?ranked.length:Math.min(S.competition.postseasonTeams,ranked.length);let size=1;while(size<n)size*=2;let seeds=ranked.slice(0,n).map(r=>r.team);while(seeds.length<size)seeds.push(null);let matches=[];for(let i=0;i<size/2;i++)matches.push({id:uid('m'),round:1,a:seeds[i]?.id||'',b:seeds[size-1-i]?.id||'',label:`${i+1}`});S.brackets.push({divisionId:d.id,size,matches})}persist();renderBrackets()}
-function renderBrackets(){$('postseasonControls').innerHTML=S.mode==='league'?'<p class="note">This competition is configured as League only. Change the format to add a postseason.</p>':`<p class="note">Seeds are based on wins, then point differential, then points scored. Brackets can be rebuilt after final scores are entered.</p>`;$('brackets').innerHTML=S.brackets.length?S.brackets.map(b=>`<h3>${nameOf(S.divisions,b.divisionId)}</h3><div class="bracket"><div class="round"><h4>Opening Round</h4>${b.matches.map(m=>`<div class="match"><div>${nameOf(S.teams,m.a)||'BYE'}</div><div>${nameOf(S.teams,m.b)||'BYE'}</div></div>`).join('')}</div><div class="round"><h4>Next Rounds</h4><div class="match muted">Winners advance here. Interactive bracket advancement is planned for the next version.</div></div></div>`).join(''):'<p class="muted">No brackets built yet.</p>'}
-function renderPublic(){filterOptions();$('publicTitle').textContent=S.competition.name+' — Public Schedule';let d=$('publicDivision').value,f=$('publicFacility').value,q=$('publicTeam').value.toLowerCase(),date=$('publicDate').value;let gs=S.games.filter(g=>(!d||g.divisionId===d)&&(!f||g.facilityId===f)&&(!date||g.date===date)&&(!q||(nameOf(S.teams,g.homeId)+' '+nameOf(S.teams,g.awayId)).toLowerCase().includes(q))).sort(gameSort);$('publicSchedule').innerHTML=gameRows(gs)}
-function downloadCSV(){let rows=[['Date','Time','Division','Type','Facility','Court','Home','Away','Home Score','Away Score'],...S.games.sort(gameSort).map(g=>[g.date,g.time,nameOf(S.divisions,g.divisionId),g.type,nameOf(S.facilities,g.facilityId),g.court,nameOf(S.teams,g.homeId),nameOf(S.teams,g.awayId),g.homeScore,g.awayScore])];let csv=rows.map(r=>r.map(x=>'"'+String(x??'').replaceAll('"','""')+'"').join(',')).join('\n');download('MSS_Competition_Schedule.csv',csv,'text/csv')}
-function exportData(){download((S.competition.name||'MSS_Competition').replace(/[^a-z0-9]+/gi,'_')+'_Setup.json',JSON.stringify(S,null,2),'application/json')}function download(name,text,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
-function importData(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{S=JSON.parse(r.result);persist()}catch{alert('That file is not a valid MSS setup export.')}};r.readAsText(f)}
-function resetAll(){if(confirm('Clear this competition and start over?')){S=structuredClone(defaultState);persist()}}
-function loadSample(){S=structuredClone(defaultState);S.mode='league_postseason';S.competition={...S.competition,name:'MSS Metro League & Championship',start:'2026-08-15',end:'2026-10-25',leagueGames:4,postseasonTeams:4};S.facilities=[{id:'f1',name:'The HIVE',address:'Edmond, OK',group:'Edmond',travel:20},{id:'f2',name:'HIVE Annex',address:'Edmond, OK',group:'Edmond',travel:10}];S.divisions=[{id:'d1',name:'6th Grade Girls',gender:'Girls',level:'Open'},{id:'d2',name:'7th Grade Girls',gender:'Girls',level:'Open'}];let names=['Swarm Blue','Swarm Black','Arsenal','Lady Thunder','Flight','Wildcats'];S.teams=[];S.divisions.forEach((d,di)=>names.forEach((n,i)=>S.teams.push({id:`t${di}${i}`,divisionId:d.id,name:n+(di?' 7G':''),coach:'Coach '+String.fromCharCode(65+i),facilityId:i<3?'f1':'f2',blackouts:[],notes:''})));S.courts=[];['2026-08-15','2026-08-22','2026-08-29','2026-09-05','2026-09-12','2026-09-19'].forEach((date,di)=>{S.courts.push({id:uid('c'),facilityId:'f1',name:'Court 1',date,start:'09:00',end:'18:00'});S.courts.push({id:uid('c'),facilityId:'f1',name:'Court 2',date,start:'09:00',end:'18:00'});S.courts.push({id:uid('c'),facilityId:'f2',name:'Annex Court',date,start:'09:00',end:'18:00'})});persist();$('homeMsg').innerHTML='<p class="success">Sample league with postseason loaded. Open Generate to build the schedule.</p>'}
+<main>
+<section id="admin-registrations" class="panel">
+  <div class="grid">
+    <div class="card">
+      <h2>Import Registered Teams</h2>
+      <p class="hint">CSV headers: Team Name, Coach, Gender, Grade, Skill, Request. Divisions and pools are created automatically.</p>
+      <input id="csvFile" type="file" accept=".csv">
+      <button class="primary" id="importCsvBtn">Import CSV</button>
+      <button class="secondary" id="loadSampleBtn">Load 3v3 Sample Teams</button>
+      <div id="importStatus"></div>
+    </div>
+    <div class="card">
+      <h2>Add Team Manually</h2>
+      <div class="row">
+        <div class="field"><label>Team Name</label><input id="teamName" placeholder="Team name"></div>
+        <div class="field"><label>Coach</label><input id="coachName" placeholder="Coach name"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Gender</label><select id="gender"><option>Girls</option><option>Boys</option><option>Co-Ed</option></select></div>
+        <div class="field"><label>Grade Group</label><select id="grade"><option>3rd/4th Grade</option><option>5th/6th Grade</option><option>7th/8th Grade</option><option>HS JV</option><option>HS Varsity</option></select></div>
+        <div class="field"><label>Level</label><select id="skill"><option>Open</option><option>Rec</option></select></div>
+      </div>
+      <label>Schedule Request</label><select id="request"><option value="">None</option><option value="no_sat_am">No Saturday morning</option><option value="no_sun">No Sunday</option><option value="no_am">No morning games</option><option value="no_pm">No afternoon/evening games</option></select>
+      <button class="primary" id="addTeamBtn">Add Team</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h2>Registration List</h2>
+    <input id="teamSearch" placeholder="Search team, coach, or division">
+    <div id="teamsList"></div>
+  </div>
+</section>
 
-function isProgramMode(){return ['camp','tryout_showcase'].includes(S.mode)}
-function modeLabel(){return ({tournament:'Tournament',league:'League',league_postseason:'League + Postseason',camp:'Camp / Clinic',tryout_showcase:'Tryout / Showcase'})[S.mode]||S.mode}
-function renderModes(){const modes=[['tournament','Tournament','Pool play, bracket play, or both at one or multiple locations.'],['league','League','Regular-season games, standings, rescheduling, and public schedules.'],['league_postseason','League + Postseason','Regular season followed by an automatically seeded championship event.'],['camp','Camp / Clinic','Schedule grade groups, instructional sessions, stations, staff, and facilities.'],['tryout_showcase','Tryout / Showcase','Merge registrations, divide evaluation groups, assign courts and evaluators, and publish session times.']];$('modeCards').innerHTML=modes.map(m=>`<div class="mode-card ${S.mode===m[0]?'selected':''}" onclick="S.mode='${m[0]}';persist()"><h3>${m[1]}</h3><p>${m[2]}</p></div>`).join('');$('modeOptions').innerHTML=isProgramMode()?`<div class="grid"><div><label>Default Session Length</label><input id="programSessionLength" type="number" value="${S.competition.sessionLength||60}"></div><div><label>Default Group Capacity</label><input id="programCapacity" type="number" value="${S.competition.groupCapacity||24}"></div><div><label>Check-in Minutes Before</label><input id="checkinMinutes" type="number" value="${S.competition.checkinMinutes||30}"></div></div>`:`<div class="grid"><div><label>${S.mode==='tournament'?'Pool Games Per Team':'League Games Per Team'}</label><input id="targetGames" type="number" value="${S.mode==='tournament'?S.competition.poolGames:S.competition.leagueGames}"></div><div><label>Minimum Rest Minutes</label><input id="restMinutes" type="number" value="${S.competition.restMinutes}"></div>${S.mode==='league_postseason'?`<div><label>Postseason Teams</label><input id="postseasonTeams" type="number" value="${S.competition.postseasonTeams}"></div>`:''}</div>`}
-const oldSaveBasics=saveBasics; saveBasics=function(){oldSaveBasics(); if(isProgramMode()){S.competition.sessionLength=+$('programSessionLength').value||60;S.competition.groupCapacity=+$('programCapacity').value||24;S.competition.checkinMinutes=+$('checkinMinutes').value||30;localStorage.setItem('mssCompetitionV01',JSON.stringify(S));}}
-function parseCSV(text){let rows=[],row=[],cell='',q=false;for(let i=0;i<text.length;i++){let c=text[i],n=text[i+1];if(c==='"'&&q&&n==='"'){cell+='"';i++;}else if(c==='"')q=!q;else if(c===','&&!q){row.push(cell);cell='';}else if((c==='\n'||c==='\r')&&!q){if(c==='\r'&&n==='\n')i++;row.push(cell);if(row.some(x=>x.trim()))rows.push(row);row=[];cell='';}else cell+=c;}row.push(cell);if(row.some(x=>x.trim()))rows.push(row);return rows}
-function importRegistrationCSV(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{let rows=parseCSV(r.result);if(rows.length<2)return alert('No registration rows found.');let h=rows[0].map(x=>x.trim().toLowerCase());let get=(arr,names)=>{for(const n of names){let i=h.indexOf(n);if(i>=0)return arr[i]?.trim()||''}return''};S.registrations=rows.slice(1).map((a,i)=>({id:uid('r'),name:get(a,['team name','participant name','name'])||`Registration ${i+1}`,division:get(a,['division','grade','age group']),coach:get(a,['coach','coach name']),email:get(a,['email','parent email']),type:get(a,['event type','registration type']),status:get(a,['status','paid status'])||'Imported'}));let importType=$('registrationImportType').value;if(importType==='teams'){for(const r of S.registrations){let d=S.divisions.find(x=>x.name.toLowerCase()===r.division.toLowerCase());if(!d){d={id:uid('d'),name:r.division||'Unassigned Division',gender:'Coed',level:'Open'};S.divisions.push(d)}if(!S.teams.some(t=>t.name.toLowerCase()===r.name.toLowerCase()))S.teams.push({id:uid('t'),divisionId:d.id,name:r.name,coach:r.coach,facilityId:'',blackouts:[],notes:r.email})}}else{for(const r of S.registrations){let d=S.divisions.find(x=>x.name.toLowerCase()===r.division.toLowerCase());if(!d){d={id:uid('d'),name:r.division||'Unassigned Group',gender:'Coed',level:'Open'};S.divisions.push(d)}}}persist();$('registrationStatus').className='success';$('registrationStatus').textContent=`Imported ${S.registrations.length} registrations from ${f.name}.`;renderRegistrations();};r.readAsText(f)}
-function renderRegistrations(){if(!$('registrationSummary'))return;let groups=new Set(S.registrations.map(r=>r.division).filter(Boolean));$('registrationSummary').innerHTML=[['Registrations',S.registrations.length],['Groups / Divisions',groups.size],['Teams',S.teams.length],['Event Format',modeLabel()]].map(x=>`<div class="metric"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('');$('registrationTable').innerHTML=S.registrations.length?`<div class="table-wrap"><table><tr><th>Name</th><th>Division / Grade</th><th>Coach</th><th>Email</th><th>Status</th></tr>${S.registrations.map(r=>`<tr><td>${r.name}</td><td>${r.division||'—'}</td><td>${r.coach||'—'}</td><td>${r.email||'—'}</td><td>${r.status}</td></tr>`).join('')}</table></div>`:'<p class="muted">No registrations imported.</p>'}
-function downloadRegistrationTemplate(){download('MSS_Registration_Import_Template.csv','Name,Division,Coach,Email,Event Type,Status\nSwarm Blue,6th Grade Girls,Coach Smith,coach@example.com,League,Paid\n','text/csv')}
-function addSession(){S.sessions=S.sessions||[];let fac=$('sessionFacility').value;S.sessions.push({id:uid('s'),name:$('sessionName').value||'Session',divisionId:$('sessionDivision').value,staff:$('sessionStaff').value,capacity:+$('sessionCapacity').value||24,date:$('sessionDate').value,start:$('sessionStart').value,end:$('sessionEnd').value,facilityId:fac});persist();['sessionName','sessionStaff'].forEach(id=>$(id).value='')}
-function renderSessions(){if(!$('sessionList'))return;let dop='<option value="">All / General</option>'+S.divisions.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');$('sessionDivision').innerHTML=dop;let fop='<option value="">Unassigned</option>'+S.facilities.map(f=>`<option value="${f.id}">${f.name}</option>`).join('');$('sessionFacility').innerHTML=fop;$('sessionList').innerHTML=(S.sessions||[]).length?`<table><tr><th>Session</th><th>Group</th><th>Date / Time</th><th>Facility</th><th>Staff</th><th>Capacity</th></tr>${S.sessions.map(s=>`<tr><td>${s.name}</td><td>${nameOf(S.divisions,s.divisionId)||'General'}</td><td>${s.date} ${s.start}–${s.end}</td><td>${nameOf(S.facilities,s.facilityId)||'—'}</td><td>${s.staff||'—'}</td><td>${s.capacity}</td></tr>`).join('')}</table>`:'<p class="muted">No sessions added.</p>'}
-const competitionGenerate=generateSchedule;generateSchedule=function(){if(!isProgramMode())return competitionGenerate();saveBasics();if(!(S.sessions||[]).length)return alert('Add at least one session first.');S.games=S.sessions.map(s=>({id:uid('g'),divisionId:s.divisionId,type:S.mode==='camp'?'Camp / Clinic Session':'Evaluation Session',homeId:'',awayId:'',date:s.date,time:s.start,facilityId:s.facilityId,court:s.name,homeScore:'',awayScore:'',staff:s.staff,end:s.end,capacity:s.capacity}));persist();$('generateMsg').innerHTML=`<p class="success">Published ${S.games.length} ${modeLabel()} sessions to the master schedule.</p>`;showTab('schedule')}
-const oldGameRows=gameRows;gameRows=function(games,scoreInputs=false){if(!isProgramMode())return oldGameRows(games,scoreInputs);if(!games.length)return '<p class="muted">No sessions match these filters.</p>';return `<div class="table-wrap"><table><tr><th>Date</th><th>Time</th><th>Group</th><th>Session</th><th>Facility / Space</th><th>Assigned Staff</th><th>Capacity</th></tr>${games.map(g=>`<tr><td>${g.date}</td><td>${g.time||'—'}${g.end?'–'+g.end:''}</td><td>${nameOf(S.divisions,g.divisionId)||'General'}</td><td>${g.court||g.type}</td><td>${nameOf(S.facilities,g.facilityId)||'—'}</td><td>${g.staff||'—'}</td><td>${g.capacity||'—'}</td></tr>`).join('')}</table></div>`}
-const oldRenderStandings=renderStandings;renderStandings=function(){if(!isProgramMode())return oldRenderStandings();$('scoreTable').innerHTML='<p class="note">Score entry and standings do not apply to this event format. Use this area in future versions for attendance, evaluations, ratings, and participant placement.</p>';$('standings').innerHTML=`<h3>${S.mode==='tryout_showcase'?'Evaluation & Placement':'Attendance & Completion'}</h3><p class="muted">This prototype establishes the shared architecture. Detailed evaluator scoring and team-placement workflows are the next development layer.</p>`}
-const oldRenderBrackets=renderBrackets;renderBrackets=function(){if(isProgramMode()){$('postseasonControls').innerHTML='<p class="note">Postseason brackets do not apply to camps, clinics, tryouts, or showcases.</p>';$('brackets').innerHTML='';return}oldRenderBrackets()}
+<section id="admin-board" class="panel">
+  <div class="card">
+    <div class="approval-banner">
+      <div>
+        <h2 style="margin-bottom:4px">Division & Pool Big Board</h2>
+        <div class="hint">Teams are auto-grouped by Grade + Gender + Level. Oversized divisions are split evenly into pools. Drag teams between pools, or use the Move control.</div>
+      </div>
+      <div class="toolbar" style="margin:0">
+        <button class="secondary" id="rebalanceBtn">Rebalance Pools</button>
+        <button class="success" id="approveBtn">Approve Divisions & Pools</button>
+        <button class="danger hidden" id="unlockBtn">Unlock Board</button>
+      </div>
+    </div>
+    <div id="boardStatus"></div>
+    <div id="bigBoard" class="board"></div>
+  </div>
+</section>
 
-function renderAll(){renderModes();$('competitionName').value=S.competition.name;$('startDate').value=S.competition.start;$('endDate').value=S.competition.end;$('gameLength').value=S.competition.gameLength;renderSetupLists();renderRegistrations();renderSessions();renderGenerate();filterOptions();renderSchedule();renderStandings();renderBrackets();renderPublic()}
-init();
-</script></body></html>
+<section id="admin-settings" class="panel">
+  <div class="grid">
+    <div class="card">
+      <h2>League Setup</h2>
+      <div class="row">
+        <div class="field"><label>League Name</label><input id="leagueName"></div>
+        <div class="field"><label>Games per Team</label><input id="minGames" type="number" min="1" value="8"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Season Start</label><input id="seasonStart" type="date"></div>
+        <div class="field"><label>Number of Weeks</label><input id="seasonWeeks" type="number" min="1" max="30" value="8"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Game Length</label><select id="gameLength"><option value="20">20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60" selected>60 minutes</option><option value="75">75 minutes</option></select></div>
+        <div class="field"><label>Minimum Rest</label><select id="minRest"><option value="0">No added rest</option><option value="1" selected>One game slot</option><option value="2">Two game slots</option></select></div>
+        <div class="field"><label>Default Max Teams / Pool</label><input id="defaultPoolMax" type="number" min="2" max="16" value="8"></div>
+      </div>
+      <label>League Days</label>
+      <div class="row"><label><input class="dow" type="checkbox" value="6" checked> Saturday</label><label><input class="dow" type="checkbox" value="0" checked> Sunday</label></div>
+      <label><input id="avoidRepeats" type="checkbox" checked> Avoid repeat opponents until all reasonable opponents have been played</label>
+      <label>Exception Date</label><div class="row"><input id="exceptionDate" type="date" class="field"><button class="secondary" id="addExceptionBtn">Add</button></div>
+      <div id="exceptions"></div>
+    </div>
+    <div class="card">
+      <h2>Courts & Hours</h2>
+      <p class="hint">One building, up to four courts. Add only the courts being used.</p>
+      <div class="row">
+        <div class="field"><label>Court Name</label><input id="courtName" placeholder="Court 1"></div>
+        <div class="field"><label>Start</label><input id="courtStart" type="time" value="08:00"></div>
+        <div class="field"><label>End</label><input id="courtEnd" type="time" value="18:00"></div>
+      </div>
+      <button class="primary" id="addCourtBtn">Add Court</button>
+      <div id="courtsList"></div>
+      <hr><div id="capacity"></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="toolbar">
+      <button class="primary" id="saveBtn">Save</button>
+      <button class="secondary" id="exportSetupBtn">Export Setup</button>
+      <label class="secondary" style="margin:0">Import Setup<input id="setupFile" type="file" accept=".json" class="hidden"></label>
+      <button class="danger" id="resetBtn">Reset Everything</button>
+    </div>
+  </div>
+</section>
+
+<section id="admin-schedule" class="panel">
+  <div class="card">
+    <div class="toolbar">
+      <button class="primary" id="generateBtn">Generate Schedule</button>
+      <button class="secondary" id="exportScheduleBtn">Export CSV</button>
+      <button class="secondary" id="printBtn">Print</button>
+      <select id="scheduleFilter"></select>
+    </div>
+    <div id="genSummary"></div>
+    <div class="table-wrap"><table id="scheduleTable"></table></div>
+  </div>
+</section>
+
+<section id="admin-results" class="panel"><div class="card"><h2>Score Entry</h2><p class="hint">Enter final scores. Pool standings update automatically.</p><div class="table-wrap"><table id="resultsTable"></table></div></div></section>
+<section id="admin-standings" class="panel"><div id="standingsAdmin"></div></section>
+
+<section id="coach-view" class="panel">
+  <div class="card"><div class="public-title">Coach View</div><div class="row"><div class="field"><label>Coach</label><select id="coachSelect"></select></div><div class="field"><label>Team</label><select id="coachTeamSelect"></select></div></div></div>
+  <div class="card" style="margin-top:14px"><div id="coachSchedule"></div></div>
+  <div class="card" style="margin-top:14px"><div id="coachStandings"></div></div>
+</section>
+
+<section id="public-view" class="panel">
+  <div class="card"><div id="publicHeader"></div><div class="toolbar"><select id="publicDivision"></select><button class="secondary" id="publicPrintBtn">Print</button></div></div>
+  <div class="card" style="margin-top:14px"><h2>Schedule & Results</h2><div id="publicSchedule"></div></div>
+  <div class="card" style="margin-top:14px"><h2>Standings</h2><div id="publicStandings"></div></div>
+</section>
+</main>
+
+<script>
+const KEY='mss3v3LeagueV8';
+let state={
+  teams:[],courts:[],
+  settings:{leagueName:'MSS 3v3 League',seasonStart:new Date().toISOString().slice(0,10),seasonWeeks:8,minGames:8,gameLength:60,minRest:1,defaultPoolMax:8,days:[6,0],avoidRepeats:true,exceptions:[]},
+  pools:{},approved:false,games:[]
+};
+const $=id=>document.getElementById(id),uid=p=>p+'_'+Math.random().toString(36).slice(2,9);
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+const divisionKey=t=>`${t.grade}|${t.gender}|${t.skill}`;
+const divisionLabel=k=>{const [g,sex,level]=k.split('|');return `${g} ${sex} • ${level}`};
+const poolKey=(d,p)=>`${d}::${p}`;
+const teamById=id=>state.teams.find(t=>t.id===id)||{name:'Unknown'};
+function fmtTime(t){let[h,m]=t.split(':').map(Number);return `${((h+11)%12)+1}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`}
+function minutes(t){let[h,m]=t.split(':').map(Number);return h*60+m}
+function requestLabel(r){return({no_sat_am:'No Saturday morning',no_sun:'No Sunday',no_am:'No morning games',no_pm:'No afternoon/evening'})[r]||''}
+function persist(){localStorage.setItem(KEY,JSON.stringify(state))}
+function save(){syncSettings();persist();renderAll()}
+function load(){const r=localStorage.getItem(KEY);if(r)try{state=Object.assign(state,JSON.parse(r))}catch(e){};hydrate();ensurePools();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin')}
+function hydrate(){
+  $('leagueName').value=state.settings.leagueName||'MSS 3v3 League';$('seasonStart').value=state.settings.seasonStart;$('seasonWeeks').value=state.settings.seasonWeeks||8;
+  $('minGames').value=state.settings.minGames||8;$('gameLength').value=state.settings.gameLength||60;$('minRest').value=state.settings.minRest??1;$('defaultPoolMax').value=state.settings.defaultPoolMax||8;
+  $('avoidRepeats').checked=state.settings.avoidRepeats!==false;document.querySelectorAll('.dow').forEach(x=>x.checked=(state.settings.days||[6,0]).includes(+x.value));
+}
+function syncSettings(){
+  state.settings.leagueName=$('leagueName').value.trim()||'MSS 3v3 League';state.settings.seasonStart=$('seasonStart').value;state.settings.seasonWeeks=+$('seasonWeeks').value||8;
+  state.settings.minGames=+$('minGames').value||8;state.settings.gameLength=+$('gameLength').value||60;state.settings.minRest=+$('minRest').value||0;
+  state.settings.defaultPoolMax=+$('defaultPoolMax').value||8;state.settings.days=[...document.querySelectorAll('.dow:checked')].map(x=>+x.value);state.settings.avoidRepeats=$('avoidRepeats').checked;
+}
+function setView(view){
+  const u=new URL(location.href);u.searchParams.set('view',view);history.replaceState({},'',u);
+  document.querySelectorAll('.viewbar button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  document.querySelector('.admin-tabs').classList.toggle('hidden',view!=='admin');document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  if(view==='admin')setTab(localStorage.getItem('mss3v3tab')||'registrations');else{$(view+'-view').classList.add('active');view==='coach'?renderCoach():renderPublic()}
+}
+function setTab(tab){localStorage.setItem('mss3v3tab',tab);document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));document.querySelectorAll('[id^="admin-"]').forEach(p=>p.classList.remove('active'));$('admin-'+tab).classList.add('active');if(tab==='board')renderBoard();if(tab==='schedule')renderSchedule();if(tab==='results')renderResults();if(tab==='standings')renderStandings()}
+document.querySelectorAll('.viewbar button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+
+function addTeam(){
+  const name=$('teamName').value.trim();if(!name)return alert('Enter a team name.');
+  state.teams.push({id:uid('t'),name,coach:$('coachName').value.trim(),gender:$('gender').value,grade:$('grade').value,skill:$('skill').value,request:$('request').value,pool:null});
+  $('teamName').value='';$('coachName').value='';state.approved=false;ensurePools(true);save();
+}
+function removeTeam(id){state.teams=state.teams.filter(t=>t.id!==id);state.games=state.games.filter(g=>g.aId!==id&&g.bId!==id);state.approved=false;ensurePools(true);save()}
+function renderTeams(){
+  const q=$('teamSearch').value.toLowerCase();
+  const list=state.teams.filter(t=>!q||(`${t.name} ${t.coach} ${divisionLabel(divisionKey(t))}`).toLowerCase().includes(q)).sort((a,b)=>divisionKey(a).localeCompare(divisionKey(b))||a.name.localeCompare(b.name));
+  $('teamsList').innerHTML=list.map(t=>`<div class="item"><b>${esc(t.name)}</b> <span class="pill">${esc(divisionLabel(divisionKey(t)))}</span><br><span class="hint">Coach: ${esc(t.coach||'Not entered')}${t.request?' • '+requestLabel(t.request):''}</span> <button class="danger" data-remove-team="${t.id}">Remove</button></div>`).join('')||'<p class="hint">No teams imported.</p>';
+  document.querySelectorAll('[data-remove-team]').forEach(b=>b.addEventListener('click',()=>removeTeam(b.dataset.removeTeam)));
+}
+function parseCSV(text){const rows=[];let row=[],v='',q=false;for(let i=0;i<text.length;i++){const ch=text[i],n=text[i+1];if(ch==='"'&&q&&n==='"'){v+='"';i++}else if(ch==='"')q=!q;else if(ch===','&&!q){row.push(v);v=''}else if((ch==='\n'||ch==='\r')&&!q){if(ch==='\r'&&n==='\n')i++;row.push(v);if(row.some(x=>x.trim()))rows.push(row);row=[];v=''}else v+=ch}if(v||row.length){row.push(v);rows.push(row)}return rows}
+function importCSVText(text){
+  const rows=parseCSV(text);if(rows.length<2)throw new Error('CSV contains no data rows.');
+  const h=rows[0].map(x=>x.trim().toLowerCase()),ix=names=>h.findIndex(x=>names.includes(x));
+  const ti=ix(['team name','team','name']),ci=ix(['coach','coach name']),gi=ix(['gender','sex']),gri=ix(['grade','grade group','division']),si=ix(['skill','level']),ri=ix(['request','schedule request']);
+  if(ti<0||gi<0||gri<0)throw new Error('Required columns: Team Name, Gender, Grade.');
+  let added=0;rows.slice(1).forEach(c=>{const name=c[ti]?.trim();if(!name)return;state.teams.push({id:uid('t'),name,coach:ci>=0?c[ci].trim():'',gender:c[gi].trim(),grade:c[gri].trim(),skill:si>=0?(c[si].trim()||'Open'):'Open',request:ri>=0?c[ri].trim():'',pool:null});added++});
+  state.approved=false;ensurePools(true);save();return added;
+}
+function importCSV(){const f=$('csvFile').files[0];if(!f)return alert('Choose a CSV file.');const r=new FileReader();r.onload=()=>{try{const n=importCSVText(r.result);$('importStatus').innerHTML=`<div class="status ok">${n} teams imported. Divisions and pools were created automatically.</div>`}catch(e){$('importStatus').innerHTML=`<div class="status bad">${esc(e.message)}</div>`}};r.readAsText(f)}
+const sampleCSV=`Team Name,Coach,Gender,Grade,Skill,Request
+Lady Swarm,Coach Taylor,Girls,3rd/4th Grade,Open,
+Sparks,Coach Rob,Girls,3rd/4th Grade,Open,no_sat_am
+Comets,Coach Jordan,Girls,3rd/4th Grade,Open,
+Flight,Coach Casey,Girls,3rd/4th Grade,Open,
+Elite,Coach Morgan,Girls,3rd/4th Grade,Open,
+Thunder,Coach Alex,Girls,3rd/4th Grade,Open,
+Storm,Coach Jamie,Girls,3rd/4th Grade,Open,
+Hawks,Coach Chris,Girls,3rd/4th Grade,Open,
+Titans,Coach Drew,Boys,3rd/4th Grade,Open,
+Warriors,Coach Sam,Boys,3rd/4th Grade,Open,
+Panthers,Coach Pat,Boys,3rd/4th Grade,Open,
+Falcons,Coach Cameron,Boys,3rd/4th Grade,Open,
+Blazers,Coach Reese,Boys,3rd/4th Grade,Open,
+Cyclones,Coach Parker,Boys,3rd/4th Grade,Open,
+Mustangs,Coach Avery,Boys,3rd/4th Grade,Open,
+Wolves,Coach Blake,Boys,3rd/4th Grade,Open,
+Royals,Coach Taylor,Boys,3rd/4th Grade,Open,
+Knights,Coach Rob,Boys,3rd/4th Grade,Open,
+Force,Coach Jordan,Boys,3rd/4th Grade,Open,
+Select,Coach Casey,Boys,3rd/4th Grade,Open,
+Lady Thunder,Coach Morgan,Girls,5th/6th Grade,Open,
+Lady Storm,Coach Alex,Girls,5th/6th Grade,Open,
+Lady Hawks,Coach Jamie,Girls,5th/6th Grade,Open,
+Lady Heat,Coach Chris,Girls,5th/6th Grade,Open,
+Lady Lightning,Coach Drew,Girls,5th/6th Grade,Open,
+Lady Titans,Coach Sam,Girls,5th/6th Grade,Open,
+Metro Heat,Coach Pat,Boys,5th/6th Grade,Open,
+Metro Lightning,Coach Cameron,Boys,5th/6th Grade,Open,
+Metro Titans,Coach Reese,Boys,5th/6th Grade,Open,
+Metro Warriors,Coach Parker,Boys,5th/6th Grade,Open,
+Metro Panthers,Coach Avery,Boys,5th/6th Grade,Open,
+Metro Falcons,Coach Blake,Boys,5th/6th Grade,Open,
+Metro Blazers,Coach Taylor,Boys,5th/6th Grade,Open,
+Metro Elite,Coach Rob,Boys,5th/6th Grade,Open,
+Lady Wolves,Coach Jordan,Girls,7th/8th Grade,Open,
+Lady Royals,Coach Casey,Girls,7th/8th Grade,Open,
+Lady Flight,Coach Morgan,Girls,7th/8th Grade,Open,
+Lady Force,Coach Alex,Girls,7th/8th Grade,Open,
+Lady Select,Coach Jamie,Girls,7th/8th Grade,Open,
+Raptors,Coach Chris,Boys,7th/8th Grade,Open,
+Knights Gold,Coach Drew,Boys,7th/8th Grade,Open,
+United,Coach Sam,Boys,7th/8th Grade,Open,
+Cyclones Blue,Coach Pat,Boys,7th/8th Grade,Open,
+Mustangs Red,Coach Cameron,Boys,7th/8th Grade,Open,
+Wolves Black,Coach Reese,Boys,7th/8th Grade,Open,
+JV Sparks,Coach Parker,Girls,HS JV,Open,
+JV Comets,Coach Avery,Girls,HS JV,Open,
+JV Flight,Coach Blake,Girls,HS JV,Open,
+JV Elite,Coach Taylor,Girls,HS JV,Open,
+JV Thunder,Coach Rob,Boys,HS JV,Open,
+JV Storm,Coach Jordan,Boys,HS JV,Open,
+JV Hawks,Coach Casey,Boys,HS JV,Open,
+JV Heat,Coach Morgan,Boys,HS JV,Open,
+JV Titans,Coach Alex,Boys,HS JV,Open,
+Varsity Sparks,Coach Jamie,Girls,HS Varsity,Open,
+Varsity Comets,Coach Chris,Girls,HS Varsity,Open,
+Varsity Flight,Coach Drew,Girls,HS Varsity,Open,
+Varsity Elite,Coach Sam,Girls,HS Varsity,Open,
+Varsity Thunder,Coach Pat,Girls,HS Varsity,Open,
+Varsity Storm,Coach Cameron,Girls,HS Varsity,Open,
+Varsity Hawks,Coach Reese,Girls,HS Varsity,Open,
+Varsity Heat,Coach Parker,Boys,HS Varsity,Open,
+Varsity Lightning,Coach Avery,Boys,HS Varsity,Open,
+Varsity Titans,Coach Blake,Boys,HS Varsity,Open,
+Varsity Warriors,Coach Taylor,Boys,HS Varsity,Open,
+Varsity Panthers,Coach Rob,Boys,HS Varsity,Open,
+Varsity Falcons,Coach Jordan,Boys,HS Varsity,Open,
+Varsity Blazers,Coach Casey,Boys,HS Varsity,Open,
+Varsity Elite,Coach Morgan,Boys,HS Varsity,Open,`;
+
+function divisionGroups(){const g={};state.teams.forEach(t=>(g[divisionKey(t)]??=[]).push(t));return g}
+function poolLetters(n){return Array.from({length:n},(_,i)=>String.fromCharCode(65+i))}
+function ensurePools(force=false){
+  syncSettings();const groups=divisionGroups(),max=state.settings.defaultPoolMax||8;
+  Object.keys(groups).forEach(d=>{
+    const ids=groups[d].map(t=>t.id),needed=Math.max(1,Math.ceil(ids.length/max)),letters=poolLetters(needed);
+    const existing=state.pools[d];
+    if(force||!existing){
+      state.pools[d]={max,approved:false,lists:Object.fromEntries(letters.map(x=>[x,[]]))};
+      ids.forEach((id,i)=>state.pools[d].lists[letters[i%letters.length]].push(id));
+    }else{
+      existing.max=existing.max||max;const allAssigned=new Set(Object.values(existing.lists).flat());
+      ids.filter(id=>!allAssigned.has(id)).forEach((id,i)=>{const names=Object.keys(existing.lists);const target=names.sort((a,b)=>existing.lists[a].length-existing.lists[b].length)[0];existing.lists[target].push(id)});
+      Object.keys(existing.lists).forEach(p=>existing.lists[p]=existing.lists[p].filter(id=>ids.includes(id)));
+    }
+  });
+  Object.keys(state.pools).filter(d=>!groups[d]).forEach(d=>delete state.pools[d]);
+}
+function rebalancePools(){
+  if(state.approved)return;syncSettings();const groups=divisionGroups();
+  Object.entries(groups).forEach(([d,teams])=>{
+    const max=state.pools[d]?.max||state.settings.defaultPoolMax||8,needed=Math.max(1,Math.ceil(teams.length/max)),letters=poolLetters(needed);
+    state.pools[d]={max,approved:false,lists:Object.fromEntries(letters.map(x=>[x,[]]))};
+    teams.sort((a,b)=>a.name.localeCompare(b.name)).forEach((t,i)=>state.pools[d].lists[letters[i%letters.length]].push(t.id));
+  });persist();renderBoard();
+}
+function moveTeam(teamId,targetD,targetPool){
+  if(state.approved)return;
+  let sourceD=null;Object.entries(state.pools).forEach(([d,p])=>Object.values(p.lists).forEach(a=>{if(a.includes(teamId))sourceD=d}));
+  if(sourceD&&sourceD!==targetD){
+    const t=teamById(teamId),[grade,gender,skill]=targetD.split('|');t.grade=grade;t.gender=gender;t.skill=skill;
+  }
+  Object.values(state.pools).forEach(p=>Object.keys(p.lists).forEach(k=>p.lists[k]=p.lists[k].filter(id=>id!==teamId)));
+  state.pools[targetD].lists[targetPool].push(teamId);state.approved=false;persist();renderAll();
+}
+function setPoolMax(d,val){
+  if(state.approved)return;state.pools[d].max=Math.max(2,+val||8);state.pools[d].approved=false;persist();renderBoard();
+}
+function addPool(d){
+  if(state.approved)return;const names=Object.keys(state.pools[d].lists),next=String.fromCharCode(65+names.length);state.pools[d].lists[next]=[];persist();renderBoard();
+}
+function removePool(d,p){
+  if(state.approved)return;const ids=state.pools[d].lists[p];const other=Object.keys(state.pools[d].lists).filter(x=>x!==p)[0];if(!other)return alert('A division must have at least one pool.');state.pools[d].lists[other].push(...ids);delete state.pools[d].lists[p];persist();renderBoard();
+}
+function boardValidation(){
+  const errors=[];const all=[];
+  Object.entries(state.pools).forEach(([d,p])=>{
+    Object.entries(p.lists).forEach(([name,ids])=>{all.push(...ids);if(ids.length>p.max)errors.push(`${divisionLabel(d)} Pool ${name} exceeds ${p.max} teams.`);if(ids.length<2)errors.push(`${divisionLabel(d)} Pool ${name} has fewer than 2 teams.`)});
+  });
+  if(new Set(all).size!==state.teams.length)errors.push('One or more teams are unassigned or duplicated.');
+  return errors;
+}
+function approveBoard(){
+  const errors=boardValidation();if(errors.length){$('boardStatus').innerHTML=`<div class="status bad">${errors.map(esc).join('<br>')}</div>`;return}
+  state.approved=true;Object.values(state.pools).forEach(p=>p.approved=true);persist();renderAll();
+}
+function unlockBoard(){if(state.games.length&&!confirm('Unlocking the board may require the current schedule to be regenerated. Continue?'))return;state.approved=false;Object.values(state.pools).forEach(p=>p.approved=false);persist();renderAll()}
+function renderBoard(){
+  ensurePools();const errors=boardValidation();$('approveBtn').classList.toggle('hidden',state.approved);$('unlockBtn').classList.toggle('hidden',!state.approved);$('rebalanceBtn').disabled=state.approved;
+  $('boardStatus').innerHTML=state.approved?'<div class="status ok">Divisions and pools are approved. Schedule generation is unlocked.</div>':errors.length?`<div class="status warn">${errors.length} item(s) require review before approval.</div>`:'<div class="status warn">Review the board, then approve divisions and pools before scheduling.</div>';
+  const allTargets=[];Object.entries(state.pools).forEach(([d,p])=>Object.keys(p.lists).forEach(x=>allTargets.push({d,p:x,label:`${divisionLabel(d)} — Pool ${x}`})));
+  $('bigBoard').classList.toggle('locked',state.approved);
+  $('bigBoard').innerHTML=Object.keys(state.pools).sort().map(d=>{
+    const p=state.pools[d],pools=Object.entries(p.lists).map(([name,ids])=>{
+      const over=ids.length>p.max,approved=state.approved?' approved':'';
+      return `<div class="pool${over?' over':''}${approved}" data-drop-d="${esc(d)}" data-drop-p="${name}">
+        <div class="pool-title"><span>Pool ${name} • ${ids.length}/${p.max}</span>${Object.keys(p.lists).length>1&&!state.approved?`<button class="danger" data-remove-pool="${name}" data-d="${esc(d)}">×</button>`:''}</div>
+        ${ids.map(id=>{const t=teamById(id);return `<div class="team-card" draggable="${!state.approved}" data-team="${id}">
+          <b>${esc(t.name)}</b><span class="hint">${esc(t.coach||'No coach')}</span>
+          ${!state.approved?`<select data-move="${id}">${allTargets.map(x=>`<option value="${esc(x.d)}::${x.p}" ${x.d===d&&x.p===name?'selected':''}>${esc(x.label)}</option>`).join('')}</select>`:''}
+        </div>`}).join('')||'<div class="hint">Drop teams here</div>'}
+      </div>`;
+    }).join('');
+    return `<div class="division-board"><div class="division-head"><div><h3 style="margin:0">${esc(divisionLabel(d))}</h3><span class="hint">${Object.values(p.lists).flat().length} teams</span></div><div class="row"><label style="margin:0">Max / Pool <input style="width:72px" type="number" min="2" value="${p.max}" data-pool-max="${esc(d)}" ${state.approved?'disabled':''}></label>${!state.approved?`<button class="secondary" data-add-pool="${esc(d)}">Add Pool</button>`:''}</div></div><div class="pools">${pools}</div></div>`;
+  }).join('')||'<p class="hint">Import or add teams first.</p>';
+  if(!state.approved){
+    document.querySelectorAll('[data-move]').forEach(s=>s.addEventListener('change',()=>{const [d,p]=s.value.split('::');moveTeam(s.dataset.move,d,p)}));
+    document.querySelectorAll('[data-pool-max]').forEach(i=>i.addEventListener('change',()=>setPoolMax(i.dataset.poolMax,i.value)));
+    document.querySelectorAll('[data-add-pool]').forEach(b=>b.addEventListener('click',()=>addPool(b.dataset.addPool)));
+    document.querySelectorAll('[data-remove-pool]').forEach(b=>b.addEventListener('click',()=>removePool(b.dataset.d,b.dataset.removePool)));
+    let dragged=null;document.querySelectorAll('.team-card').forEach(c=>{c.addEventListener('dragstart',()=>{dragged=c.dataset.team;c.classList.add('dragging')});c.addEventListener('dragend',()=>c.classList.remove('dragging'))});
+    document.querySelectorAll('.pool').forEach(p=>{p.addEventListener('dragover',e=>e.preventDefault());p.addEventListener('drop',e=>{e.preventDefault();if(dragged)moveTeam(dragged,p.dataset.dropD,p.dataset.dropP)})});
+  }
+}
+
+function addCourt(){if(state.courts.length>=4)return alert('Maximum four courts.');const name=$('courtName').value.trim(),start=$('courtStart').value,end=$('courtEnd').value;if(!name||!start||!end||start>=end)return alert('Enter valid court information.');state.courts.push({id:uid('c'),name,start,end});$('courtName').value='';save()}
+function removeCourt(id){state.courts=state.courts.filter(c=>c.id!==id);save()}
+function addException(){const d=$('exceptionDate').value;if(d&&!state.settings.exceptions.includes(d)){state.settings.exceptions.push(d);state.settings.exceptions.sort();$('exceptionDate').value='';save()}}
+function removeException(d){state.settings.exceptions=state.settings.exceptions.filter(x=>x!==d);save()}
+function renderSettings(){
+  $('exceptions').innerHTML=state.settings.exceptions.map(d=>`<span class="pill">${d} <button data-remove-ex="${d}">×</button></span>`).join('')||'<span class="hint">No exception dates.</span>';
+  document.querySelectorAll('[data-remove-ex]').forEach(b=>b.addEventListener('click',()=>removeException(b.dataset.removeEx)));
+  $('courtsList').innerHTML=state.courts.map(c=>`<div class="item"><b>${esc(c.name)}</b> ${fmtTime(c.start)}–${fmtTime(c.end)} <button class="danger" data-remove-court="${c.id}">Remove</button></div>`).join('')||'<p class="hint">No courts added.</p>';
+  document.querySelectorAll('[data-remove-court]').forEach(b=>b.addEventListener('click',()=>removeCourt(b.dataset.removeCourt)));renderCapacity();
+}
+function renderCapacity(){syncSettings();const dates=seasonDates().length,len=state.settings.gameLength;let total=0;state.courts.forEach(c=>total+=Math.floor((minutes(c.end)-minutes(c.start))/len)*dates);const required=Math.ceil(state.teams.length*state.settings.minGames/2);$('capacity').innerHTML=`<div class="row"><div><div class="kpi">${total}</div><div class="hint">available game slots</div></div><div><div class="kpi">${required}</div><div class="hint">estimated required games</div></div></div><div class="status ${total>=required?'ok':'warn'}">${total>=required?'Estimated capacity is sufficient.':'Estimated capacity may be insufficient.'}</div>`}
+function seasonDates(){syncSettings();const s=new Date(state.settings.seasonStart+'T00:00:00');if(isNaN(s))return[];const end=new Date(s);end.setDate(end.getDate()+state.settings.seasonWeeks*7-1);const exc=new Set(state.settings.exceptions),out=[];for(let d=new Date(s);d<=end;d.setDate(d.getDate()+1)){const iso=d.toISOString().slice(0,10);if(state.settings.days.includes(d.getDay())&&!exc.has(iso))out.push(iso)}return out}
+function slots(){const len=state.settings.gameLength,out=[];seasonDates().forEach(date=>state.courts.forEach(c=>{for(let m=minutes(c.start);m+len<=minutes(c.end);m+=len){const time=`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;out.push({date,time,court:c.name,stamp:new Date(`${date}T${time}:00`).getTime()})}}));return out.sort((a,b)=>a.stamp-b.stamp||a.court.localeCompare(b.court))}
+function roundRobin(ids){const a=[...ids];if(a.length%2)a.push(null);const rounds=[];for(let r=0;r<a.length-1;r++){const pairs=[];for(let i=0;i<a.length/2;i++){const x=a[i],y=a[a.length-1-i];if(x&&y)pairs.push([x,y])}rounds.push(pairs);a.splice(1,0,a.pop())}return rounds}
+function gameQueue(ids,min){const rounds=roundRobin(ids),count=Object.fromEntries(ids.map(i=>[i,0])),q=[];let cycle=0,guard=0;while(ids.some(i=>count[i]<min)&&guard++<1000){for(const rd of rounds)for(const [a,b] of rd){if(count[a]>=min&&count[b]>=min)continue;q.push([a,b,cycle]);count[a]++;count[b]++;if(ids.every(i=>count[i]>=min))break}cycle++}return q}
+function allowed(team,slot){const d=new Date(slot.date+'T00:00:00'),h=+slot.time.slice(0,2);if(team.request==='no_sat_am'&&d.getDay()===6&&h<12)return false;if(team.request==='no_sun'&&d.getDay()===0)return false;if(team.request==='no_am'&&h<12)return false;if(team.request==='no_pm'&&h>=12)return false;return true}
+function generateSchedule(){
+  syncSettings();if(!state.approved)return alert('The Director must approve the Division & Pool Board before scheduling.');if(!state.courts.length)return alert('Add at least one court.');
+  const available=slots(),used=new Set(),teamTimes={},coachTimes={},games=[],warnings=[];
+  Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{
+    if(ids.length<2)return;
+    const queue=gameQueue(ids,state.settings.minGames);
+    for(const[a,b,cycle]of queue){
+      const ta=teamById(a),tb=teamById(b);let found=null;
+      for(const s of available){
+        const sk=`${s.date}|${s.time}|${s.court}`;if(used.has(sk)||!allowed(ta,s)||!allowed(tb,s))continue;
+        if((teamTimes[a]||new Set()).has(s.stamp)||(teamTimes[b]||new Set()).has(s.stamp))continue;
+        if(ta.coach&&(coachTimes[ta.coach]||new Set()).has(s.stamp))continue;if(tb.coach&&(coachTimes[tb.coach]||new Set()).has(s.stamp))continue;
+        const rest=(state.settings.minRest+1)*state.settings.gameLength*60000;
+        if(state.settings.minRest>0){
+          if([...(teamTimes[a]||[])].some(x=>Math.abs(s.stamp-x)<rest))continue;
+          if([...(teamTimes[b]||[])].some(x=>Math.abs(s.stamp-x)<rest))continue;
+        }
+        found=s;break;
+      }
+      if(!found){warnings.push(`${ta.name} vs ${tb.name} could not be placed.`);continue}
+      used.add(`${found.date}|${found.time}|${found.court}`);(teamTimes[a]??=new Set()).add(found.stamp);(teamTimes[b]??=new Set()).add(found.stamp);
+      if(ta.coach)(coachTimes[ta.coach]??=new Set()).add(found.stamp);if(tb.coach)(coachTimes[tb.coach]??=new Set()).add(found.stamp);
+      games.push({id:uid('g'),division:d,pool,aId:a,bId:b,date:found.date,time:found.time,court:found.court,sa:null,sb:null,cycle});
+    }
+  }));
+  state.games=games;persist();renderAll();$('genSummary').innerHTML=`<div class="status ${warnings.length?'warn':'ok'}">Generated ${games.length} games.${warnings.length?' '+warnings.length+' game(s) could not be placed.':''}</div>`;setTab('schedule');
+}
+function groupOptions(select){const current=select.value,groups=[];Object.entries(state.pools).forEach(([d,p])=>Object.keys(p.lists).forEach(pool=>groups.push({value:poolKey(d,pool),label:`${divisionLabel(d)} — Pool ${pool}`})));select.innerHTML='<option value="ALL">All divisions and pools</option>'+groups.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('');if(groups.some(x=>x.value===current))select.value=current}
+function renderSchedule(){groupOptions($('scheduleFilter'));const f=$('scheduleFilter').value||'ALL',g=state.games.filter(x=>f==='ALL'||poolKey(x.division,x.pool)===f).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));$('scheduleTable').innerHTML='<thead><tr><th>Date</th><th>Time</th><th>Court</th><th>Division / Pool</th><th>Matchup</th><th>Result</th></tr></thead><tbody>'+g.map(x=>`<tr><td>${x.date}</td><td>${fmtTime(x.time)}</td><td>${esc(x.court)}</td><td>${esc(divisionLabel(x.division))} — Pool ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td>${x.sa==null?'—':x.sa+'–'+x.sb}</td></tr>`).join('')+'</tbody>'}
+function renderResults(){const g=[...state.games].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('resultsTable').innerHTML='<thead><tr><th>Date</th><th>Pool</th><th>Game</th><th>Score</th></tr></thead><tbody>'+g.map(x=>`<tr><td>${x.date} ${fmtTime(x.time)}</td><td>${esc(divisionLabel(x.division))} — ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td><input class="score" data-score-id="${x.id}" data-side="a" type="number" value="${x.sa??''}"> - <input class="score" data-score-id="${x.id}" data-side="b" type="number" value="${x.sb??''}"></td></tr>`).join('')+'</tbody>';document.querySelectorAll('[data-score-id]').forEach(i=>i.addEventListener('change',()=>setScore(i.dataset.scoreId,i.dataset.side,i.value)))}
+function setScore(id,side,v){const g=state.games.find(x=>x.id===id);g['s'+side]=v===''?null:+v;persist();renderAll()}
+function standingsData(){const by={};Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{const k=poolKey(d,pool);by[k]=Object.fromEntries(ids.map(id=>[id,{id,name:teamById(id).name,gp:0,w:0,l:0,pf:0,pa:0,pd:0}]))}));state.games.forEach(g=>{if(g.sa==null||g.sb==null)return;const s=by[poolKey(g.division,g.pool)],a=s?.[g.aId],b=s?.[g.bId];if(!a||!b)return;a.gp++;b.gp++;a.pf+=g.sa;a.pa+=g.sb;b.pf+=g.sb;b.pa+=g.sa;if(g.sa>g.sb){a.w++;b.l++}else if(g.sb>g.sa){b.w++;a.l++}});Object.values(by).forEach(s=>Object.values(s).forEach(x=>x.pd=x.pf-x.pa));return by}
+function standingsHTML(filter='ALL'){const by=standingsData();return Object.entries(by).filter(([k])=>filter==='ALL'||k===filter).map(([k,s])=>{const[d,p]=k.split('::'),rows=Object.values(s).sort((a,b)=>b.w-a.w||b.pd-a.pd||a.pa-b.pa||a.name.localeCompare(b.name));return `<div class="card" style="margin-bottom:14px"><h3>${esc(divisionLabel(d))} — Pool ${p}</h3><div class="table-wrap"><table><thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>PD</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${x.gp}</td><td>${x.w}</td><td>${x.l}</td><td>${x.pf}</td><td>${x.pa}</td><td>${x.pd}</td></tr>`).join('')}</tbody></table></div></div>`}).join('')||'<p class="hint">No pools available.</p>'}
+function renderStandings(){$('standingsAdmin').innerHTML=standingsHTML()}
+function scheduleCards(g){return g.map(x=>`<div class="item"><b>${x.date} • ${fmtTime(x.time)} • ${esc(x.court)}</b><br>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}<br><span class="hint">${esc(divisionLabel(x.division))} • Pool ${x.pool}${x.sa==null?'':' • Final '+x.sa+'–'+x.sb}</span></div>`).join('')||'<p class="hint">No scheduled games.</p>'}
+function renderCoachSelectors(){const coaches=[...new Set(state.teams.map(t=>t.coach).filter(Boolean))].sort(),prev=$('coachSelect').value;$('coachSelect').innerHTML='<option value="">All coaches</option>'+coaches.map(c=>`<option>${esc(c)}</option>`).join('');if(coaches.includes(prev))$('coachSelect').value=prev;const c=$('coachSelect').value,teams=state.teams.filter(t=>!c||t.coach===c),pt=$('coachTeamSelect').value;$('coachTeamSelect').innerHTML='<option value="">All teams</option>'+teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');if(teams.some(t=>t.id===pt))$('coachTeamSelect').value=pt}
+function renderCoach(){renderCoachSelectors();const c=$('coachSelect').value,tid=$('coachTeamSelect').value,ids=new Set(state.teams.filter(t=>(!c||t.coach===c)&&(!tid||t.id===tid)).map(t=>t.id));const g=state.games.filter(x=>ids.has(x.aId)||ids.has(x.bId)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('coachSchedule').innerHTML='<h2>Schedule</h2>'+scheduleCards(g);const groups=new Set(g.map(x=>poolKey(x.division,x.pool)));$('coachStandings').innerHTML='<h2>Standings</h2>'+[...groups].map(k=>standingsHTML(k)).join('')}
+function renderPublic(){groupOptions($('publicDivision'));const f=$('publicDivision').value||'ALL';$('publicHeader').innerHTML=`<div class="public-title">${esc(state.settings.leagueName||'MSS 3v3 League')}</div><div class="hint">Public schedule, results and pool standings</div>`;const g=state.games.filter(x=>f==='ALL'||poolKey(x.division,x.pool)===f).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('publicSchedule').innerHTML=scheduleCards(g);$('publicStandings').innerHTML=standingsHTML(f)}
+function exportSchedule(){const rows=[['Date','Time','Court','Division','Pool','Team A','Team B','Score A','Score B'],...state.games.map(g=>[g.date,g.time,g.court,divisionLabel(g.division),g.pool,teamById(g.aId).name,teamById(g.bId).name,g.sa??'',g.sb??''])];download(rows.map(r=>r.map(csv).join(',')).join('\n'),'3v3-league-schedule.csv','text/csv')}
+function csv(v){v=String(v);return /[,"\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v}
+function exportSetup(){download(JSON.stringify(state,null,2),'3v3-league-setup.json','application/json')}
+function importSetup(file){const r=new FileReader();r.onload=()=>{try{state=JSON.parse(r.result);persist();hydrate();ensurePools();renderAll()}catch(e){alert('Invalid setup file')}};r.readAsText(file)}
+function download(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
+function resetAll(){if(confirm('Delete registrations, pools, schedule and scores?')){localStorage.removeItem(KEY);location.reload()}}
+function renderAll(){renderTeams();renderSettings();renderBoard();renderSchedule();renderResults();renderStandings();renderCoachSelectors();renderCoach();renderPublic()}
+
+$('addTeamBtn').addEventListener('click',addTeam);$('importCsvBtn').addEventListener('click',importCSV);$('loadSampleBtn').addEventListener('click',()=>{const n=importCSVText(sampleCSV);$('importStatus').innerHTML=`<div class="status ok">${n} sample teams loaded.</div>`});
+$('teamSearch').addEventListener('input',renderTeams);$('rebalanceBtn').addEventListener('click',rebalancePools);$('approveBtn').addEventListener('click',approveBoard);$('unlockBtn').addEventListener('click',unlockBoard);
+$('addExceptionBtn').addEventListener('click',addException);$('addCourtBtn').addEventListener('click',addCourt);$('saveBtn').addEventListener('click',save);$('exportSetupBtn').addEventListener('click',exportSetup);
+$('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',generateSchedule);
+$('exportScheduleBtn').addEventListener('click',exportSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',renderSchedule);
+$('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());
+document.querySelectorAll('#admin-settings input,#admin-settings select').forEach(e=>e.addEventListener('change',()=>{syncSettings();state.approved=false;ensurePools();persist();renderAll()}));
+load();
+</script>
+</body>
+</html>
