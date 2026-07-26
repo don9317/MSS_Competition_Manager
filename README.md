@@ -1,27 +1,34 @@
-# MSS 3v3 League Scheduler v8
+# MSS 3v3 League Scheduler v9
 
-## New workflow
-1. Import MSS registration CSV or add teams manually.
-2. Divisions are auto-created from Grade + Gender + Level.
-3. Oversized divisions are automatically split evenly into pools.
-4. Review the Division & Pool Big Board.
-5. Drag teams between pools/divisions or use the Move dropdown.
-6. Approve Divisions & Pools.
-7. Generate the schedule.
+## Primary 3v3 workflow
+1. Import registrations.
+2. Divisions are created automatically from grade, gender and level.
+3. Oversized divisions split into balanced pools.
+4. The Director reviews and approves the Division & Pool Big Board.
+5. Add independently schedulable playing surfaces such as Court 1 West and Court 1 East.
+6. Create reusable Court Groups from those surfaces.
+7. Assign each division to a repeating Sunday time window and Court Group.
+8. Set Games per Team per Week, such as three games every Sunday.
+9. Generate and review the weekly schedule.
 
-## Included
-- Separate boys/girls divisions for 3rd/4th, 5th/6th, 7th/8th, HS JV and HS Varsity
-- Open/Rec separation
-- Configurable maximum teams per pool
-- Multiple pools within one division
-- Required Director approval before scheduling
-- Configurable game length and minimum rest
-- Up to four courts in one building
-- No team or shared coach double-booking
-- Avoid repeat opponents until round-robin opponents are exhausted
-- Score entry and pool standings
-- Admin, Coach and Public views
-- Local browser storage, JSON setup export/import, CSV schedule export
+## New in v9
+- Half-court playing surfaces
+- Reusable Court Groups
+- Division-specific Sunday time windows
+- Division-to-Court-Group assignments
+- Same division returns to the same surfaces each week
+- Games per team per week setting
+- Calculated total season games
+- Weekly schedule generation
+- Week number in schedule, score entry and CSV export
+- Validation when a division lacks a court group or time window
+- Capacity comparison based on assigned division windows
 
-## GitHub
-Upload `index.html`, `logo.png`, and `sample-teams.csv` to the repository root.
+## Testing
+Use the included `sample-teams.csv`. Add surfaces such as:
+- Court 1 West
+- Court 1 East
+- Court 2 West
+- Court 2 East
+
+Then create groups and assign each division a Sunday window.

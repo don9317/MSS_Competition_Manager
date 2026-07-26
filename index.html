@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS 3v3 League Scheduler v8</title>
+<title>MSS 3v3 League Scheduler v9</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS 3v3 League Scheduler v8</h1><div class="sub">Registration Import → Division & Pool Board → Director Approval → Scheduling</div></div>
+  <div><h1>MSS 3v3 League Scheduler v9</h1><div class="sub">Registration Import → Pools → Court Groups & Division Windows → Approval → Weekly Scheduling</div></div>
 </header>
 <div class="viewbar">
   <button data-view="admin">Admin View</button>
@@ -107,35 +107,48 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <h2>League Setup</h2>
       <div class="row">
         <div class="field"><label>League Name</label><input id="leagueName"></div>
-        <div class="field"><label>Games per Team</label><input id="minGames" type="number" min="1" value="8"></div>
+        <div class="field"><label>Games per Team per Week</label><input id="gamesPerWeek" type="number" min="1" max="8" value="3"></div>
+        <div class="field"><label>Calculated Season Games</label><input id="seasonGameTotal" type="text" readonly></div>
       </div>
       <div class="row">
         <div class="field"><label>Season Start</label><input id="seasonStart" type="date"></div>
         <div class="field"><label>Number of Weeks</label><input id="seasonWeeks" type="number" min="1" max="30" value="8"></div>
       </div>
       <div class="row">
-        <div class="field"><label>Game Length</label><select id="gameLength"><option value="20">20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60" selected>60 minutes</option><option value="75">75 minutes</option></select></div>
+        <div class="field"><label>Game Length</label><select id="gameLength"><option value="20" selected>20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="75">75 minutes</option></select></div>
         <div class="field"><label>Minimum Rest</label><select id="minRest"><option value="0">No added rest</option><option value="1" selected>One game slot</option><option value="2">Two game slots</option></select></div>
         <div class="field"><label>Default Max Teams / Pool</label><input id="defaultPoolMax" type="number" min="2" max="16" value="8"></div>
       </div>
       <label>League Days</label>
-      <div class="row"><label><input class="dow" type="checkbox" value="6" checked> Saturday</label><label><input class="dow" type="checkbox" value="0" checked> Sunday</label></div>
+      <div class="row"><label><input class="dow" type="checkbox" value="6"> Saturday</label><label><input class="dow" type="checkbox" value="0" checked> Sunday</label></div>
       <label><input id="avoidRepeats" type="checkbox" checked> Avoid repeat opponents until all reasonable opponents have been played</label>
       <label>Exception Date</label><div class="row"><input id="exceptionDate" type="date" class="field"><button class="secondary" id="addExceptionBtn">Add</button></div>
       <div id="exceptions"></div>
     </div>
     <div class="card">
-      <h2>Courts & Hours</h2>
-      <p class="hint">One building, up to four courts. Add only the courts being used.</p>
+      <h2>Playing Surfaces</h2>
+      <p class="hint">Add each independently scheduled area, such as Court 1 West, Court 1 East, Court 2 West and Court 2 East.</p>
       <div class="row">
-        <div class="field"><label>Court Name</label><input id="courtName" placeholder="Court 1"></div>
-        <div class="field"><label>Start</label><input id="courtStart" type="time" value="08:00"></div>
-        <div class="field"><label>End</label><input id="courtEnd" type="time" value="18:00"></div>
+        <div class="field"><label>Surface Name</label><input id="courtName" placeholder="Court 1 West"></div>
+        <div class="field"><label>Available From</label><input id="courtStart" type="time" value="17:00"></div>
+        <div class="field"><label>Available Until</label><input id="courtEnd" type="time" value="22:00"></div>
       </div>
-      <button class="primary" id="addCourtBtn">Add Court</button>
+      <button class="primary" id="addCourtBtn">Add Playing Surface</button>
       <div id="courtsList"></div>
+      <hr>
+      <h3>Court Groups</h3>
+      <p class="hint">Create reusable groups of surfaces. A division is assigned to one court group and returns to those surfaces each week.</p>
+      <label>Group Name</label><input id="courtGroupName" placeholder="3rd/4th Grade Courts">
+      <div id="courtGroupSurfaceChoices"></div>
+      <button class="primary" id="addCourtGroupBtn">Add Court Group</button>
+      <div id="courtGroupsList"></div>
       <hr><div id="capacity"></div>
     </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h2>Division Court & Time Assignments</h2>
+    <p class="hint">Assign every division to a repeating Sunday time window and court group. These assignments remain the same each week.</p>
+    <div id="divisionAssignments"></div>
   </div>
   <div class="card" style="margin-top:14px">
     <div class="toolbar">
@@ -179,8 +192,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <script>
 const KEY='mss3v3LeagueV8';
 let state={
-  teams:[],courts:[],
-  settings:{leagueName:'MSS 3v3 League',seasonStart:new Date().toISOString().slice(0,10),seasonWeeks:8,minGames:8,gameLength:60,minRest:1,defaultPoolMax:8,days:[6,0],avoidRepeats:true,exceptions:[]},
+  teams:[],courts:[],courtGroups:[],divisionConfig:{},
+  settings:{leagueName:'MSS 3v3 League',seasonStart:new Date().toISOString().slice(0,10),seasonWeeks:8,gamesPerWeek:3,gameLength:20,minRest:0,defaultPoolMax:8,days:[0],avoidRepeats:true,exceptions:[]},
   pools:{},approved:false,games:[]
 };
 const $=id=>document.getElementById(id),uid=p=>p+'_'+Math.random().toString(36).slice(2,9);
@@ -194,15 +207,15 @@ function minutes(t){let[h,m]=t.split(':').map(Number);return h*60+m}
 function requestLabel(r){return({no_sat_am:'No Saturday morning',no_sun:'No Sunday',no_am:'No morning games',no_pm:'No afternoon/evening'})[r]||''}
 function persist(){localStorage.setItem(KEY,JSON.stringify(state))}
 function save(){syncSettings();persist();renderAll()}
-function load(){const r=localStorage.getItem(KEY);if(r)try{state=Object.assign(state,JSON.parse(r))}catch(e){};hydrate();ensurePools();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin')}
+function load(){const r=localStorage.getItem(KEY);if(r)try{state=Object.assign(state,JSON.parse(r))}catch(e){};state.courtGroups=state.courtGroups||[];state.divisionConfig=state.divisionConfig||{};state.settings.gamesPerWeek=state.settings.gamesPerWeek||3;hydrate();ensurePools();ensureDivisionConfig();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin')}
 function hydrate(){
   $('leagueName').value=state.settings.leagueName||'MSS 3v3 League';$('seasonStart').value=state.settings.seasonStart;$('seasonWeeks').value=state.settings.seasonWeeks||8;
-  $('minGames').value=state.settings.minGames||8;$('gameLength').value=state.settings.gameLength||60;$('minRest').value=state.settings.minRest??1;$('defaultPoolMax').value=state.settings.defaultPoolMax||8;
+  $('gamesPerWeek').value=state.settings.gamesPerWeek||3;$('seasonGameTotal').value=(state.settings.gamesPerWeek||3)*(state.settings.seasonWeeks||8)+' games per team';$('gameLength').value=state.settings.gameLength||20;$('minRest').value=state.settings.minRest??0;$('defaultPoolMax').value=state.settings.defaultPoolMax||8;
   $('avoidRepeats').checked=state.settings.avoidRepeats!==false;document.querySelectorAll('.dow').forEach(x=>x.checked=(state.settings.days||[6,0]).includes(+x.value));
 }
 function syncSettings(){
   state.settings.leagueName=$('leagueName').value.trim()||'MSS 3v3 League';state.settings.seasonStart=$('seasonStart').value;state.settings.seasonWeeks=+$('seasonWeeks').value||8;
-  state.settings.minGames=+$('minGames').value||8;state.settings.gameLength=+$('gameLength').value||60;state.settings.minRest=+$('minRest').value||0;
+  state.settings.gamesPerWeek=+$('gamesPerWeek').value||3;state.settings.gameLength=+$('gameLength').value||20;state.settings.minRest=+$('minRest').value||0;$('seasonGameTotal').value=state.settings.gamesPerWeek*state.settings.seasonWeeks+' games per team';
   state.settings.defaultPoolMax=+$('defaultPoolMax').value||8;state.settings.days=[...document.querySelectorAll('.dow:checked')].map(x=>+x.value);state.settings.avoidRepeats=$('avoidRepeats').checked;
 }
 function setView(view){
@@ -324,6 +337,13 @@ function ensurePools(force=false){
     }
   });
   Object.keys(state.pools).filter(d=>!groups[d]).forEach(d=>delete state.pools[d]);
+  ensureDivisionConfig();
+}
+function ensureDivisionConfig(){
+  Object.keys(state.pools||{}).forEach(d=>{
+    if(!state.divisionConfig[d]) state.divisionConfig[d]={start:'18:00',end:'20:00',courtGroupId:''};
+  });
+  Object.keys(state.divisionConfig||{}).filter(d=>!state.pools[d]).forEach(d=>delete state.divisionConfig[d]);
 }
 function rebalancePools(){
   if(state.approved)return;syncSettings();const groups=divisionGroups();
@@ -392,52 +412,148 @@ function renderBoard(){
   }
 }
 
-function addCourt(){if(state.courts.length>=4)return alert('Maximum four courts.');const name=$('courtName').value.trim(),start=$('courtStart').value,end=$('courtEnd').value;if(!name||!start||!end||start>=end)return alert('Enter valid court information.');state.courts.push({id:uid('c'),name,start,end});$('courtName').value='';save()}
-function removeCourt(id){state.courts=state.courts.filter(c=>c.id!==id);save()}
+function addCourt(){
+  const name=$('courtName').value.trim(),start=$('courtStart').value,end=$('courtEnd').value;
+  if(!name||!start||!end||start>=end)return alert('Enter a valid playing surface and availability.');
+  state.courts.push({id:uid('c'),name,start,end});$('courtName').value='';save()
+}
+function removeCourt(id){
+  state.courts=state.courts.filter(c=>c.id!==id);
+  state.courtGroups.forEach(g=>g.surfaceIds=g.surfaceIds.filter(x=>x!==id));
+  save()
+}
+function addCourtGroup(){
+  const name=$('courtGroupName').value.trim();
+  const surfaceIds=[...document.querySelectorAll('[data-group-surface]:checked')].map(x=>x.value);
+  if(!name)return alert('Enter a court group name.');
+  if(!surfaceIds.length)return alert('Select at least one playing surface.');
+  state.courtGroups.push({id:uid('cg'),name,surfaceIds});
+  $('courtGroupName').value='';save()
+}
+function removeCourtGroup(id){
+  state.courtGroups=state.courtGroups.filter(g=>g.id!==id);
+  Object.values(state.divisionConfig).forEach(c=>{if(c.courtGroupId===id)c.courtGroupId=''});
+  state.approved=false;save()
+}
 function addException(){const d=$('exceptionDate').value;if(d&&!state.settings.exceptions.includes(d)){state.settings.exceptions.push(d);state.settings.exceptions.sort();$('exceptionDate').value='';save()}}
 function removeException(d){state.settings.exceptions=state.settings.exceptions.filter(x=>x!==d);save()}
+function setDivisionConfig(d,field,value){
+  state.divisionConfig[d]=state.divisionConfig[d]||{start:'18:00',end:'20:00',courtGroupId:''};
+  state.divisionConfig[d][field]=value;state.approved=false;persist();renderCapacity();renderBoard()
+}
 function renderSettings(){
   $('exceptions').innerHTML=state.settings.exceptions.map(d=>`<span class="pill">${d} <button data-remove-ex="${d}">×</button></span>`).join('')||'<span class="hint">No exception dates.</span>';
   document.querySelectorAll('[data-remove-ex]').forEach(b=>b.addEventListener('click',()=>removeException(b.dataset.removeEx)));
-  $('courtsList').innerHTML=state.courts.map(c=>`<div class="item"><b>${esc(c.name)}</b> ${fmtTime(c.start)}–${fmtTime(c.end)} <button class="danger" data-remove-court="${c.id}">Remove</button></div>`).join('')||'<p class="hint">No courts added.</p>';
-  document.querySelectorAll('[data-remove-court]').forEach(b=>b.addEventListener('click',()=>removeCourt(b.dataset.removeCourt)));renderCapacity();
+  $('courtsList').innerHTML=state.courts.map(c=>`<div class="item"><b>${esc(c.name)}</b> ${fmtTime(c.start)}–${fmtTime(c.end)} <button class="danger" data-remove-court="${c.id}">Remove</button></div>`).join('')||'<p class="hint">No playing surfaces added.</p>';
+  document.querySelectorAll('[data-remove-court]').forEach(b=>b.addEventListener('click',()=>removeCourt(b.dataset.removeCourt)));
+  $('courtGroupSurfaceChoices').innerHTML=state.courts.map(c=>`<label><input type="checkbox" data-group-surface value="${c.id}"> ${esc(c.name)}</label>`).join('')||'<p class="hint">Add playing surfaces first.</p>';
+  $('courtGroupsList').innerHTML=state.courtGroups.map(g=>`<div class="item"><b>${esc(g.name)}</b><br><span class="hint">${g.surfaceIds.map(id=>esc((state.courts.find(c=>c.id===id)||{}).name||'Missing surface')).join(', ')}</span> <button class="danger" data-remove-group="${g.id}">Remove</button></div>`).join('')||'<p class="hint">No court groups created.</p>';
+  document.querySelectorAll('[data-remove-group]').forEach(b=>b.addEventListener('click',()=>removeCourtGroup(b.dataset.removeGroup)));
+  renderDivisionAssignments();renderCapacity();
 }
-function renderCapacity(){syncSettings();const dates=seasonDates().length,len=state.settings.gameLength;let total=0;state.courts.forEach(c=>total+=Math.floor((minutes(c.end)-minutes(c.start))/len)*dates);const required=Math.ceil(state.teams.length*state.settings.minGames/2);$('capacity').innerHTML=`<div class="row"><div><div class="kpi">${total}</div><div class="hint">available game slots</div></div><div><div class="kpi">${required}</div><div class="hint">estimated required games</div></div></div><div class="status ${total>=required?'ok':'warn'}">${total>=required?'Estimated capacity is sufficient.':'Estimated capacity may be insufficient.'}</div>`}
+function renderDivisionAssignments(){
+  ensureDivisionConfig();
+  $('divisionAssignments').innerHTML=Object.keys(state.pools).sort().map(d=>{
+    const c=state.divisionConfig[d];
+    return `<div class="item"><b>${esc(divisionLabel(d))}</b><div class="row">
+      <div class="field"><label>Sunday Start</label><input type="time" value="${c.start}" data-div="${esc(d)}" data-div-field="start"></div>
+      <div class="field"><label>Sunday End</label><input type="time" value="${c.end}" data-div="${esc(d)}" data-div-field="end"></div>
+      <div class="field"><label>Court Group</label><select data-div="${esc(d)}" data-div-field="courtGroupId"><option value="">Select court group</option>${state.courtGroups.map(g=>`<option value="${g.id}" ${g.id===c.courtGroupId?'selected':''}>${esc(g.name)}</option>`).join('')}</select></div>
+    </div></div>`;
+  }).join('')||'<p class="hint">Import teams to create division assignments.</p>';
+  document.querySelectorAll('[data-div-field]').forEach(e=>e.addEventListener('change',()=>setDivisionConfig(e.dataset.div,e.dataset.divField,e.value)));
+}
+function renderCapacity(){
+  syncSettings();
+  const weeks=seasonDates().length,len=state.settings.gameLength;
+  let required=Math.ceil(state.teams.length*state.settings.gamesPerWeek*weeks/2),assigned=0;
+  Object.entries(state.divisionConfig).forEach(([d,cfg])=>{
+    const group=state.courtGroups.find(g=>g.id===cfg.courtGroupId);
+    if(!group||cfg.start>=cfg.end)return;
+    const perSurface=Math.floor((minutes(cfg.end)-minutes(cfg.start))/len);
+    assigned+=perSurface*group.surfaceIds.length*weeks;
+  });
+  $('capacity').innerHTML=`<div class="row"><div><div class="kpi">${assigned}</div><div class="hint">division-assigned game slots</div></div><div><div class="kpi">${required}</div><div class="hint">estimated required games</div></div></div><div class="status ${assigned>=required?'ok':'warn'}">${assigned>=required?'Estimated assigned capacity is sufficient.':'Assigned court groups/time windows may be insufficient.'}</div>`
+}
 function seasonDates(){syncSettings();const s=new Date(state.settings.seasonStart+'T00:00:00');if(isNaN(s))return[];const end=new Date(s);end.setDate(end.getDate()+state.settings.seasonWeeks*7-1);const exc=new Set(state.settings.exceptions),out=[];for(let d=new Date(s);d<=end;d.setDate(d.getDate()+1)){const iso=d.toISOString().slice(0,10);if(state.settings.days.includes(d.getDay())&&!exc.has(iso))out.push(iso)}return out}
-function slots(){const len=state.settings.gameLength,out=[];seasonDates().forEach(date=>state.courts.forEach(c=>{for(let m=minutes(c.start);m+len<=minutes(c.end);m+=len){const time=`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;out.push({date,time,court:c.name,stamp:new Date(`${date}T${time}:00`).getTime()})}}));return out.sort((a,b)=>a.stamp-b.stamp||a.court.localeCompare(b.court))}
+function divisionSlots(d,date){
+  const cfg=state.divisionConfig[d],group=state.courtGroups.find(g=>g.id===cfg?.courtGroupId);
+  if(!cfg||!group||cfg.start>=cfg.end)return[];
+  const len=state.settings.gameLength,out=[];
+  group.surfaceIds.forEach(id=>{
+    const surface=state.courts.find(c=>c.id===id);if(!surface)return;
+    const start=Math.max(minutes(surface.start),minutes(cfg.start)),end=Math.min(minutes(surface.end),minutes(cfg.end));
+    for(let m=start;m+len<=end;m+=len){
+      const time=`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+      out.push({date,time,court:surface.name,stamp:new Date(`${date}T${time}:00`).getTime()})
+    }
+  });
+  return out.sort((a,b)=>a.stamp-b.stamp||a.court.localeCompare(b.court))
+}
 function roundRobin(ids){const a=[...ids];if(a.length%2)a.push(null);const rounds=[];for(let r=0;r<a.length-1;r++){const pairs=[];for(let i=0;i<a.length/2;i++){const x=a[i],y=a[a.length-1-i];if(x&&y)pairs.push([x,y])}rounds.push(pairs);a.splice(1,0,a.pop())}return rounds}
-function gameQueue(ids,min){const rounds=roundRobin(ids),count=Object.fromEntries(ids.map(i=>[i,0])),q=[];let cycle=0,guard=0;while(ids.some(i=>count[i]<min)&&guard++<1000){for(const rd of rounds)for(const [a,b] of rd){if(count[a]>=min&&count[b]>=min)continue;q.push([a,b,cycle]);count[a]++;count[b]++;if(ids.every(i=>count[i]>=min))break}cycle++}return q}
+function weeklyGameQueue(ids,gamesPerTeam,weekIndex){
+  const rounds=roundRobin(ids),counts=Object.fromEntries(ids.map(id=>[id,0])),q=[];
+  let r=weekIndex%Math.max(1,rounds.length),guard=0;
+  while(ids.some(id=>counts[id]<gamesPerTeam)&&guard++<500){
+    const rd=rounds[r%rounds.length];
+    for(const [a,b] of rd){
+      if(counts[a]>=gamesPerTeam||counts[b]>=gamesPerTeam)continue;
+      q.push([a,b]);counts[a]++;counts[b]++;
+    }
+    r++;
+  }
+  return q
+}
 function allowed(team,slot){const d=new Date(slot.date+'T00:00:00'),h=+slot.time.slice(0,2);if(team.request==='no_sat_am'&&d.getDay()===6&&h<12)return false;if(team.request==='no_sun'&&d.getDay()===0)return false;if(team.request==='no_am'&&h<12)return false;if(team.request==='no_pm'&&h>=12)return false;return true}
+function scheduleValidation(){
+  const errors=[];
+  Object.keys(state.pools).forEach(d=>{
+    const cfg=state.divisionConfig[d],group=state.courtGroups.find(g=>g.id===cfg?.courtGroupId);
+    if(!cfg?.courtGroupId||!group)errors.push(`${divisionLabel(d)} needs a court group.`);
+    if(!cfg?.start||!cfg?.end||cfg.start>=cfg.end)errors.push(`${divisionLabel(d)} needs a valid time window.`);
+  });
+  if(!seasonDates().length)errors.push('No playable Sunday dates were found in the season.');
+  return errors
+}
 function generateSchedule(){
-  syncSettings();if(!state.approved)return alert('The Director must approve the Division & Pool Board before scheduling.');if(!state.courts.length)return alert('Add at least one court.');
-  const available=slots(),used=new Set(),teamTimes={},coachTimes={},games=[],warnings=[];
+  syncSettings();
+  if(!state.approved)return alert('The Director must approve the Division & Pool Board before scheduling.');
+  const validation=scheduleValidation();if(validation.length)return alert(validation.join('\n'));
+  const dates=seasonDates(),used=new Set(),teamTimes={},coachTimes={},games=[],warnings=[];
   Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{
     if(ids.length<2)return;
-    const queue=gameQueue(ids,state.settings.minGames);
-    for(const[a,b,cycle]of queue){
-      const ta=teamById(a),tb=teamById(b);let found=null;
-      for(const s of available){
-        const sk=`${s.date}|${s.time}|${s.court}`;if(used.has(sk)||!allowed(ta,s)||!allowed(tb,s))continue;
-        if((teamTimes[a]||new Set()).has(s.stamp)||(teamTimes[b]||new Set()).has(s.stamp))continue;
-        if(ta.coach&&(coachTimes[ta.coach]||new Set()).has(s.stamp))continue;if(tb.coach&&(coachTimes[tb.coach]||new Set()).has(s.stamp))continue;
-        const rest=(state.settings.minRest+1)*state.settings.gameLength*60000;
-        if(state.settings.minRest>0){
-          if([...(teamTimes[a]||[])].some(x=>Math.abs(s.stamp-x)<rest))continue;
-          if([...(teamTimes[b]||[])].some(x=>Math.abs(s.stamp-x)<rest))continue;
+    dates.forEach((date,weekIndex)=>{
+      const available=divisionSlots(d,date),queue=weeklyGameQueue(ids,state.settings.gamesPerWeek,weekIndex);
+      const weeklyCounts=Object.fromEntries(ids.map(id=>[id,0]));
+      for(const[a,b]of queue){
+        const ta=teamById(a),tb=teamById(b);let found=null;
+        for(const s of available){
+          const sk=`${s.date}|${s.time}|${s.court}`;if(used.has(sk)||!allowed(ta,s)||!allowed(tb,s))continue;
+          if((teamTimes[a]||new Set()).has(s.stamp)||(teamTimes[b]||new Set()).has(s.stamp))continue;
+          if(ta.coach&&(coachTimes[ta.coach]||new Set()).has(s.stamp))continue;if(tb.coach&&(coachTimes[tb.coach]||new Set()).has(s.stamp))continue;
+          const rest=(state.settings.minRest+1)*state.settings.gameLength*60000;
+          if(state.settings.minRest>0){
+            if([...(teamTimes[a]||[])].some(x=>Math.abs(s.stamp-x)<rest))continue;
+            if([...(teamTimes[b]||[])].some(x=>Math.abs(s.stamp-x)<rest))continue;
+          }
+          found=s;break
         }
-        found=s;break;
+        if(!found){warnings.push(`Week ${weekIndex+1}: ${ta.name} vs ${tb.name} could not be placed.`);continue}
+        used.add(`${found.date}|${found.time}|${found.court}`);(teamTimes[a]??=new Set()).add(found.stamp);(teamTimes[b]??=new Set()).add(found.stamp);
+        if(ta.coach)(coachTimes[ta.coach]??=new Set()).add(found.stamp);if(tb.coach)(coachTimes[tb.coach]??=new Set()).add(found.stamp);
+        weeklyCounts[a]++;weeklyCounts[b]++;
+        games.push({id:uid('g'),division:d,pool,aId:a,bId:b,date:found.date,time:found.time,court:found.court,sa:null,sb:null,week:weekIndex+1})
       }
-      if(!found){warnings.push(`${ta.name} vs ${tb.name} could not be placed.`);continue}
-      used.add(`${found.date}|${found.time}|${found.court}`);(teamTimes[a]??=new Set()).add(found.stamp);(teamTimes[b]??=new Set()).add(found.stamp);
-      if(ta.coach)(coachTimes[ta.coach]??=new Set()).add(found.stamp);if(tb.coach)(coachTimes[tb.coach]??=new Set()).add(found.stamp);
-      games.push({id:uid('g'),division:d,pool,aId:a,bId:b,date:found.date,time:found.time,court:found.court,sa:null,sb:null,cycle});
-    }
+      ids.filter(id=>weeklyCounts[id]<state.settings.gamesPerWeek).forEach(id=>warnings.push(`Week ${weekIndex+1}: ${teamById(id).name} received ${weeklyCounts[id]} of ${state.settings.gamesPerWeek} games.`))
+    })
   }));
-  state.games=games;persist();renderAll();$('genSummary').innerHTML=`<div class="status ${warnings.length?'warn':'ok'}">Generated ${games.length} games.${warnings.length?' '+warnings.length+' game(s) could not be placed.':''}</div>`;setTab('schedule');
+  state.games=games;persist();renderAll();
+  $('genSummary').innerHTML=`<div class="status ${warnings.length?'warn':'ok'}">Generated ${games.length} games across ${dates.length} Sundays.${warnings.length?' '+warnings.length+' scheduling warning(s).':''}</div>${warnings.length?`<details><summary>View warnings</summary><div class="hint">${warnings.map(esc).join('<br>')}</div></details>`:''}`;
+  setTab('schedule')
 }
 function groupOptions(select){const current=select.value,groups=[];Object.entries(state.pools).forEach(([d,p])=>Object.keys(p.lists).forEach(pool=>groups.push({value:poolKey(d,pool),label:`${divisionLabel(d)} — Pool ${pool}`})));select.innerHTML='<option value="ALL">All divisions and pools</option>'+groups.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('');if(groups.some(x=>x.value===current))select.value=current}
-function renderSchedule(){groupOptions($('scheduleFilter'));const f=$('scheduleFilter').value||'ALL',g=state.games.filter(x=>f==='ALL'||poolKey(x.division,x.pool)===f).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));$('scheduleTable').innerHTML='<thead><tr><th>Date</th><th>Time</th><th>Court</th><th>Division / Pool</th><th>Matchup</th><th>Result</th></tr></thead><tbody>'+g.map(x=>`<tr><td>${x.date}</td><td>${fmtTime(x.time)}</td><td>${esc(x.court)}</td><td>${esc(divisionLabel(x.division))} — Pool ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td>${x.sa==null?'—':x.sa+'–'+x.sb}</td></tr>`).join('')+'</tbody>'}
-function renderResults(){const g=[...state.games].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('resultsTable').innerHTML='<thead><tr><th>Date</th><th>Pool</th><th>Game</th><th>Score</th></tr></thead><tbody>'+g.map(x=>`<tr><td>${x.date} ${fmtTime(x.time)}</td><td>${esc(divisionLabel(x.division))} — ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td><input class="score" data-score-id="${x.id}" data-side="a" type="number" value="${x.sa??''}"> - <input class="score" data-score-id="${x.id}" data-side="b" type="number" value="${x.sb??''}"></td></tr>`).join('')+'</tbody>';document.querySelectorAll('[data-score-id]').forEach(i=>i.addEventListener('change',()=>setScore(i.dataset.scoreId,i.dataset.side,i.value)))}
+function renderSchedule(){groupOptions($('scheduleFilter'));const f=$('scheduleFilter').value||'ALL',g=state.games.filter(x=>f==='ALL'||poolKey(x.division,x.pool)===f).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));$('scheduleTable').innerHTML='<thead><tr><th>Week</th><th>Date</th><th>Time</th><th>Playing Surface</th><th>Division / Pool</th><th>Matchup</th><th>Result</th></tr></thead><tbody>'+g.map(x=>`<tr><td>${x.week||''}</td><td>${x.date}</td><td>${fmtTime(x.time)}</td><td>${esc(x.court)}</td><td>${esc(divisionLabel(x.division))} — Pool ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td>${x.sa==null?'—':x.sa+'–'+x.sb}</td></tr>`).join('')+'</tbody>'}
+function renderResults(){const g=[...state.games].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('resultsTable').innerHTML='<thead><tr><th>Week</th><th>Date</th><th>Pool</th><th>Game</th><th>Score</th></tr></thead><tbody>'+g.map(x=>`<tr><td>${x.week||''}</td><td>${x.date} ${fmtTime(x.time)}</td><td>${esc(divisionLabel(x.division))} — ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td><input class="score" data-score-id="${x.id}" data-side="a" type="number" value="${x.sa??''}"> - <input class="score" data-score-id="${x.id}" data-side="b" type="number" value="${x.sb??''}"></td></tr>`).join('')+'</tbody>';document.querySelectorAll('[data-score-id]').forEach(i=>i.addEventListener('change',()=>setScore(i.dataset.scoreId,i.dataset.side,i.value)))}
 function setScore(id,side,v){const g=state.games.find(x=>x.id===id);g['s'+side]=v===''?null:+v;persist();renderAll()}
 function standingsData(){const by={};Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{const k=poolKey(d,pool);by[k]=Object.fromEntries(ids.map(id=>[id,{id,name:teamById(id).name,gp:0,w:0,l:0,pf:0,pa:0,pd:0}]))}));state.games.forEach(g=>{if(g.sa==null||g.sb==null)return;const s=by[poolKey(g.division,g.pool)],a=s?.[g.aId],b=s?.[g.bId];if(!a||!b)return;a.gp++;b.gp++;a.pf+=g.sa;a.pa+=g.sb;b.pf+=g.sb;b.pa+=g.sa;if(g.sa>g.sb){a.w++;b.l++}else if(g.sb>g.sa){b.w++;a.l++}});Object.values(by).forEach(s=>Object.values(s).forEach(x=>x.pd=x.pf-x.pa));return by}
 function standingsHTML(filter='ALL'){const by=standingsData();return Object.entries(by).filter(([k])=>filter==='ALL'||k===filter).map(([k,s])=>{const[d,p]=k.split('::'),rows=Object.values(s).sort((a,b)=>b.w-a.w||b.pd-a.pd||a.pa-b.pa||a.name.localeCompare(b.name));return `<div class="card" style="margin-bottom:14px"><h3>${esc(divisionLabel(d))} — Pool ${p}</h3><div class="table-wrap"><table><thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>PD</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td>${esc(x.name)}</td><td>${x.gp}</td><td>${x.w}</td><td>${x.l}</td><td>${x.pf}</td><td>${x.pa}</td><td>${x.pd}</td></tr>`).join('')}</tbody></table></div></div>`}).join('')||'<p class="hint">No pools available.</p>'}
@@ -446,7 +562,7 @@ function scheduleCards(g){return g.map(x=>`<div class="item"><b>${x.date} • ${
 function renderCoachSelectors(){const coaches=[...new Set(state.teams.map(t=>t.coach).filter(Boolean))].sort(),prev=$('coachSelect').value;$('coachSelect').innerHTML='<option value="">All coaches</option>'+coaches.map(c=>`<option>${esc(c)}</option>`).join('');if(coaches.includes(prev))$('coachSelect').value=prev;const c=$('coachSelect').value,teams=state.teams.filter(t=>!c||t.coach===c),pt=$('coachTeamSelect').value;$('coachTeamSelect').innerHTML='<option value="">All teams</option>'+teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');if(teams.some(t=>t.id===pt))$('coachTeamSelect').value=pt}
 function renderCoach(){renderCoachSelectors();const c=$('coachSelect').value,tid=$('coachTeamSelect').value,ids=new Set(state.teams.filter(t=>(!c||t.coach===c)&&(!tid||t.id===tid)).map(t=>t.id));const g=state.games.filter(x=>ids.has(x.aId)||ids.has(x.bId)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('coachSchedule').innerHTML='<h2>Schedule</h2>'+scheduleCards(g);const groups=new Set(g.map(x=>poolKey(x.division,x.pool)));$('coachStandings').innerHTML='<h2>Standings</h2>'+[...groups].map(k=>standingsHTML(k)).join('')}
 function renderPublic(){groupOptions($('publicDivision'));const f=$('publicDivision').value||'ALL';$('publicHeader').innerHTML=`<div class="public-title">${esc(state.settings.leagueName||'MSS 3v3 League')}</div><div class="hint">Public schedule, results and pool standings</div>`;const g=state.games.filter(x=>f==='ALL'||poolKey(x.division,x.pool)===f).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('publicSchedule').innerHTML=scheduleCards(g);$('publicStandings').innerHTML=standingsHTML(f)}
-function exportSchedule(){const rows=[['Date','Time','Court','Division','Pool','Team A','Team B','Score A','Score B'],...state.games.map(g=>[g.date,g.time,g.court,divisionLabel(g.division),g.pool,teamById(g.aId).name,teamById(g.bId).name,g.sa??'',g.sb??''])];download(rows.map(r=>r.map(csv).join(',')).join('\n'),'3v3-league-schedule.csv','text/csv')}
+function exportSchedule(){const rows=[['Week','Date','Time','Playing Surface','Division','Pool','Team A','Team B','Score A','Score B'],...state.games.map(g=>[g.week||'',g.date,g.time,g.court,divisionLabel(g.division),g.pool,teamById(g.aId).name,teamById(g.bId).name,g.sa??'',g.sb??''])];download(rows.map(r=>r.map(csv).join(',')).join('\n'),'3v3-league-schedule.csv','text/csv')}
 function csv(v){v=String(v);return /[,"\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v}
 function exportSetup(){download(JSON.stringify(state,null,2),'3v3-league-setup.json','application/json')}
 function importSetup(file){const r=new FileReader();r.onload=()=>{try{state=JSON.parse(r.result);persist();hydrate();ensurePools();renderAll()}catch(e){alert('Invalid setup file')}};r.readAsText(file)}
@@ -456,7 +572,7 @@ function renderAll(){renderTeams();renderSettings();renderBoard();renderSchedule
 
 $('addTeamBtn').addEventListener('click',addTeam);$('importCsvBtn').addEventListener('click',importCSV);$('loadSampleBtn').addEventListener('click',()=>{const n=importCSVText(sampleCSV);$('importStatus').innerHTML=`<div class="status ok">${n} sample teams loaded.</div>`});
 $('teamSearch').addEventListener('input',renderTeams);$('rebalanceBtn').addEventListener('click',rebalancePools);$('approveBtn').addEventListener('click',approveBoard);$('unlockBtn').addEventListener('click',unlockBoard);
-$('addExceptionBtn').addEventListener('click',addException);$('addCourtBtn').addEventListener('click',addCourt);$('saveBtn').addEventListener('click',save);$('exportSetupBtn').addEventListener('click',exportSetup);
+$('addExceptionBtn').addEventListener('click',addException);$('addCourtBtn').addEventListener('click',addCourt);$('addCourtGroupBtn').addEventListener('click',addCourtGroup);$('saveBtn').addEventListener('click',save);$('exportSetupBtn').addEventListener('click',exportSetup);
 $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',generateSchedule);
 $('exportScheduleBtn').addEventListener('click',exportSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',renderSchedule);
 $('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());
