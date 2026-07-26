@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS 3v3 League Scheduler v9.5</title>
+<title>MSS 3v3 League Scheduler v9.7</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS 3v3 League Scheduler v9.5</h1><div class="sub">Registration Import → Pools → Court Groups & Division Windows → Approval → Weekly Scheduling</div></div>
+  <div><h1>MSS 3v3 League Scheduler v9.7</h1><div class="sub">Registration Import → Pools → Court Groups & Division Windows → Approval → Weekly Scheduling</div></div>
 </header>
 <div class="viewbar">
   <button data-view="admin">Admin View</button>
@@ -55,7 +55,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <div class="grid">
     <div class="card">
       <h2>Import Registered Teams</h2>
-      <p class="hint">CSV headers: Team Name, Coach, Gender, Grade, Skill, Request. Divisions and pools are created automatically.</p>
+      <p class="hint">CSV headers: Team Name, Coach, Gender, Grade, Skill, Request. Use the clean team display name only; grade, gender and level are stored separately and shown by the division.</p>
       <input id="csvFile" type="file" accept=".csv">
       <label>Import Behavior</label>
       <select id="importMode">
@@ -63,7 +63,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
         <option value="append">Append to existing registrations</option>
       </select>
       <button class="primary" id="importCsvBtn">Import CSV</button>
-      <button class="secondary" id="loadSampleBtn">Load 3v3 Sample Teams</button>
+      <button class="secondary" id="loadSampleBtn">Load Clean 3v3 Sample Teams</button>
       <button class="danger" id="clearRegistrationsBtn">Clear Registrations & Schedule</button>
       <div id="importStatus"></div><div id="duplicateNameStatus"></div>
     </div>
@@ -285,75 +285,70 @@ function importCSVText(text,mode='replace'){
 }
 function importCSV(){const f=$('csvFile').files[0];if(!f)return alert('Choose a CSV file.');const mode=$('importMode').value;const r=new FileReader();r.onload=()=>{try{const n=importCSVText(r.result,mode);$('importStatus').innerHTML=`<div class="status ok">${n} teams imported using ${mode==='replace'?'Replace':'Append'} mode. Divisions and pools were created automatically.</div>`;renderDuplicateNameStatus()}catch(e){$('importStatus').innerHTML=`<div class="status bad">${esc(e.message)}</div>`}};r.readAsText(f)}
 const sampleCSV=`Team Name,Coach,Gender,Grade,Skill,Request
-Lady Swarm,Coach Taylor,Girls,3rd/4th Grade,Open,
-Sparks,Coach Rob,Girls,3rd/4th Grade,Open,no_sat_am
-Comets,Coach Jordan,Girls,3rd/4th Grade,Open,
-Flight,Coach Casey,Girls,3rd/4th Grade,Open,
-Elite,Coach Morgan,Girls,3rd/4th Grade,Open,
-Thunder,Coach Alex,Girls,3rd/4th Grade,Open,
-Storm,Coach Jamie,Girls,3rd/4th Grade,Open,
-Hawks,Coach Chris,Girls,3rd/4th Grade,Open,
-Titans,Coach Drew,Boys,3rd/4th Grade,Open,
-Warriors,Coach Sam,Boys,3rd/4th Grade,Open,
-Panthers,Coach Pat,Boys,3rd/4th Grade,Open,
-Falcons,Coach Cameron,Boys,3rd/4th Grade,Open,
-Blazers,Coach Reese,Boys,3rd/4th Grade,Open,
-Cyclones,Coach Parker,Boys,3rd/4th Grade,Open,
-Mustangs,Coach Avery,Boys,3rd/4th Grade,Open,
-Wolves,Coach Blake,Boys,3rd/4th Grade,Open,
-Royals,Coach Taylor,Boys,3rd/4th Grade,Open,
-Knights,Coach Rob,Boys,3rd/4th Grade,Open,
-Force,Coach Jordan,Boys,3rd/4th Grade,Open,
-Select,Coach Casey,Boys,3rd/4th Grade,Open,
-Lady Thunder,Coach Morgan,Girls,5th/6th Grade,Open,
-Lady Storm,Coach Alex,Girls,5th/6th Grade,Open,
-Lady Hawks,Coach Jamie,Girls,5th/6th Grade,Open,
-Lady Heat,Coach Chris,Girls,5th/6th Grade,Open,
-Lady Lightning,Coach Drew,Girls,5th/6th Grade,Open,
-Lady Titans,Coach Sam,Girls,5th/6th Grade,Open,
-Metro Heat,Coach Pat,Boys,5th/6th Grade,Open,
-Metro Lightning,Coach Cameron,Boys,5th/6th Grade,Open,
-Metro Titans,Coach Reese,Boys,5th/6th Grade,Open,
-Metro Warriors,Coach Parker,Boys,5th/6th Grade,Open,
-Metro Panthers,Coach Avery,Boys,5th/6th Grade,Open,
-Metro Falcons,Coach Blake,Boys,5th/6th Grade,Open,
-Metro Blazers,Coach Taylor,Boys,5th/6th Grade,Open,
-Metro Elite,Coach Rob,Boys,5th/6th Grade,Open,
-Lady Wolves,Coach Jordan,Girls,7th/8th Grade,Open,
-Lady Royals,Coach Casey,Girls,7th/8th Grade,Open,
-Lady Flight,Coach Morgan,Girls,7th/8th Grade,Open,
-Lady Force,Coach Alex,Girls,7th/8th Grade,Open,
-Lady Select,Coach Jamie,Girls,7th/8th Grade,Open,
-Raptors,Coach Chris,Boys,7th/8th Grade,Open,
-Knights Gold,Coach Drew,Boys,7th/8th Grade,Open,
-United,Coach Sam,Boys,7th/8th Grade,Open,
-Cyclones Blue,Coach Pat,Boys,7th/8th Grade,Open,
-Mustangs Red,Coach Cameron,Boys,7th/8th Grade,Open,
-Wolves Black,Coach Reese,Boys,7th/8th Grade,Open,
-JV Sparks,Coach Parker,Girls,HS JV,Open,
-JV Comets,Coach Avery,Girls,HS JV,Open,
-JV Flight,Coach Blake,Girls,HS JV,Open,
-JV Elite,Coach Taylor,Girls,HS JV,Open,
-JV Thunder,Coach Rob,Boys,HS JV,Open,
-JV Storm,Coach Jordan,Boys,HS JV,Open,
-JV Hawks,Coach Casey,Boys,HS JV,Open,
-JV Heat,Coach Morgan,Boys,HS JV,Open,
-JV Titans,Coach Alex,Boys,HS JV,Open,
-Varsity Sparks,Coach Jamie,Girls,HS Varsity,Open,
-Varsity Comets,Coach Chris,Girls,HS Varsity,Open,
-Varsity Flight,Coach Drew,Girls,HS Varsity,Open,
-Varsity Elite,Coach Sam,Girls,HS Varsity,Open,
-Varsity Thunder,Coach Pat,Girls,HS Varsity,Open,
-Varsity Storm,Coach Cameron,Girls,HS Varsity,Open,
-Varsity Hawks,Coach Reese,Girls,HS Varsity,Open,
-Varsity Heat,Coach Parker,Boys,HS Varsity,Open,
-Varsity Lightning,Coach Avery,Boys,HS Varsity,Open,
-Varsity Titans,Coach Blake,Boys,HS Varsity,Open,
-Varsity Warriors,Coach Taylor,Boys,HS Varsity,Open,
-Varsity Panthers,Coach Rob,Boys,HS Varsity,Open,
-Varsity Falcons,Coach Jordan,Boys,HS Varsity,Open,
-Varsity Blazers,Coach Casey,Boys,HS Varsity,Open,
-Varsity Elite,Coach Morgan,Boys,HS Varsity,Open,`;
+Swarm,Coach Taylor,Girls,3rd/4th Grade,Open,
+Thunder,Coach Rob,Girls,3rd/4th Grade,Open,
+Storm,Coach Jordan,Girls,3rd/4th Grade,Open,
+Hawks,Coach Casey,Girls,3rd/4th Grade,Open,
+Heat,Coach Morgan,Girls,3rd/4th Grade,Open,
+Lightning,Coach Alex,Girls,3rd/4th Grade,Open,
+Titans,Coach Jamie,Girls,3rd/4th Grade,Open,
+Warriors,Coach Chris,Girls,3rd/4th Grade,Open,
+Panthers,Coach Drew,Boys,3rd/4th Grade,Open,
+Falcons,Coach Sam,Boys,3rd/4th Grade,Open,
+Blazers,Coach Pat,Boys,3rd/4th Grade,Open,
+Cyclones,Coach Cameron,Boys,3rd/4th Grade,Open,
+Mustangs,Coach Reese,Boys,3rd/4th Grade,Open,
+Wolves,Coach Parker,Boys,3rd/4th Grade,Open,
+Royals,Coach Avery,Boys,3rd/4th Grade,Open,
+Knights,Coach Blake,Boys,3rd/4th Grade,Open,
+Comets,Coach Taylor,Girls,5th/6th Grade,Open,
+Sparks,Coach Rob,Girls,5th/6th Grade,Open,
+Flight,Coach Jordan,Girls,5th/6th Grade,Open,
+Elite,Coach Casey,Girls,5th/6th Grade,Open,
+Force,Coach Morgan,Girls,5th/6th Grade,Open,
+Select,Coach Alex,Girls,5th/6th Grade,Open,
+Raptors,Coach Jamie,Girls,5th/6th Grade,Open,
+United,Coach Chris,Girls,5th/6th Grade,Open,
+Vipers,Coach Drew,Boys,5th/6th Grade,Open,
+Rebels,Coach Sam,Boys,5th/6th Grade,Open,
+Pride,Coach Pat,Boys,5th/6th Grade,Open,
+Impact,Coach Cameron,Boys,5th/6th Grade,Open,
+Stars,Coach Reese,Boys,5th/6th Grade,Open,
+Liberty,Coach Parker,Boys,5th/6th Grade,Open,
+Phoenix,Coach Avery,Boys,5th/6th Grade,Open,
+Eclipse,Coach Blake,Boys,5th/6th Grade,Open,
+Crush,Coach Taylor,Girls,7th/8th Grade,Open,
+Surge,Coach Rob,Girls,7th/8th Grade,Open,
+Velocity,Coach Jordan,Girls,7th/8th Grade,Open,
+Fusion,Coach Casey,Girls,7th/8th Grade,Open,
+Rise,Coach Morgan,Girls,7th/8th Grade,Open,
+Pulse,Coach Alex,Girls,7th/8th Grade,Open,
+Legacy,Coach Jamie,Boys,7th/8th Grade,Open,
+Momentum,Coach Chris,Boys,7th/8th Grade,Open,
+Aces,Coach Drew,Boys,7th/8th Grade,Open,
+Wildcats,Coach Sam,Boys,7th/8th Grade,Open,
+Cougars,Coach Pat,Boys,7th/8th Grade,Open,
+Bulldogs,Coach Cameron,Boys,7th/8th Grade,Open,
+Tigers,Coach Reese,Girls,HS JV,Open,
+Lions,Coach Parker,Girls,HS JV,Open,
+Jaguars,Coach Avery,Girls,HS JV,Open,
+Bears,Coach Blake,Girls,HS JV,Open,
+Rockets,Coach Taylor,Girls,HS JV,Open,
+Mavericks,Coach Rob,Boys,HS JV,Open,
+Pioneers,Coach Jordan,Boys,HS JV,Open,
+Chargers,Coach Casey,Boys,HS JV,Open,
+Spartans,Coach Morgan,Boys,HS JV,Open,
+Gladiators,Coach Alex,Boys,HS JV,Open,
+Raiders,Coach Jamie,Girls,HS Varsity,Open,
+Outlaws,Coach Chris,Girls,HS Varsity,Open,
+Trailblazers,Coach Drew,Girls,HS Varsity,Open,
+Firebirds,Coach Sam,Girls,HS Varsity,Open,
+Stallions,Coach Pat,Girls,HS Varsity,Open,
+Hornets,Coach Cameron,Boys,HS Varsity,Open,
+Scorpions,Coach Reese,Boys,HS Varsity,Open,
+Sharks,Coach Parker,Boys,HS Varsity,Open,
+Cobras,Coach Avery,Boys,HS Varsity,Open,
+Eagles,Coach Blake,Boys,HS Varsity,Open,`;
 
 function divisionGroups(){const g={};state.teams.forEach(t=>(g[divisionKey(t)]??=[]).push(t));return g}
 function poolLetters(n){return Array.from({length:n},(_,i)=>String.fromCharCode(65+i))}
@@ -548,43 +543,20 @@ function divisionSlots(d,date){
   return out.sort((a,b)=>a.stamp-b.stamp||a.court.localeCompare(b.court))
 }
 function pairId(a,b){return [a,b].sort().join('|')}
-function chooseRound(activeIds,counts,target,pairCounts,lastOpponent,roundIndex){
-  const available=activeIds.filter(id=>counts[id]<target);
+function candidatePairs(ids,scheduledCounts,target,pairCounts,lastOpponent){
   const candidates=[];
-  for(let i=0;i<available.length;i++)for(let j=i+1;j<available.length;j++){
-    const a=available[i],b=available[j],played=pairCounts[pairId(a,b)]||0;
+  for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
+    const a=ids[i],b=ids[j];
+    if(!a||!b||a===b)continue;
+    if(scheduledCounts[a]>=target||scheduledCounts[b]>=target)continue;
+    const played=pairCounts[pairId(a,b)]||0;
     const immediate=(lastOpponent[a]===b||lastOpponent[b]===a)?1:0;
-    const balance=Math.abs(counts[a]-counts[b]);
-    candidates.push({a,b,score:played*1000+immediate*100+balance*10+((i+j+roundIndex)%7)})
+    const need=(target-scheduledCounts[a])+(target-scheduledCounts[b]);
+    candidates.push({a,b,score:played*10000+immediate*1000-need*100+Math.abs(scheduledCounts[a]-scheduledCounts[b])})
   }
-  candidates.sort((x,y)=>x.score-y.score);
-  const used=new Set(),pairs=[];
-  for(const c of candidates){
-    if(used.has(c.a)||used.has(c.b))continue;
-    used.add(c.a);used.add(c.b);pairs.push([c.a,c.b])
-  }
-  return pairs
+  return candidates.sort((x,y)=>x.score-y.score)
 }
-function weeklyGameQueue(rawIds,gamesPerTeam,weekIndex,pairCounts,lastOpponent){
-  const ids=[...new Set(rawIds)].filter(Boolean),counts=Object.fromEntries(ids.map(id=>[id,0])),q=[];
-  let roundIndex=0,guard=0;
-  while(ids.some(id=>counts[id]<gamesPerTeam)&&guard++<100){
-    let pairs=chooseRound(ids,counts,gamesPerTeam,pairCounts,lastOpponent,roundIndex+weekIndex);
-    if(!pairs.length)break;
-    const roundLast={};
-    for(const[a,b]of pairs){
-      if(!a||!b||a===b)continue;
-      if(counts[a]>=gamesPerTeam||counts[b]>=gamesPerTeam)continue;
-      q.push([a,b,roundIndex]);
-      counts[a]++;counts[b]++;
-      pairCounts[pairId(a,b)]=(pairCounts[pairId(a,b)]||0)+1;
-      roundLast[a]=b;roundLast[b]=a
-    }
-    Object.assign(lastOpponent,roundLast);
-    roundIndex++
-  }
-  return {queue:q,counts}
-}
+function weeklyNeedsComplete(ids,counts,target){return ids.every(id=>counts[id]>=target)}
 function allowed(team,slot){const d=new Date(slot.date+'T00:00:00'),h=+slot.time.slice(0,2);if(team.request==='no_sat_am'&&d.getDay()===6&&h<12)return false;if(team.request==='no_sun'&&d.getDay()===0)return false;if(team.request==='no_am'&&h<12)return false;if(team.request==='no_pm'&&h>=12)return false;return true}
 function selectedScheduleTargets(){
   const scope=$('scheduleFilter').value||'ALL',targets=[];
@@ -630,37 +602,64 @@ function generateSchedule(){
     const pairCounts={},lastOpponent={};
     dates.forEach((date,weekIndex)=>{
       const available=divisionSlots(d,date);
-      const weekly=weeklyGameQueue(ids,state.settings.gamesPerWeek,weekIndex,pairCounts,lastOpponent);
-      const queue=weekly.queue,weeklyCounts=weekly.counts;
-      for(const[a,b]of queue){
-        if(!a||!b||a===b){warnings.push(`Week ${weekIndex+1}: invalid self-match was blocked.`);continue}
-        const ta=teamById(a),tb=teamById(b);let found=null;
-        for(const s of available){
-          const sk=`${s.date}|${s.time}|${s.court}`;if(used.has(sk)||!allowed(ta,s)||!allowed(tb,s))continue;
-          if((teamTimes[a]||new Set()).has(s.stamp)||(teamTimes[b]||new Set()).has(s.stamp))continue;
-          if(ta.coach&&(coachTimes[ta.coach]||new Set()).has(s.stamp))continue;
-          if(tb.coach&&(coachTimes[tb.coach]||new Set()).has(s.stamp))continue;
-          const rest=(state.settings.minRest+1)*state.settings.gameLength*60000;
-          if(state.settings.minRest>0){
-            if([...(teamTimes[a]||[])].some(x=>Math.abs(s.stamp-x)<rest))continue;
-            if([...(teamTimes[b]||[])].some(x=>Math.abs(s.stamp-x)<rest))continue;
+      const weeklyCounts=Object.fromEntries(ids.map(id=>[id,0]));
+      const weeklyLast={};
+      let guard=0;
+
+      while(!weeklyNeedsComplete(ids,weeklyCounts,state.settings.gamesPerWeek)&&guard++<500){
+        let placed=false;
+        const candidates=candidatePairs(ids,weeklyCounts,state.settings.gamesPerWeek,pairCounts,{...lastOpponent,...weeklyLast});
+
+        for(const cand of candidates){
+          const {a,b}=cand,ta=teamById(a),tb=teamById(b);
+          let found=null;
+
+          for(const s of available){
+            const sk=`${s.date}|${s.time}|${s.court}`;
+            if(used.has(sk)||!allowed(ta,s)||!allowed(tb,s))continue;
+            if((teamTimes[a]||new Set()).has(s.stamp)||(teamTimes[b]||new Set()).has(s.stamp))continue;
+            if(ta.coach&&(coachTimes[ta.coach]||new Set()).has(s.stamp))continue;
+            if(tb.coach&&(coachTimes[tb.coach]||new Set()).has(s.stamp))continue;
+
+            const rest=(state.settings.minRest+1)*state.settings.gameLength*60000;
+            if(state.settings.minRest>0){
+              if([...(teamTimes[a]||[])].some(x=>Math.abs(s.stamp-x)<rest))continue;
+              if([...(teamTimes[b]||[])].some(x=>Math.abs(s.stamp-x)<rest))continue;
+            }
+            found=s;break
           }
-          found=s;break
+
+          if(!found)continue;
+
+          used.add(`${found.date}|${found.time}|${found.court}`);
+          (teamTimes[a]??=new Set()).add(found.stamp);(teamTimes[b]??=new Set()).add(found.stamp);
+          if(ta.coach)(coachTimes[ta.coach]??=new Set()).add(found.stamp);
+          if(tb.coach)(coachTimes[tb.coach]??=new Set()).add(found.stamp);
+
+          weeklyCounts[a]++;weeklyCounts[b]++;
+          pairCounts[pairId(a,b)]=(pairCounts[pairId(a,b)]||0)+1;
+          weeklyLast[a]=b;weeklyLast[b]=a;
+          lastOpponent[a]=b;lastOpponent[b]=a;
+
+          newGames.push({id:uid('g'),division:d,pool,aId:a,bId:b,date:found.date,time:found.time,court:found.court,sa:null,sb:null,week:weekIndex+1});
+          placed=true;
+          break
         }
-        if(!found){warnings.push(`Week ${weekIndex+1}: ${ta.name} vs ${tb.name} could not be placed.`);continue}
-        used.add(`${found.date}|${found.time}|${found.court}`);
-        (teamTimes[a]??=new Set()).add(found.stamp);(teamTimes[b]??=new Set()).add(found.stamp);
-        if(ta.coach)(coachTimes[ta.coach]??=new Set()).add(found.stamp);
-        if(tb.coach)(coachTimes[tb.coach]??=new Set()).add(found.stamp);
-        newGames.push({id:uid('g'),division:d,pool,aId:a,bId:b,date:found.date,time:found.time,court:found.court,sa:null,sb:null,week:weekIndex+1})
+
+        if(!placed)break
       }
-      ids.filter(id=>weeklyCounts[id]<state.settings.gamesPerWeek).forEach(id=>warnings.push(`Week ${weekIndex+1}: ${teamById(id).name} received ${weeklyCounts[id]} of ${state.settings.gamesPerWeek} games.`))
+
+      ids.filter(id=>weeklyCounts[id]<state.settings.gamesPerWeek).forEach(id=>
+        warnings.push(`Week ${weekIndex+1}: ${teamById(id).name} received ${weeklyCounts[id]} of ${state.settings.gamesPerWeek} games.`)
+      )
     })
   });
 
   state.games=[...retainedGames,...newGames];persist();renderAll();
+  const targetGames=targets.reduce((sum,t)=>sum+t.ids.length*state.settings.gamesPerWeek*dates.length,0);
+  const actualTeamGames=newGames.length*2;
   const scopeLabel=scope==='ALL'?'all divisions and pools':$('scheduleFilter').selectedOptions[0]?.textContent||scope;
-  $('genSummary').innerHTML=`<div class="status ${warnings.length?'warn':'ok'}">Generated ${newGames.length} games for ${esc(scopeLabel)} across ${dates.length} Sundays.${warnings.length?' '+warnings.length+' scheduling warning(s).':''}</div>${warnings.length?`<details><summary>View warnings</summary><div class="hint">${warnings.map(esc).join('<br>')}</div></details>`:''}`;
+  $('genSummary').innerHTML=`<div class="status ${warnings.length?'warn':'ok'}">Generated ${newGames.length} games for ${esc(scopeLabel)} across ${dates.length} Sundays. Team-game assignments: ${actualTeamGames}/${targetGames}.${warnings.length?' '+warnings.length+' scheduling warning(s).':''}</div>${warnings.length?`<details><summary>View warnings</summary><div class="hint">${warnings.map(esc).join('<br>')}</div></details>`:''}`;
   setTab('schedule')
 }
 function groupOptions(select){const current=select.value||select.dataset.lastValue||'ALL',groups=[];Object.entries(state.pools).forEach(([d,p])=>Object.keys(p.lists).forEach(pool=>groups.push({value:poolKey(d,pool),label:`${divisionLabel(d)} — Pool ${pool}`})));select.innerHTML='<option value="ALL">All divisions and pools</option>'+groups.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('');if(current==='ALL'||groups.some(x=>x.value===current))select.value=current;select.dataset.lastValue=select.value}
