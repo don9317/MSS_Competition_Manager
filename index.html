@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS 3v3 League Scheduler v9.7</title>
+<title>MSS 3v3 League Scheduler v9.8</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS 3v3 League Scheduler v9.7</h1><div class="sub">Registration Import → Pools → Court Groups & Division Windows → Approval → Weekly Scheduling</div></div>
+  <div><h1>MSS 3v3 League Scheduler v9.8</h1><div class="sub">Registration Import → Pools → Court Groups & Division Windows → Approval → Weekly Scheduling</div></div>
 </header>
 <div class="viewbar">
   <button data-view="admin">Admin View</button>
@@ -663,7 +663,7 @@ function generateSchedule(){
   setTab('schedule')
 }
 function groupOptions(select){const current=select.value||select.dataset.lastValue||'ALL',groups=[];Object.entries(state.pools).forEach(([d,p])=>Object.keys(p.lists).forEach(pool=>groups.push({value:poolKey(d,pool),label:`${divisionLabel(d)} — Pool ${pool}`})));select.innerHTML='<option value="ALL">All divisions and pools</option>'+groups.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('');if(current==='ALL'||groups.some(x=>x.value===current))select.value=current;select.dataset.lastValue=select.value}
-function renderSchedule(){groupOptions($('scheduleFilter'));const f=$('scheduleFilter').value||'ALL',g=state.games.filter(x=>f==='ALL'||poolKey(x.division,x.pool)===f).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));$('scheduleTable').innerHTML='<thead><tr><th>Week</th><th>Date</th><th>Time</th><th>Playing Surface</th><th>Division / Pool</th><th>Matchup</th><th>Result</th></tr></thead><tbody>'+g.map(x=>`<tr><td>${x.week||''}</td><td>${x.date}</td><td>${fmtTime(x.time)}</td><td>${esc(x.court)}</td><td>${esc(divisionLabel(x.division))} — Pool ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td>${x.sa==null?'—':x.sa+'–'+x.sb}</td></tr>`).join('')+'</tbody>'}
+function renderSchedule(){groupOptions($('scheduleFilter'));const f=$('scheduleFilter').value||'ALL',g=state.games.filter(x=>f==='ALL'||poolKey(x.division,x.pool)===f).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));$('scheduleTable').innerHTML='<thead><tr><th>Week</th><th>Date</th><th>Time</th><th>Court</th><th>Division / Pool</th><th>Matchup</th><th>Result</th></tr></thead><tbody>'+g.map(x=>`<tr><td>${x.week||''}</td><td>${x.date}</td><td>${fmtTime(x.time)}</td><td>${esc(x.court)}</td><td>${esc(divisionLabel(x.division))} — Pool ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td>${x.sa==null?'—':x.sa+'–'+x.sb}</td></tr>`).join('')+'</tbody>'}
 function renderResults(){const g=[...state.games].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('resultsTable').innerHTML='<thead><tr><th>Week</th><th>Date</th><th>Pool</th><th>Game</th><th>Score</th></tr></thead><tbody>'+g.map(x=>`<tr><td>${x.week||''}</td><td>${x.date} ${fmtTime(x.time)}</td><td>${esc(divisionLabel(x.division))} — ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td><input class="score" data-score-id="${x.id}" data-side="a" type="number" value="${x.sa??''}"> - <input class="score" data-score-id="${x.id}" data-side="b" type="number" value="${x.sb??''}"></td></tr>`).join('')+'</tbody>';document.querySelectorAll('[data-score-id]').forEach(i=>i.addEventListener('change',()=>setScore(i.dataset.scoreId,i.dataset.side,i.value)))}
 function setScore(id,side,v){const g=state.games.find(x=>x.id===id);g['s'+side]=v===''?null:+v;persist();renderAll()}
 
@@ -699,12 +699,12 @@ function openTeamModal(teamId){
     <div class="metric-card"><div class="hint">Point Differential</div><div class="kpi">${pf-pa}</div></div>
   </div>
   <div class="table-wrap" style="margin-top:14px"><table>
-    <thead><tr><th>Week</th><th>Date</th><th>Time</th><th>Opponent</th><th>Score</th><th>Result</th></tr></thead>
+    <thead><tr><th>Week</th><th>Date</th><th>Time</th><th>Court</th><th>Opponent</th><th>Score</th><th>Result</th></tr></thead>
     <tbody>${games.map(g=>{
       const isA=g.aId===teamId,opp=teamById(isA?g.bId:g.aId),forPts=isA?g.sa:g.sb,against=isA?g.sb:g.sa;
       const score=forPts==null?'—':`${forPts}-${against}`;
       const result=forPts==null?'Scheduled':forPts>against?'Win':forPts<against?'Loss':'Tie';
-      return `<tr><td>${g.week||''}</td><td>${g.date}</td><td>${fmtTime(g.time)}</td><td>${esc(opp.name)}</td><td>${score}</td><td>${result}</td></tr>`
+      return `<tr><td>${g.week||''}</td><td>${g.date}</td><td>${fmtTime(g.time)}</td><td>${esc(g.court||'—')}</td><td>${esc(opp.name)}</td><td>${score}</td><td>${result}</td></tr>`
     }).join('')}</tbody>
   </table></div>`;
   $('teamModal').classList.remove('hidden')
@@ -714,7 +714,7 @@ function standingsData(){const by={};Object.entries(state.pools).forEach(([d,p])
 function standingsHTML(filter='ALL'){const by=standingsData();return Object.entries(by).filter(([k])=>filter==='ALL'||k===filter).map(([k,s])=>{const[d,p]=k.split('::'),rows=Object.values(s).sort((a,b)=>b.w-a.w||b.pd-a.pd||a.pa-b.pa||a.name.localeCompare(b.name));return `<div class="card" style="margin-bottom:14px"><h3>${esc(divisionLabel(d))} — Pool ${p}</h3><div class="table-wrap"><table><thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>PD</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td><button class="team-link" data-team-detail="${x.id}">${esc(x.name)}</button></td><td>${x.gp}</td><td>${x.w}</td><td>${x.l}</td><td>${x.pf}</td><td>${x.pa}</td><td>${x.pd}</td></tr>`).join('')}</tbody></table></div></div>`}).join('')||'<p class="hint">No pools available.</p>'}
 function bindTeamLinks(){document.querySelectorAll('[data-team-detail]').forEach(b=>b.addEventListener('click',()=>openTeamModal(b.dataset.teamDetail)))}
 function renderStandings(){$('standingsAdmin').innerHTML=standingsHTML();bindTeamLinks()}
-function scheduleCards(g){return g.map(x=>`<div class="item"><b>${x.date} • ${fmtTime(x.time)} • ${esc(x.court)}</b><br>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}<br><span class="hint">${esc(divisionLabel(x.division))} • Pool ${x.pool}${x.sa==null?'':' • Final '+x.sa+'–'+x.sb}</span></div>`).join('')||'<p class="hint">No scheduled games.</p>'}
+function scheduleCards(g){return g.map(x=>`<div class="item"><b>${x.date} • ${fmtTime(x.time)}</b><br><span class="hint">Court: ${esc(x.court||'—')}</span><br>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}<br><span class="hint">${esc(divisionLabel(x.division))} • Pool ${x.pool}${x.sa==null?'':' • Final '+x.sa+'–'+x.sb}</span></div>`).join('')||'<p class="hint">No scheduled games.</p>'}
 function renderCoachSelectors(){const coaches=[...new Set(state.teams.map(t=>t.coach).filter(Boolean))].sort(),prev=$('coachSelect').value;$('coachSelect').innerHTML='<option value="">All coaches</option>'+coaches.map(c=>`<option>${esc(c)}</option>`).join('');if(coaches.includes(prev))$('coachSelect').value=prev;const c=$('coachSelect').value,teams=state.teams.filter(t=>!c||t.coach===c),pt=$('coachTeamSelect').value;$('coachTeamSelect').innerHTML='<option value="">All teams</option>'+teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');if(teams.some(t=>t.id===pt))$('coachTeamSelect').value=pt}
 function renderCoach(){renderCoachSelectors();const c=$('coachSelect').value,tid=$('coachTeamSelect').value,ids=new Set(state.teams.filter(t=>(!c||t.coach===c)&&(!tid||t.id===tid)).map(t=>t.id));const g=state.games.filter(x=>ids.has(x.aId)||ids.has(x.bId)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('coachSchedule').innerHTML='<h2>Schedule</h2>'+scheduleCards(g);const groups=new Set(g.map(x=>poolKey(x.division,x.pool)));$('coachStandings').innerHTML='<h2>Standings</h2>'+[...groups].map(k=>standingsHTML(k)).join('');bindTeamLinks()}
 function renderPublic(){groupOptions($('publicDivision'));const f=$('publicDivision').value||'ALL';$('publicHeader').innerHTML=`<div class="public-title">${esc(state.settings.leagueName||'MSS 3v3 League')}</div><div class="hint">Public schedule, results and pool standings</div>`;const g=state.games.filter(x=>f==='ALL'||poolKey(x.division,x.pool)===f).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('publicSchedule').innerHTML=scheduleCards(g);$('publicStandings').innerHTML=standingsHTML(f);bindTeamLinks()}
