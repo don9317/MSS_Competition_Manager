@@ -1,16 +1,11 @@
-# MSS 3v3 League Scheduler v9.1
+# MSS 3v3 League Scheduler v9.2
 
-## Fixes and additions
-- Added a 15-minute game-length option.
-- The Schedule / Display Scope dropdown now controls what is generated.
-- Selecting one pool validates and schedules only that pool's division.
-- Other divisions no longer need court groups before a selected pool can be scheduled.
-- Existing schedules for other pools are retained when one pool is regenerated.
-- Existing games are considered when checking court, team and shared-coach conflicts.
-- Selecting “All divisions and pools” still validates and regenerates the complete league.
+## Fixes
+- A Court Group named **All Courts** now dynamically includes every current playing surface.
+- Existing saved groups named All Courts are automatically converted to dynamic groups.
+- Adding or removing a playing surface automatically changes what All Courts contains.
+- Capacity calculations and schedule generation now use the resolved current surfaces in the group.
+- Added a defensive check preventing a team from being scheduled against itself.
 
-## Required setup for a selected pool
-The selected pool's division still needs:
-- A valid Sunday start/end time
-- An assigned Court Group
-- At least one playing surface in that Court Group
+## Important
+For custom court groups, the scheduler still uses only the surfaces manually selected when that group was created.
