@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS 3v3 League Scheduler v10.4</title>
+<title>MSS 3v3 League Scheduler v10.5</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -16,7 +16,7 @@ main{max-width:1380px;margin:16px auto;padding:0 15px 40px}.panel{display:none}.
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:14px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:0 2px 9px rgba(18,34,72,.05)}
 h2,h3{margin-top:0}.row{display:flex;gap:9px;flex-wrap:wrap;align-items:end}.field{flex:1;min-width:130px}
-label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select,textarea{width:100%;padding:9px;border:1px solid #c9d4e3;border-radius:7px;background:#fff}
+label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select,textarea{width:100%;padding:9px;border:1px solid #c9d4e3;border-radius:7px;background:#fff}input[type="checkbox"],input[type="radio"]{width:auto;padding:0}.check-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:6px 12px;margin:8px 0 12px}.check-grid label,.inline-check{display:flex;align-items:center;gap:8px;margin:0;padding:8px;border:1px solid var(--line);border-radius:7px;background:#f8fafc;font-weight:600}.resource-summary{padding:8px 10px;background:#f8fafc;border:1px solid var(--line);border-radius:8px;margin-top:8px}.section-note{border-left:4px solid var(--blue);padding:9px 12px;background:#f7fbff;margin-bottom:12px}
 .primary,.secondary,.danger,.success{border-radius:7px;padding:9px 13px}.primary{background:var(--navy);color:#fff;border:0}.secondary{background:#eef2f7;border:1px solid var(--line)}.danger{background:#fff0ef;color:var(--danger);border:1px solid #f2b9b2}.success{background:#08783e;color:#fff;border:0}
 .hint{color:var(--muted);font-size:13px}.pill{display:inline-block;background:#eef2f7;border-radius:999px;padding:4px 8px;margin:2px;font-size:12px}
 .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;max-height:600px}table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}th{background:#eef3f9;position:sticky;top:0}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS 3v3 League Scheduler v10.4</h1><div class="sub">Registration Import → Pools → Court Groups & Division Windows → Approval → Weekly Scheduling</div></div>
+  <div><h1>MSS 3v3 League Scheduler v10.5</h1><div class="sub">Registration Import → Pools → Court Groups & Division Windows → Approval → Weekly Scheduling</div></div>
 </header>
 <div class="viewbar">
   <button data-view="admin">Admin View</button>
@@ -45,7 +45,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <button data-tab="dashboard">Director Dashboard</button>
   <button data-tab="registrations">Registrations</button>
   <button data-tab="board">Division Board</button>
-  <button data-tab="settings">Settings</button>
+  <button data-tab="settings">Resources</button>
   <button data-tab="schedule">Schedule</button>
   <button data-tab="management">Schedule Management</button>
   <button data-tab="results">Results</button>
@@ -71,7 +71,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <div class="toolbar">
         <button class="primary" data-dashboard-tab="registrations">Manage Registrations</button>
         <button class="secondary" data-dashboard-tab="board">Review Divisions & Pools</button>
-        <button class="secondary" data-dashboard-tab="settings">Configure Courts & Times</button>
+        <button class="secondary" data-dashboard-tab="settings">Configure Resources</button>
         <button class="secondary" data-dashboard-tab="schedule">Review Schedule</button>
         <button class="secondary" data-dashboard-tab="management">Manage Schedule Changes</button>
         <button class="secondary" data-dashboard-tab="results">Enter Results</button>
@@ -150,7 +150,12 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-settings" class="panel">
-  <div class="grid">
+  <div class="card">
+    <h2>Resources & Scheduling Setup</h2>
+    <div class="section-note"><b>Setup order:</b> add playing surfaces, create reusable court groups, assign each division to a group and time window, then review scheduling rules.</div>
+  </div>
+
+  <div class="grid" style="margin-top:14px">
     <div class="card">
       <h2>League Setup</h2>
       <div class="row">
@@ -162,20 +167,15 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
         <div class="field"><label>Season Start</label><input id="seasonStart" type="date"></div>
         <div class="field"><label>Number of Weeks</label><input id="seasonWeeks" type="number" min="1" max="30" value="8"></div>
       </div>
-      <div class="row">
-        <div class="field"><label>Game Length</label><select id="gameLength"><option value="15">15 minutes</option><option value="20" selected>20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="75">75 minutes</option></select></div>
-        <div class="field"><label>Minimum Rest</label><select id="minRest"><option value="0">No added rest</option><option value="1" selected>One game slot</option><option value="2">Two game slots</option></select></div>
-        <div class="field"><label>Default Max Teams / Pool</label><input id="defaultPoolMax" type="number" min="2" max="16" value="8"></div>
-      </div>
       <label>League Days</label>
-      <div class="row"><label><input class="dow" type="checkbox" value="6"> Saturday</label><label><input class="dow" type="checkbox" value="0" checked> Sunday</label></div>
-      <label><input id="avoidRepeats" type="checkbox" checked> Avoid repeat opponents until all reasonable opponents have been played</label>
+      <div class="check-grid"><label><input class="dow" type="checkbox" value="6"> Saturday</label><label><input class="dow" type="checkbox" value="0" checked> Sunday</label></div>
       <label>Exception Date</label><div class="row"><input id="exceptionDate" type="date" class="field"><button class="secondary" id="addExceptionBtn">Add</button></div>
       <div id="exceptions"></div>
     </div>
+
     <div class="card">
       <h2>Playing Surfaces</h2>
-      <p class="hint">Add each independently scheduled area, such as Court 1 West, Court 1 East, Court 2 West and Court 2 East.</p>
+      <p class="hint">Add each independently schedulable area, such as Court 1 West, Court 1 East, Court 2 West, and Court 2 East.</p>
       <div class="row">
         <div class="field"><label>Surface Name</label><input id="courtName" placeholder="Court 1 West"></div>
         <div class="field"><label>Available From</label><input id="courtStart" type="time" value="17:00"></div>
@@ -183,21 +183,39 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       </div>
       <button class="primary" id="addCourtBtn">Add Playing Surface</button>
       <div id="courtsList"></div>
-      <hr>
-      <h3>Court Groups</h3>
-      <p class="hint">Create reusable groups of surfaces. A division is assigned to one court group and returns to those surfaces each week. A group named “All Courts” automatically includes every current playing surface.</p>
-      <label>Group Name</label><input id="courtGroupName" placeholder="3rd/4th Grade Courts">
-      <div id="courtGroupSurfaceChoices"></div>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:14px">
+    <div class="card">
+      <h2>Court Groups</h2>
+      <p class="hint">Court groups are reusable sets of playing surfaces. Multiple divisions can use the same group at different times. A group named “All Courts” automatically includes every current playing surface.</p>
+      <label>Court Group Name</label><input id="courtGroupName" placeholder="Elementary Courts">
+      <label>Playing Surfaces in This Group</label>
+      <div id="courtGroupSurfaceChoices" class="check-grid"></div>
       <button class="primary" id="addCourtGroupBtn">Add Court Group</button>
       <div id="courtGroupsList"></div>
+    </div>
+
+    <div class="card">
+      <h2>Scheduling Rules</h2>
+      <div class="row">
+        <div class="field"><label>Game Length</label><select id="gameLength"><option value="15">15 minutes</option><option value="20" selected>20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="75">75 minutes</option></select></div>
+        <div class="field"><label>Minimum Rest</label><select id="minRest"><option value="0">No added rest</option><option value="1" selected>One game slot</option><option value="2">Two game slots</option></select></div>
+        <div class="field"><label>Default Max Teams / Pool</label><input id="defaultPoolMax" type="number" min="2" max="16" value="8"></div>
+      </div>
+      <label class="inline-check"><input id="avoidRepeats" type="checkbox" checked> Avoid repeat opponents until all reasonable opponents have been played</label>
+      <div class="resource-summary"><b>Built-in protections:</b><br><span class="hint">No self-games, immediate rematches strongly avoided, shared-coach conflicts checked, and minimum-rest rules applied.</span></div>
       <hr><div id="capacity"></div>
     </div>
   </div>
+
   <div class="card" style="margin-top:14px">
-    <h2>Division Court & Time Assignments</h2>
-    <p class="hint">Assign every division to a repeating Sunday time window and court group. These assignments remain the same each week.</p>
+    <h2>Division Assignments</h2>
+    <p class="hint">Select each existing division’s reusable court group and recurring time window. This is where divisions are connected to court resources.</p>
     <div id="divisionAssignments"></div>
   </div>
+
   <div class="card" style="margin-top:14px">
     <div class="toolbar">
       <button class="primary" id="saveBtn">Save</button>
@@ -580,8 +598,8 @@ function renderSettings(){
   document.querySelectorAll('[data-remove-ex]').forEach(b=>b.addEventListener('click',()=>removeException(b.dataset.removeEx)));
   $('courtsList').innerHTML=state.courts.map(c=>`<div class="item"><b>${esc(c.name)}</b> ${fmtTime(c.start)}–${fmtTime(c.end)} <button class="danger" data-remove-court="${c.id}">Remove</button></div>`).join('')||'<p class="hint">No playing surfaces added.</p>';
   document.querySelectorAll('[data-remove-court]').forEach(b=>b.addEventListener('click',()=>removeCourt(b.dataset.removeCourt)));
-  $('courtGroupSurfaceChoices').innerHTML=state.courts.map(c=>`<label><input type="checkbox" data-group-surface value="${c.id}"> ${esc(c.name)}</label>`).join('')||'<p class="hint">Add playing surfaces first.</p>';
-  $('courtGroupsList').innerHTML=state.courtGroups.map(g=>`<div class="item"><b>${esc(g.name)}</b><br><span class="hint">${groupSurfaceIds(g).map(id=>esc((state.courts.find(c=>c.id===id)||{}).name||'Missing surface')).join(', ')}</span> <button class="danger" data-remove-group="${g.id}">Remove</button></div>`).join('')||'<p class="hint">No court groups created.</p>';
+  $('courtGroupSurfaceChoices').innerHTML=state.courts.map(c=>`<label><input type="checkbox" data-group-surface value="${c.id}"><span>${esc(c.name)}</span></label>`).join('')||'<p class="hint">Add playing surfaces first.</p>';
+  $('courtGroupsList').innerHTML=state.courtGroups.map(g=>{const ids=groupSurfaceIds(g);return `<div class="item"><div class="row" style="justify-content:space-between;align-items:center"><div><b>${esc(g.name)} (${ids.length} surface${ids.length===1?'':'s'})</b><br><span class="hint">${ids.map(id=>esc((state.courts.find(c=>c.id===id)||{}).name||'Missing surface')).join(', ')||'No surfaces'}</span></div><button class="danger" data-remove-group="${g.id}">Remove</button></div></div>`}).join('')||'<p class="hint">No court groups created.</p>';
   document.querySelectorAll('[data-remove-group]').forEach(b=>b.addEventListener('click',()=>removeCourtGroup(b.dataset.removeGroup)));
   renderDivisionAssignments();renderCapacity();
 }
@@ -590,9 +608,9 @@ function renderDivisionAssignments(){
   $('divisionAssignments').innerHTML=Object.keys(state.pools).sort().map(d=>{
     const c=state.divisionConfig[d];
     return `<div class="item"><b>${esc(divisionLabel(d))}</b><div class="row">
-      <div class="field"><label>Sunday Start</label><input type="time" value="${c.start}" data-div="${esc(d)}" data-div-field="start"></div>
-      <div class="field"><label>Sunday End</label><input type="time" value="${c.end}" data-div="${esc(d)}" data-div-field="end"></div>
-      <div class="field"><label>Court Group</label><select data-div="${esc(d)}" data-div-field="courtGroupId"><option value="">Select court group</option>${state.courtGroups.map(g=>`<option value="${g.id}" ${g.id===c.courtGroupId?'selected':''}>${esc(g.name)}</option>`).join('')}</select></div>
+      <div class="field"><label>Recurring Start</label><input type="time" value="${c.start}" data-div="${esc(d)}" data-div-field="start"></div>
+      <div class="field"><label>Recurring End</label><input type="time" value="${c.end}" data-div="${esc(d)}" data-div-field="end"></div>
+      <div class="field"><label>Court Group</label><select data-div="${esc(d)}" data-div-field="courtGroupId"><option value="">Select court group</option>${state.courtGroups.map(g=>`<option value="${g.id}" ${g.id===c.courtGroupId?'selected':''}>${esc(g.name)} (${groupSurfaceIds(g).length})</option>`).join('')}</select></div>
     </div></div>`;
   }).join('')||'<p class="hint">Import teams to create division assignments.</p>';
   document.querySelectorAll('[data-div-field]').forEach(e=>e.addEventListener('change',()=>setDivisionConfig(e.dataset.div,e.dataset.divField,e.value)));

@@ -1,18 +1,12 @@
-# MSS 3v3 League Scheduler v10.4
+# MSS 3v3 League Scheduler v10.5
 
-## Operations dashboard improvements
-- Added a Division Status table showing teams, scheduled games versus target, completed games, published games, and a clear health status for every division/pool.
-- Added league-wide progress totals for divisions scheduled, games scheduled, games completed, divisions complete, and divisions published.
-- Added direct division shortcuts to Schedule Management, Schedule, and Standings.
+## Resources redesign
+- Renamed the Admin **Settings** tab to **Resources**.
+- Separated Playing Surfaces, Court Groups, Division Assignments, and Scheduling Rules into clear sections.
+- Court Group Name remains a reusable resource name; divisions are selected in the Division Assignments section.
+- Division Assignment dropdowns use the divisions already created from registrations.
+- Court groups show their surface count and included surfaces.
+- Fixed detached/random checkbox display by using properly aligned checkbox controls.
+- Added clearer setup-order guidance and recurring start/end labels.
 
-## Schedule Management improvements
-- Added Division / Pool, Week, Status, and Court filters.
-- The selected division is shown clearly above the schedule grid.
-- The game table now includes division/pool, week, score, and status so the director always knows which part of the league is being managed.
-
-## Existing safeguards retained
-- Schedule change history with Undo and Restore This Version.
-- Historical Correction workflow for past or completed games.
-- Required reasons, conflict warnings, publishing controls, and audit history.
-
-Open `START_HERE.html` for local use or `index.html` for GitHub Pages.
+All v10.4 features remain included, including the Director Dashboard, division health/status, filtered Schedule Management, publishing workflow, undo/history, historical corrections, sample teams, sample scores, and demo setup.
