@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS 3v3 League Scheduler v10.1</title>
+<title>MSS 3v3 League Scheduler v10.2</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS 3v3 League Scheduler v10.1</h1><div class="sub">Registration Import → Pools → Court Groups & Division Windows → Approval → Weekly Scheduling</div></div>
+  <div><h1>MSS 3v3 League Scheduler v10.2</h1><div class="sub">Registration Import → Pools → Court Groups & Division Windows → Approval → Weekly Scheduling</div></div>
 </header>
 <div class="viewbar">
   <button data-view="admin">Admin View</button>
@@ -42,15 +42,49 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <button data-view="public">League Portal</button>
 </div>
 <div class="tabs admin-tabs">
+  <button data-tab="dashboard">Director Dashboard</button>
   <button data-tab="registrations">Registrations</button>
   <button data-tab="board">Division Board</button>
   <button data-tab="settings">Settings</button>
   <button data-tab="schedule">Schedule</button>
+  <button data-tab="management">Schedule Management</button>
   <button data-tab="results">Results</button>
   <button data-tab="standings">Standings</button>
 </div>
 
 <main>
+<section id="admin-dashboard" class="panel">
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div><h2 style="margin-bottom:4px">Director Dashboard</h2><div class="hint">League setup, scheduling, publishing, and results at a glance.</div></div>
+      <div id="dashboardLeagueStatus"></div>
+    </div>
+  </div>
+  <div id="dashboardMetrics" class="grid" style="margin-top:14px"></div>
+  <div class="grid" style="margin-top:14px">
+    <div class="card">
+      <h2>Setup Progress</h2>
+      <div id="dashboardSetup"></div>
+    </div>
+    <div class="card">
+      <h2>Director Actions</h2>
+      <div class="toolbar">
+        <button class="primary" data-dashboard-tab="registrations">Manage Registrations</button>
+        <button class="secondary" data-dashboard-tab="board">Review Divisions & Pools</button>
+        <button class="secondary" data-dashboard-tab="settings">Configure Courts & Times</button>
+        <button class="secondary" data-dashboard-tab="schedule">Review Schedule</button>
+        <button class="secondary" data-dashboard-tab="management">Manage Schedule Changes</button>
+        <button class="secondary" data-dashboard-tab="results">Enter Results</button>
+        <button class="secondary" data-dashboard-tab="standings">View Standings</button>
+      </div>
+    </div>
+  </div>
+  <div class="grid" style="margin-top:14px">
+    <div class="card"><h2>Schedule Status</h2><div id="dashboardScheduleStatus"></div></div>
+    <div class="card"><h2>Publishing Status</h2><div id="dashboardPublishStatus"></div></div>
+  </div>
+</section>
+
 <section id="admin-registrations" class="panel">
   <div class="grid">
     <div class="card">
@@ -272,9 +306,9 @@ function setView(view){
   const u=new URL(location.href);u.searchParams.set('view',view);history.replaceState({},'',u);
   document.querySelectorAll('.viewbar button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   document.querySelector('.admin-tabs').classList.toggle('hidden',view!=='admin');document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  if(view==='admin')setTab(localStorage.getItem('mss3v3tab')||'registrations');else{$(view+'-view').classList.add('active');view==='coach'?renderCoach():renderPublic()}
+  if(view==='admin')setTab('dashboard');else{$(view+'-view').classList.add('active');view==='coach'?renderCoach():renderPublic()}
 }
-function setTab(tab){localStorage.setItem('mss3v3tab',tab);document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));document.querySelectorAll('[id^="admin-"]').forEach(p=>p.classList.remove('active'));$('admin-'+tab).classList.add('active');if(tab==='board')renderBoard();if(tab==='schedule')renderSchedule();if(tab==='management')renderManagement();if(tab==='results')renderResults();if(tab==='standings')renderStandings()}
+function setTab(tab){localStorage.setItem('mss3v3tab',tab);document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));document.querySelectorAll('[id^="admin-"]').forEach(p=>p.classList.remove('active'));const panel=$('admin-'+tab);if(!panel)return setTab('dashboard');panel.classList.add('active');if(tab==='dashboard')renderDashboard();if(tab==='board')renderBoard();if(tab==='schedule')renderSchedule();if(tab==='management')renderManagement();if(tab==='results')renderResults();if(tab==='standings')renderStandings()}
 document.querySelectorAll('.viewbar button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 
 function addTeam(){
@@ -802,7 +836,33 @@ function loadCompleteDemo(){
 function minToClock(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
 
 function resetAll(){if(confirm('Delete registrations, pools, schedule and scores?')){localStorage.removeItem(KEY);location.reload()}}
-function renderAll(){renderTeams();renderDuplicateNameStatus();renderSettings();renderBoard();renderSchedule();renderManagement();renderResults();renderStandings();renderCoachSelectors();renderCoach();renderPublic()}
+function renderDashboard(){
+  const divisions=Object.keys(state.pools||{}).length;
+  const completed=state.games.filter(g=>g.sa!=null&&g.sb!=null).length;
+  const pending=state.games.filter(g=>g.pending).length;
+  const cancelled=state.games.filter(g=>g.status==='Cancelled').length;
+  const activeGames=state.games.length-cancelled;
+  const published=(state.publishedGames||[]).length;
+  const configuredDivisions=Object.keys(state.divisionConfig||{}).filter(d=>{const c=state.divisionConfig[d];return c&&c.start&&c.end&&c.courtGroupId}).length;
+  const setupItems=[
+    ['Registrations imported',state.teams.length>0,`${state.teams.length} team(s)`,'registrations'],
+    ['Divisions and pools approved',state.approved,`${divisions} division(s)`,'board'],
+    ['Playing surfaces configured',state.courts.length>0,`${state.courts.length} surface(s)`,'settings'],
+    ['Court groups configured',state.courtGroups.length>0,`${state.courtGroups.length} group(s)`,'settings'],
+    ['Division windows assigned',divisions>0&&configuredDivisions===divisions,`${configuredDivisions}/${divisions} assigned`,'settings'],
+    ['Schedule generated',state.games.length>0,`${state.games.length} game(s)`,'schedule']
+  ];
+  $('dashboardLeagueStatus').innerHTML=`<span class="pill">${esc(state.settings.leagueName||'MSS 3v3 League')}</span>`;
+  $('dashboardMetrics').innerHTML=[
+    ['Teams',state.teams.length,'registrations'],['Divisions',divisions,'board'],['Scheduled Games',state.games.length,'schedule'],['Completed Games',completed,'results'],['Unpublished Changes',pending,'management'],['Published Games',published,'management']
+  ].map(([label,value,tab])=>`<div class="card"><div class="hint">${label}</div><div class="kpi">${value}</div><button class="team-link" data-dashboard-tab="${tab}">Open</button></div>`).join('');
+  $('dashboardSetup').innerHTML=setupItems.map(([label,ok,detail,tab])=>`<div class="item"><b>${ok?'✓':'○'} ${label}</b><br><span class="hint">${esc(detail)}</span> <button class="team-link" data-dashboard-tab="${tab}">${ok?'Review':'Complete'}</button></div>`).join('');
+  $('dashboardScheduleStatus').innerHTML=state.games.length?`<div class="status ${pending?'warn':'ok'}"><b>${activeGames} active game(s)</b><br>${completed} completed • ${cancelled} cancelled • ${pending} unpublished change(s)</div><button class="secondary" data-dashboard-tab="schedule">Open Schedule</button>`:`<div class="status warn">No schedule has been generated.</div><button class="primary" data-dashboard-tab="schedule">Generate Schedule</button>`;
+  $('dashboardPublishStatus').innerHTML=pending?`<div class="status warn"><b>${pending} change(s) are not yet public.</b><br>The League Portal still displays the last published schedule.</div><button class="primary" data-dashboard-tab="management">Review & Publish</button>`:`<div class="status ok"><b>Working and published schedules match.</b><br>${published} game(s) are available in the League Portal.</div><button class="secondary" data-dashboard-tab="management">Schedule Management</button>`;
+  document.querySelectorAll('[data-dashboard-tab]').forEach(b=>b.onclick=()=>setTab(b.dataset.dashboardTab));
+}
+
+function renderAll(){renderDashboard();renderTeams();renderDuplicateNameStatus();renderSettings();renderBoard();renderSchedule();renderManagement();renderResults();renderStandings();renderCoachSelectors();renderCoach();renderPublic()}
 
 $('addTeamBtn').addEventListener('click',addTeam);$('loadDemoBtn').addEventListener('click',loadCompleteDemo);$('importCsvBtn').addEventListener('click',importCSV);$('clearRegistrationsBtn').addEventListener('click',clearRegistrations);$('loadSampleBtn').addEventListener('click',()=>{const n=importCSVText(sampleCSV,'replace');$('importStatus').innerHTML=`<div class="status ok">${n} sample teams loaded, replacing prior registrations.</div>`;renderDuplicateNameStatus()});
 $('teamSearch').addEventListener('input',renderTeams);$('rebalanceBtn').addEventListener('click',rebalancePools);$('approveBtn').addEventListener('click',approveBoard);$('unlockBtn').addEventListener('click',unlockBoard);

@@ -1,17 +1,28 @@
-# MSS 3v3 League Scheduler v10.1
+# MSS 3v3 League Scheduler v10.2
 
 Open `START_HERE.html` to launch the scheduler.
 
-## New in v10.1
+## New in v10.2
 
-- Added **Load Complete Demo League** on the Registrations screen.
-- The demo creates teams, pools, four playing surfaces, an All Courts group, division windows, a complete schedule, sample scores, standings, and a published League Portal.
-- Added `sample-teams.csv` for registration-import testing.
-- Added `sample-scores.csv` with representative test scores.
-- Added `sample-league-setup.json` for setup import and development testing.
+- Added a **Director Dashboard** as the default Admin screen.
+- Clicking **Admin View** now always returns to the Director Dashboard instead of reopening the last-selected tab.
+- Added a visible **Schedule Management** tab between Schedule and Results.
+- Dashboard tiles show teams, divisions, scheduled games, completed games, unpublished changes, and published games.
+- Added setup-progress checks and shortcuts to every major director task.
+- Added schedule and publishing status summaries.
 
-## Main v10 features
+## Included testing files
 
+- `sample-teams.csv`
+- `sample-scores.csv`
+- `sample-league-setup.json`
+
+## Main features
+
+- Registration import and manual team entry
+- Division & Pool Big Board with approval workflow
+- Playing surfaces, court groups, and division time windows
+- Weekly schedule generation
 - Director Schedule Management
 - Edit date, time, court, matchup, and game status
 - Court, team, coach, and division-window conflict warnings
@@ -19,12 +30,13 @@ Open `START_HERE.html` to launch the scheduler.
 - Working versus published schedules
 - League Portal with standings, schedules, scores, and team detail
 - Coach Tools view
+- Complete demonstration league
 
 ## Quick test
 
 1. Open `START_HERE.html`.
-2. Click **Load Complete Demo League**.
-3. The app opens the published League Portal with populated standings and schedules.
-4. Return to **Admin View → Schedule Management** to test schedule edits and publishing.
+2. Select **Registrations** and click **Load Complete Demo League**.
+3. Return to **Admin View** to see the Director Dashboard.
+4. Open **Schedule Management** to edit, review, restore, or publish schedule changes.
 
-The scheduler stores working data in the browser. Use Export Setup to save a portable JSON backup.
+The scheduler stores working data in the browser. Use **Export Setup** to save a portable JSON backup.
