@@ -1,29 +1,18 @@
-# MSS 3v3 League Scheduler v10.3
+# MSS 3v3 League Scheduler v10.4
 
-A self-contained browser-based league scheduling and management prototype for My Sport Space.
+## Operations dashboard improvements
+- Added a Division Status table showing teams, scheduled games versus target, completed games, published games, and a clear health status for every division/pool.
+- Added league-wide progress totals for divisions scheduled, games scheduled, games completed, divisions complete, and divisions published.
+- Added direct division shortcuts to Schedule Management, Schedule, and Standings.
 
-## New in v10.3
+## Schedule Management improvements
+- Added Division / Pool, Week, Status, and Court filters.
+- The selected division is shown clearly above the schedule grid.
+- The game table now includes division/pool, week, score, and status so the director always knows which part of the league is being managed.
 
-- Added **Undo** to the latest applicable schedule-history entry.
-- Older entries offer **Restore This Version** when later changes exist.
-- Undo and restore actions create a new audit-history record; history is never deleted.
-- Past, completed, or scored games open in **Historical Correction** mode rather than ordinary rescheduling mode.
-- Historical games cannot be moved to today or a future date.
-- Historical corrections require a reason.
-- Teams cannot be changed while a score is attached to a game.
-- Existing score corrections require a reason and are recorded in Schedule Change History.
-- A game with both scores entered is automatically marked Completed.
-- Published reversals become unpublished changes and must be published again.
+## Existing safeguards retained
+- Schedule change history with Undo and Restore This Version.
+- Historical Correction workflow for past or completed games.
+- Required reasons, conflict warnings, publishing controls, and audit history.
 
-## Included files
-
-- `index.html` — application
-- `START_HERE.html` — local launcher
-- `sample-teams.csv` — sample registration data
-- `sample-scores.csv` — sample score data
-- `sample-league-setup.json` — sample configured league
-- `logo.png` — MSS logo
-
-## Local use
-
-Unzip the package and open `START_HERE.html` or `index.html` in a modern browser. For GitHub Pages, publish `index.html` as the repository landing page.
+Open `START_HERE.html` for local use or `index.html` for GitHub Pages.
