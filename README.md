@@ -1,42 +1,29 @@
-# MSS 3v3 League Scheduler v10.2
+# MSS 3v3 League Scheduler v10.3
 
-Open `START_HERE.html` to launch the scheduler.
+A self-contained browser-based league scheduling and management prototype for My Sport Space.
 
-## New in v10.2
+## New in v10.3
 
-- Added a **Director Dashboard** as the default Admin screen.
-- Clicking **Admin View** now always returns to the Director Dashboard instead of reopening the last-selected tab.
-- Added a visible **Schedule Management** tab between Schedule and Results.
-- Dashboard tiles show teams, divisions, scheduled games, completed games, unpublished changes, and published games.
-- Added setup-progress checks and shortcuts to every major director task.
-- Added schedule and publishing status summaries.
+- Added **Undo** to the latest applicable schedule-history entry.
+- Older entries offer **Restore This Version** when later changes exist.
+- Undo and restore actions create a new audit-history record; history is never deleted.
+- Past, completed, or scored games open in **Historical Correction** mode rather than ordinary rescheduling mode.
+- Historical games cannot be moved to today or a future date.
+- Historical corrections require a reason.
+- Teams cannot be changed while a score is attached to a game.
+- Existing score corrections require a reason and are recorded in Schedule Change History.
+- A game with both scores entered is automatically marked Completed.
+- Published reversals become unpublished changes and must be published again.
 
-## Included testing files
+## Included files
 
-- `sample-teams.csv`
-- `sample-scores.csv`
-- `sample-league-setup.json`
+- `index.html` — application
+- `START_HERE.html` — local launcher
+- `sample-teams.csv` — sample registration data
+- `sample-scores.csv` — sample score data
+- `sample-league-setup.json` — sample configured league
+- `logo.png` — MSS logo
 
-## Main features
+## Local use
 
-- Registration import and manual team entry
-- Division & Pool Big Board with approval workflow
-- Playing surfaces, court groups, and division time windows
-- Weekly schedule generation
-- Director Schedule Management
-- Edit date, time, court, matchup, and game status
-- Court, team, coach, and division-window conflict warnings
-- Schedule-change history and override reasons
-- Working versus published schedules
-- League Portal with standings, schedules, scores, and team detail
-- Coach Tools view
-- Complete demonstration league
-
-## Quick test
-
-1. Open `START_HERE.html`.
-2. Select **Registrations** and click **Load Complete Demo League**.
-3. Return to **Admin View** to see the Director Dashboard.
-4. Open **Schedule Management** to edit, review, restore, or publish schedule changes.
-
-The scheduler stores working data in the browser. Use **Export Setup** to save a portable JSON backup.
+Unzip the package and open `START_HERE.html` or `index.html` in a modern browser. For GitHub Pages, publish `index.html` as the repository landing page.
