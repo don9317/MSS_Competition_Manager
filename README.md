@@ -1,4 +1,4 @@
-# MSS 3v3 League Scheduler v10.5
+# MSS 3v3 League Scheduler v10.6
 
 ## Resources redesign
 - Renamed the Admin **Settings** tab to **Resources**.
@@ -10,3 +10,9 @@
 - Added clearer setup-order guidance and recurring start/end labels.
 
 All v10.4 features remain included, including the Director Dashboard, division health/status, filtered Schedule Management, publishing workflow, undo/history, historical corrections, sample teams, sample scores, and demo setup.
+
+
+## v10.6 corrections
+- Complete Demo League now creates dedicated court groups for every division so all divisions receive schedules.
+- Deterministic demo scores are applied to every generated game.
+- Team detail modal Close button is reinforced and Escape also closes the modal.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS 3v3 League Scheduler v10.5</title>
+<title>MSS 3v3 League Scheduler v10.6</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS 3v3 League Scheduler v10.5</h1><div class="sub">Registration Import → Pools → Court Groups & Division Windows → Approval → Weekly Scheduling</div></div>
+  <div><h1>MSS 3v3 League Scheduler v10.6</h1><div class="sub">Registration Import → Pools → Court Groups & Division Windows → Approval → Weekly Scheduling</div></div>
 </header>
 <div class="viewbar">
   <button data-view="admin">Admin View</button>
@@ -279,7 +279,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <div class="card" style="max-width:760px;margin:40px auto">
     <div class="row" style="justify-content:space-between;align-items:center">
       <div><h2 id="teamModalTitle" style="margin:0"></h2><div id="teamModalSubtitle" class="hint"></div></div>
-      <button class="secondary" id="closeTeamModal">Close</button>
+      <button type="button" class="secondary" id="closeTeamModal">Close</button>
     </div>
     <div id="teamModalBody" style="margin-top:14px"></div>
   </div>
@@ -886,16 +886,22 @@ function loadCompleteDemo(){
   if((state.teams.length||state.games.length)&&!confirm('Replace the current league with the complete demonstration league?'))return;
   importCSVText(sampleCSV,'replace');
   state.settings={...state.settings,leagueName:'MSS 3v3 Demonstration League',seasonStart:'2026-08-16',seasonWeeks:6,gamesPerWeek:2,gameLength:20,minRest:0,defaultPoolMax:8,days:[0],avoidRepeats:true,exceptions:[]};
-  state.courts=[
-    {id:'demo_c1w',name:'Court 1 West',start:'12:00',end:'20:00'},
-    {id:'demo_c1e',name:'Court 1 East',start:'12:00',end:'20:00'},
-    {id:'demo_c2w',name:'Court 2 West',start:'12:00',end:'20:00'},
-    {id:'demo_c2e',name:'Court 2 East',start:'12:00',end:'20:00'}
-  ];
-  state.courtGroups=[{id:'demo_all',name:'All Courts',surfaceIds:state.courts.map(c=>c.id),dynamicAll:true}];
+  state.courts=[];
+  for(let i=1;i<=10;i++){
+    state.courts.push({id:`demo_c${i}w`,name:`Court ${i} West`,start:'12:00',end:'20:00'});
+    state.courts.push({id:`demo_c${i}e`,name:`Court ${i} East`,start:'12:00',end:'20:00'});
+  }
   ensurePools(true);ensureDivisionConfig();
   const divisions=Object.keys(state.divisionConfig).sort();
-  divisions.forEach((d,i)=>{const start=12*60+(i%4)*120;state.divisionConfig[d]={start:minToClock(start),end:minToClock(start+120),courtGroupId:'demo_all'}});
+  state.courtGroups=divisions.map((d,i)=>({
+    id:`demo_group_${i+1}`,
+    name:`${divisionLabel(d)} Courts`,
+    surfaceIds:[`demo_c${i+1}w`,`demo_c${i+1}e`],
+    dynamicAll:false
+  }));
+  divisions.forEach((d,i)=>{
+    state.divisionConfig[d]={start:'12:00',end:'20:00',courtGroupId:`demo_group_${i+1}`};
+  });
   state.approved=true;Object.values(state.pools).forEach(p=>p.approved=true);
   state.games=[];state.publishedGames=[];state.scheduleChanges=[];
   persist();hydrate();renderAll();
@@ -931,7 +937,7 @@ $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.tar
 ['managementDivision','managementWeek','managementStatus','managementCourt'].forEach(id=>$(id).addEventListener('change',renderManagement));
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
 $('exportScheduleBtn').addEventListener('click',exportSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});
-$('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());$('sampleScoresBtn').addEventListener('click',createSampleScores);$('clearScoresBtn').addEventListener('click',clearAllScores);$('closeTeamModal').addEventListener('click',closeTeamModal);$('teamModal').addEventListener('click',e=>{if(e.target===$('teamModal'))closeTeamModal()});
+$('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());$('sampleScoresBtn').addEventListener('click',createSampleScores);$('clearScoresBtn').addEventListener('click',clearAllScores);$('closeTeamModal').onclick=e=>{e.preventDefault();e.stopPropagation();closeTeamModal()};$('teamModal').addEventListener('click',e=>{if(e.target===$('teamModal'))closeTeamModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTeamModal();closeGameEditor()}});
 document.querySelectorAll('#admin-settings input,#admin-settings select').forEach(e=>e.addEventListener('change',()=>{syncSettings();state.approved=false;ensurePools();persist();renderAll()}));
 load();
 </script>
