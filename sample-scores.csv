@@ -1,0 +1,17 @@
+Week,Date,Time,Court,Team A,Team B,Score A,Score B
+1,2026-08-16,12:00,Court 1 West,Swarm,Thunder,12,13
+1,2026-08-16,13:00,Court 2 East,Storm,Hawks,18,23
+1,2026-08-16,14:00,Court 1 West,Heat,Lightning,24,18
+1,2026-08-16,15:00,Court 2 East,Titans,Warriors,15,13
+2,2026-08-23,12:00,Court 1 West,Panthers,Falcons,21,23
+2,2026-08-23,13:00,Court 2 East,Blazers,Cyclones,12,18
+2,2026-08-23,14:00,Court 1 West,Mustangs,Wolves,18,13
+2,2026-08-23,15:00,Court 2 East,Royals,Knights,24,23
+3,2026-08-30,12:00,Court 1 West,Comets,Sparks,15,18
+3,2026-08-30,13:00,Court 2 East,Flight,Elite,21,13
+3,2026-08-30,14:00,Court 1 West,Force,Select,12,23
+3,2026-08-30,15:00,Court 2 East,Raptors,United,18,18
+4,2026-08-37,12:00,Court 1 West,Vipers,Rebels,24,13
+4,2026-08-37,13:00,Court 2 East,Pride,Impact,15,23
+4,2026-08-37,14:00,Court 1 West,Stars,Liberty,21,18
+4,2026-08-37,15:00,Court 2 East,Phoenix,Eclipse,12,13

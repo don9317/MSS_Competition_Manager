@@ -1,0 +1,703 @@
+{
+  "teams": [
+    {
+      "id": "demo_t1",
+      "name": "Swarm",
+      "coach": "Coach Taylor",
+      "gender": "Girls",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t2",
+      "name": "Thunder",
+      "coach": "Coach Rob",
+      "gender": "Girls",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t3",
+      "name": "Storm",
+      "coach": "Coach Jordan",
+      "gender": "Girls",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t4",
+      "name": "Hawks",
+      "coach": "Coach Casey",
+      "gender": "Girls",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t5",
+      "name": "Heat",
+      "coach": "Coach Morgan",
+      "gender": "Girls",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t6",
+      "name": "Lightning",
+      "coach": "Coach Alex",
+      "gender": "Girls",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t7",
+      "name": "Titans",
+      "coach": "Coach Jamie",
+      "gender": "Girls",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t8",
+      "name": "Warriors",
+      "coach": "Coach Chris",
+      "gender": "Girls",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t9",
+      "name": "Panthers",
+      "coach": "Coach Drew",
+      "gender": "Boys",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t10",
+      "name": "Falcons",
+      "coach": "Coach Sam",
+      "gender": "Boys",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t11",
+      "name": "Blazers",
+      "coach": "Coach Pat",
+      "gender": "Boys",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t12",
+      "name": "Cyclones",
+      "coach": "Coach Cameron",
+      "gender": "Boys",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t13",
+      "name": "Mustangs",
+      "coach": "Coach Reese",
+      "gender": "Boys",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t14",
+      "name": "Wolves",
+      "coach": "Coach Parker",
+      "gender": "Boys",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t15",
+      "name": "Royals",
+      "coach": "Coach Avery",
+      "gender": "Boys",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t16",
+      "name": "Knights",
+      "coach": "Coach Blake",
+      "gender": "Boys",
+      "grade": "3rd/4th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t17",
+      "name": "Comets",
+      "coach": "Coach Taylor",
+      "gender": "Girls",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t18",
+      "name": "Sparks",
+      "coach": "Coach Rob",
+      "gender": "Girls",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t19",
+      "name": "Flight",
+      "coach": "Coach Jordan",
+      "gender": "Girls",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t20",
+      "name": "Elite",
+      "coach": "Coach Casey",
+      "gender": "Girls",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t21",
+      "name": "Force",
+      "coach": "Coach Morgan",
+      "gender": "Girls",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t22",
+      "name": "Select",
+      "coach": "Coach Alex",
+      "gender": "Girls",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t23",
+      "name": "Raptors",
+      "coach": "Coach Jamie",
+      "gender": "Girls",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t24",
+      "name": "United",
+      "coach": "Coach Chris",
+      "gender": "Girls",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t25",
+      "name": "Vipers",
+      "coach": "Coach Drew",
+      "gender": "Boys",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t26",
+      "name": "Rebels",
+      "coach": "Coach Sam",
+      "gender": "Boys",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t27",
+      "name": "Pride",
+      "coach": "Coach Pat",
+      "gender": "Boys",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t28",
+      "name": "Impact",
+      "coach": "Coach Cameron",
+      "gender": "Boys",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t29",
+      "name": "Stars",
+      "coach": "Coach Reese",
+      "gender": "Boys",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t30",
+      "name": "Liberty",
+      "coach": "Coach Parker",
+      "gender": "Boys",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t31",
+      "name": "Phoenix",
+      "coach": "Coach Avery",
+      "gender": "Boys",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t32",
+      "name": "Eclipse",
+      "coach": "Coach Blake",
+      "gender": "Boys",
+      "grade": "5th/6th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t33",
+      "name": "Crush",
+      "coach": "Coach Taylor",
+      "gender": "Girls",
+      "grade": "7th/8th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t34",
+      "name": "Surge",
+      "coach": "Coach Rob",
+      "gender": "Girls",
+      "grade": "7th/8th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t35",
+      "name": "Velocity",
+      "coach": "Coach Jordan",
+      "gender": "Girls",
+      "grade": "7th/8th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t36",
+      "name": "Fusion",
+      "coach": "Coach Casey",
+      "gender": "Girls",
+      "grade": "7th/8th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t37",
+      "name": "Rise",
+      "coach": "Coach Morgan",
+      "gender": "Girls",
+      "grade": "7th/8th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t38",
+      "name": "Pulse",
+      "coach": "Coach Alex",
+      "gender": "Girls",
+      "grade": "7th/8th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t39",
+      "name": "Legacy",
+      "coach": "Coach Jamie",
+      "gender": "Boys",
+      "grade": "7th/8th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t40",
+      "name": "Momentum",
+      "coach": "Coach Chris",
+      "gender": "Boys",
+      "grade": "7th/8th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t41",
+      "name": "Aces",
+      "coach": "Coach Drew",
+      "gender": "Boys",
+      "grade": "7th/8th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t42",
+      "name": "Wildcats",
+      "coach": "Coach Sam",
+      "gender": "Boys",
+      "grade": "7th/8th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t43",
+      "name": "Cougars",
+      "coach": "Coach Pat",
+      "gender": "Boys",
+      "grade": "7th/8th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t44",
+      "name": "Bulldogs",
+      "coach": "Coach Cameron",
+      "gender": "Boys",
+      "grade": "7th/8th Grade",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t45",
+      "name": "Tigers",
+      "coach": "Coach Reese",
+      "gender": "Girls",
+      "grade": "HS JV",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t46",
+      "name": "Lions",
+      "coach": "Coach Parker",
+      "gender": "Girls",
+      "grade": "HS JV",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t47",
+      "name": "Jaguars",
+      "coach": "Coach Avery",
+      "gender": "Girls",
+      "grade": "HS JV",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t48",
+      "name": "Bears",
+      "coach": "Coach Blake",
+      "gender": "Girls",
+      "grade": "HS JV",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t49",
+      "name": "Rockets",
+      "coach": "Coach Taylor",
+      "gender": "Girls",
+      "grade": "HS JV",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t50",
+      "name": "Mavericks",
+      "coach": "Coach Rob",
+      "gender": "Boys",
+      "grade": "HS JV",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t51",
+      "name": "Pioneers",
+      "coach": "Coach Jordan",
+      "gender": "Boys",
+      "grade": "HS JV",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t52",
+      "name": "Chargers",
+      "coach": "Coach Casey",
+      "gender": "Boys",
+      "grade": "HS JV",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t53",
+      "name": "Spartans",
+      "coach": "Coach Morgan",
+      "gender": "Boys",
+      "grade": "HS JV",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t54",
+      "name": "Gladiators",
+      "coach": "Coach Alex",
+      "gender": "Boys",
+      "grade": "HS JV",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t55",
+      "name": "Raiders",
+      "coach": "Coach Jamie",
+      "gender": "Girls",
+      "grade": "HS Varsity",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t56",
+      "name": "Outlaws",
+      "coach": "Coach Chris",
+      "gender": "Girls",
+      "grade": "HS Varsity",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t57",
+      "name": "Trailblazers",
+      "coach": "Coach Drew",
+      "gender": "Girls",
+      "grade": "HS Varsity",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t58",
+      "name": "Firebirds",
+      "coach": "Coach Sam",
+      "gender": "Girls",
+      "grade": "HS Varsity",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t59",
+      "name": "Stallions",
+      "coach": "Coach Pat",
+      "gender": "Girls",
+      "grade": "HS Varsity",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t60",
+      "name": "Hornets",
+      "coach": "Coach Cameron",
+      "gender": "Boys",
+      "grade": "HS Varsity",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t61",
+      "name": "Scorpions",
+      "coach": "Coach Reese",
+      "gender": "Boys",
+      "grade": "HS Varsity",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t62",
+      "name": "Sharks",
+      "coach": "Coach Parker",
+      "gender": "Boys",
+      "grade": "HS Varsity",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t63",
+      "name": "Cobras",
+      "coach": "Coach Avery",
+      "gender": "Boys",
+      "grade": "HS Varsity",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    },
+    {
+      "id": "demo_t64",
+      "name": "Eagles",
+      "coach": "Coach Blake",
+      "gender": "Boys",
+      "grade": "HS Varsity",
+      "skill": "Open",
+      "request": "",
+      "pool": null
+    }
+  ],
+  "courts": [
+    {
+      "id": "demo_c1w",
+      "name": "Court 1 West",
+      "start": "12:00",
+      "end": "20:00"
+    },
+    {
+      "id": "demo_c1e",
+      "name": "Court 1 East",
+      "start": "12:00",
+      "end": "20:00"
+    },
+    {
+      "id": "demo_c2w",
+      "name": "Court 2 West",
+      "start": "12:00",
+      "end": "20:00"
+    },
+    {
+      "id": "demo_c2e",
+      "name": "Court 2 East",
+      "start": "12:00",
+      "end": "20:00"
+    }
+  ],
+  "courtGroups": [
+    {
+      "id": "demo_all",
+      "name": "All Courts",
+      "surfaceIds": [
+        "demo_c1w",
+        "demo_c1e",
+        "demo_c2w",
+        "demo_c2e"
+      ],
+      "dynamicAll": true
+    }
+  ],
+  "divisionConfig": {},
+  "settings": {
+    "leagueName": "MSS 3v3 Demonstration League",
+    "seasonStart": "2026-08-16",
+    "seasonWeeks": 6,
+    "gamesPerWeek": 2,
+    "gameLength": 20,
+    "minRest": 0,
+    "defaultPoolMax": 8,
+    "days": [
+      0
+    ],
+    "avoidRepeats": true,
+    "exceptions": []
+  },
+  "pools": {},
+  "approved": false,
+  "games": [],
+  "publishedGames": [],
+  "scheduleChanges": []
+}
