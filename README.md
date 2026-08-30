@@ -1,24 +1,22 @@
-# MSS League Scheduler v11.0 — Production Candidate
+# MSS League Scheduler v11.1 — Production Candidate
 
-Version 11.0 is the first full workflow/operations candidate for the League Management module.
+Version 11.1 restores and clarifies the fundamental season and division-scheduling setup required before schedule generation.
 
-## Major v11.0 improvements
-- Director Dashboard with League Setup Wizard, Validation Center, Division Status, League Progress, Publishing Status, Scheduling Rules summary, and Recent Activity.
-- A dedicated **League Scheduling Rules** section under Resources with on/off controls for:
-  - Allow Back-to-Back Games
-  - Play Every Pool Opponent Before Repeats
-  - Avoid Immediate Rematches
-  - Protect Shared Coaches
-  - Honor Team Schedule Requests
-  - Keep Teams in Assigned Pool (core rule)
-- Game length, additional minimum-rest slots, and maximum teams per pool remain configurable.
-- Always-enforced protections prevent self-games, double-booked teams, and double-booked courts.
-- Division Assignments are generated automatically from registered divisions and show Court Group, recurring start/end time, and Games per Team per Week.
-- If only one Court Group exists, unassigned divisions automatically use it.
-- Per-division games/week settings are used by schedule generation and progress calculations.
-- Schedule Management keeps division/pool, week, status, and court filters, publishing controls, change history, undo/restore, and historical corrections.
-- Team Detail modal Close button uses delegated event handling; Escape and background-click closing are also supported.
-- Complete Demo League remains included with schedules, sample scores, standings, and published portal data.
+## Major v11.1 improvements
+- **League Start Date** and **League End Date** are now explicit fields.
+- **League Playing Days** supports any combination of Monday through Sunday using a compact checkbox dropdown.
+- **Exception / Off Dates** can be added individually with an optional reason such as a holiday, facility event, or closure.
+- The scheduler calculates the actual playable dates between the start/end dates after applying selected playing days and off dates.
+- The Director Dashboard and Validation Center verify season dates, selected playing days, exception dates, playable dates, and division scheduling readiness.
+- **Division Assignments** is renamed **Division Scheduling** and clearly captures, for every division:
+  - Court Group
+  - Recurring Start Time
+  - Recurring End Time
+  - Games per Team per Playing Date
+- Division scheduling settings are enforced by schedule generation and capacity calculations.
+- Schedule screens now refer to **Playing Date #** rather than Week so leagues can operate on any day or multiple days per week.
+- League Scheduling Rules from v11.0 remain intact, including back-to-back games, opponent repeats, immediate rematches, shared-coach protection, team schedule requests, game length, and minimum rest.
+- v11.1 uses a new local-storage key while migrating prior v11/v10 test data when possible.
 
 ## Included files
 - `index.html` — application

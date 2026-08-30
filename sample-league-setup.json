@@ -699,7 +699,9 @@
     "avoidImmediateRematches": true,
     "protectSharedCoaches": true,
     "honorScheduleRequests": true,
-    "keepPoolPlay": true
+    "keepPoolPlay": true,
+    "seasonEnd": "2026-09-26",
+    "exceptionNotes": {}
   },
   "pools": {},
   "approved": false,
