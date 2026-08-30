@@ -693,11 +693,18 @@
       0
     ],
     "avoidRepeats": true,
-    "exceptions": []
+    "exceptions": [],
+    "allowBackToBack": false,
+    "playAllTeamsOnce": true,
+    "avoidImmediateRematches": true,
+    "protectSharedCoaches": true,
+    "honorScheduleRequests": true,
+    "keepPoolPlay": true
   },
   "pools": {},
   "approved": false,
   "games": [],
   "publishedGames": [],
-  "scheduleChanges": []
+  "scheduleChanges": [],
+  "activity": []
 }
