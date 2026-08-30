@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.6.1.1</title>
+<title>MSS League Scheduler v11.6.2.1</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.6.1.1</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.6.2.1</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div class="viewbar">
@@ -493,16 +493,27 @@ function clearCompetitionData(){
   state.activity=[];
   state.approved=false;
 }
+function teamDivisionScope(t){
+  return t.divisionId || divisionKey(t) || 'UNASSIGNED';
+}
 function duplicateDisplayedNames(){
+  // Duplicate names are only a scheduling ambiguity when they occur inside the same division.
+  // The same club/team name is common across different age or gender divisions and is allowed.
   const map={};
-  state.teams.forEach(t=>{const k=(t.name||'').trim().toLowerCase();if(k)(map[k]??=[]).push(t)});
+  state.teams.forEach(t=>{
+    const name=(t.name||'').trim().toLowerCase();
+    if(!name)return;
+    const scope=teamDivisionScope(t);
+    const k=`${scope}|||${name}`;
+    (map[k]??=[]).push(t)
+  });
   return Object.values(map).filter(a=>a.length>1)
 }
 function renderDuplicateNameStatus(){
   const dupes=duplicateDisplayedNames();
   $('duplicateNameStatus').innerHTML=dupes.length
-    ? `<div class="status bad"><b>${dupes.length} duplicate team name(s) found.</b><br>${dupes.map(a=>`${esc(a[0].name)} (${a.length} records)`).join('<br>')}<br><span class="hint">Duplicate displayed names make schedules and team histories appear incorrect. Rename or replace the registration list before scheduling.</span></div>`
-    : state.teams.length?'<div class="status ok">All registered team names are unique.</div>':'';
+    ? `<div class="status bad"><b>${dupes.length} duplicate team name(s) found within the same division.</b><br>${dupes.map(a=>`${esc(a[0].name)} — ${esc(divisionLabel(teamDivisionScope(a[0])))} (${a.length} records)`).join('<br>')}<br><span class="hint">The same team name is allowed in different divisions. Only same-division duplicates must be renamed or otherwise distinguished before scheduling.</span></div>`
+    : state.teams.length?'<div class="status ok">No duplicate team names within the same division. Matching names in different divisions are allowed.</div>':'';
 }
 function clearRegistrations(){
   if(!confirm('Clear all teams, divisions, pools, games and scores? League settings and courts will remain.'))return;
@@ -902,7 +913,7 @@ function seedConflictMaps(existingGames,used,teamTimes,coachTimes){
 function generateSchedule(){
   syncSettings();
   if(!state.approved)return alert('The Director must approve the Division & Pool Board before scheduling.');
-  const dupes=duplicateDisplayedNames();if(dupes.length)return alert('Duplicate team names remain in registrations. Replace or rename them before scheduling.');
+  const dupes=duplicateDisplayedNames();if(dupes.length)return alert('Duplicate team names remain within the same division. Rename or distinguish those teams before scheduling.');
   const {scope,targets}=selectedScheduleTargets();
   if(!targets.length)return alert('Select a division/pool to schedule.');
   const validation=scheduleValidation(targets);if(validation.length)return alert(validation.join('\n'));
