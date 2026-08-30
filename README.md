@@ -1,26 +1,23 @@
-MSS League Scheduler v11.5
+# MSS League Scheduler v11.6
 
-Major v11.5 improvement: direct MSS registration-export support.
+Version 11.6 replaces the League Scheduler's primary browser storage with IndexedDB and adds visible save-progress protection.
 
-- Automatically recognizes MSS registration CSVs using playerOrTeamName and name.
-- Treats the MSS registration `name` field as the already-selected registration division.
-- Creates each unique registration division automatically and places every team directly into it.
-- Parses grade/gender/HS JV/HS Varsity metadata when possible for display and later matching.
-- Preserves v11.2 Division Setup tools so the Director can rename, combine, split/reassign teams before approval.
-- Adds a file preview before import showing format, registration count, and number of source divisions detected.
-- Continues to support the standard Team Name / Coach / Gender / Grade / Skill / Request CSV format.
-- Retains v11.1 season start/end dates, any-day-of-week scheduling, exception/off dates, court groups, division-specific time windows, games per playing date, rules, validation, schedule management, results, standings, and public portal.
+## v11.6 storage and progress protection
+- League data is now stored in IndexedDB rather than localStorage, removing the small localStorage quota that blocked larger real-world imports.
+- Automatic saves occur after league changes.
+- A visible save indicator in the header shows Changes Pending, Saving Progress, League Saved, or Save Failed.
+- The Resources page now has an explicit **Save Progress** button for a manual checkpoint.
+- Export Setup remains available as a portable JSON backup.
+- Reset Everything deletes the saved IndexedDB league record for this scheduler.
+- No League Scheduler data is written to localStorage in v11.6.
 
-Open START_HERE.html or index.html in a modern browser.
+## Existing v11 features retained
+- Direct MSS registration-export import, including existing registration divisions.
+- Director-editable Division Setup with combine, rename, and manual team reassignment.
+- League start/end dates, any combination of playing days, and exception/off dates.
+- Playing surfaces and court groups.
+- Division-specific court group, recurring start/end times, and games per team per playing date.
+- League Scheduling Rules with on/off policy toggles.
+- Director Dashboard, validation center, schedule generation and management, results, standings, Coach Tools, and League Portal.
 
-
-## v11.5 fixes
-- Uses a fresh browser-storage key to avoid carrying oversized/stale data from earlier test builds.
-- Replace import now clears prior divisions, published schedules, schedule history, and activity before loading the new registration file.
-- Clear Registrations & Schedule now also clears the selected CSV filename and import preview.
-- MSS import preview clearly says the file is ready to import; clicking Import CSV performs the actual load.
-
-
-## v11.5 storage/resource fix
-- Automatically removes older League Scheduler localStorage records that can consume the browser quota.
-- Playing Surface and Exception / Off Date additions now retry after storage cleanup and show a clear message if the browser is still full.
+Open `START_HERE.html` or `index.html` in a modern browser. For maximum persistence reliability, keep using the same browser and the same extracted folder/location for the scheduler during testing.
