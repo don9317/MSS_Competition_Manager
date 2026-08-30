@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.3</title>
+<title>MSS League Scheduler v11.4</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.3</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.4</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
 </header>
 <div class="viewbar">
   <button data-view="admin">Admin View</button>
@@ -361,8 +361,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </div>
 
 <script>
-const KEY='mssLeagueSchedulerV11_3';
-const LEGACY_KEYS=['mssLeagueSchedulerV11_2','mssLeagueSchedulerV11_1','mss3v3LeagueV8','mssLeagueSchedulerV11_0'];
+const KEY='mssLeagueSchedulerV11_4';
+const LEGACY_KEYS=[];
 let state={
   teams:[],courts:[],courtGroups:[],divisionConfig:{},divisions:[],
   settings:{leagueName:'MSS 3v3 League',seasonStart:new Date().toISOString().slice(0,10),seasonEnd:'',gamesPerWeek:3,gameLength:20,minRest:0,defaultPoolMax:8,days:[0],avoidRepeats:true,allowBackToBack:false,playAllTeamsOnce:true,avoidImmediateRematches:true,protectSharedCoaches:true,honorScheduleRequests:true,keepPoolPlay:true,exceptions:[],exceptionNotes:{}},
@@ -378,7 +378,15 @@ const teamById=id=>state.teams.find(t=>t.id===id)||{name:'Unknown'};
 function fmtTime(t){let[h,m]=t.split(':').map(Number);return `${((h+11)%12)+1}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`}
 function minutes(t){let[h,m]=t.split(':').map(Number);return h*60+m}
 function requestLabel(r){return({no_sat_am:'No Saturday morning',no_sun:'No Sunday',no_am:'No morning games',no_pm:'No afternoon/evening'})[r]||''}
-function persist(){localStorage.setItem(KEY,JSON.stringify(state))}
+function persist(){
+  try{localStorage.setItem(KEY,JSON.stringify(state));return true}
+  catch(e){
+    if(e && (e.name==='QuotaExceededError'||String(e.message||'').toLowerCase().includes('quota'))){
+      throw new Error('Browser storage was full. v11.4 uses a fresh, smaller storage record; use Clear Registrations & Schedule if this message appears again.');
+    }
+    throw e;
+  }
+}
 function save(){syncSettings();persist();renderAll()}
 function addDaysISO(iso,days){const d=new Date(iso+'T00:00:00');if(isNaN(d))return'';d.setDate(d.getDate()+days);return d.toISOString().slice(0,10)}
 function load(){
@@ -425,7 +433,15 @@ function renderTeams(){
 function parseCSV(text){const rows=[];let row=[],v='',q=false;for(let i=0;i<text.length;i++){const ch=text[i],n=text[i+1];if(ch==='"'&&q&&n==='"'){v+='"';i++}else if(ch==='"')q=!q;else if(ch===','&&!q){row.push(v);v=''}else if((ch==='\n'||ch==='\r')&&!q){if(ch==='\r'&&n==='\n')i++;row.push(v);if(row.some(x=>x.trim()))rows.push(row);row=[];v=''}else v+=ch}if(v||row.length){row.push(v);rows.push(row)}return rows}
 
 function clearCompetitionData(){
-  state.teams=[];state.pools={};state.divisionConfig={};state.games=[];state.approved=false;
+  state.teams=[];
+  state.divisions=[];
+  state.pools={};
+  state.divisionConfig={};
+  state.games=[];
+  state.publishedGames=[];
+  state.scheduleChanges=[];
+  state.activity=[];
+  state.approved=false;
 }
 function duplicateDisplayedNames(){
   const map={};
@@ -439,8 +455,11 @@ function renderDuplicateNameStatus(){
     : state.teams.length?'<div class="status ok">All registered team names are unique.</div>':'';
 }
 function clearRegistrations(){
-  if(!confirm('Clear all teams, pools, games and scores? League settings and courts will remain.'))return;
-  clearCompetitionData();persist();renderAll();setTab('registrations')
+  if(!confirm('Clear all teams, divisions, pools, games and scores? League settings and courts will remain.'))return;
+  clearCompetitionData();
+  const file=$('csvFile');if(file)file.value='';
+  if($('importStatus'))$('importStatus').innerHTML='';
+  persist();renderAll();setTab('registrations')
 }
 function parseRegistrationDivision(label){
   const raw=String(label||'').trim(),lower=raw.toLowerCase();
@@ -494,7 +513,7 @@ function importCSVText(text,mode='replace'){
 }
 function previewCSVFile(file){
   if(!file){$('importStatus').innerHTML='';return}
-  const r=new FileReader();r.onload=()=>{try{const rows=parseCSV(r.result);const format=detectImportFormat(rows);if(format==='MSS'){const h=rows[0].map(x=>String(x||'').trim().toLowerCase()),ti=h.indexOf('playerorteamname'),di=h.indexOf('name'),data=rows.slice(1).filter(c=>String(c[ti]||'').trim()&&String(c[di]||'').trim()),divs=new Set(data.map(c=>String(c[di]||'').trim()));$('importStatus').innerHTML=`<div class="status ok"><b>MSS registration export detected.</b><br>${data.length} team registrations • ${divs.size} existing registration divisions. Import will preserve those divisions and place each team directly into its registered division.</div>`}else if(format==='STANDARD'){$('importStatus').innerHTML=`<div class="status ok"><b>Standard scheduler CSV detected.</b><br>${Math.max(0,rows.length-1)} data row(s). Divisions will be created or matched from Grade, Gender and Skill.</div>`}else{$('importStatus').innerHTML='<div class="status bad">CSV format not recognized.</div>'}}catch(e){$('importStatus').innerHTML=`<div class="status bad">${esc(e.message)}</div>`}};r.readAsText(file)
+  const r=new FileReader();r.onload=()=>{try{const rows=parseCSV(r.result);const format=detectImportFormat(rows);if(format==='MSS'){const h=rows[0].map(x=>String(x||'').trim().toLowerCase()),ti=h.indexOf('playerorteamname'),di=h.indexOf('name'),data=rows.slice(1).filter(c=>String(c[ti]||'').trim()&&String(c[di]||'').trim()),divs=new Set(data.map(c=>String(c[di]||'').trim()));$('importStatus').innerHTML=`<div class="status ok"><b>MSS registration export detected.</b><br>${data.length} team registrations • ${divs.size} existing registration divisions. <b>Ready to import.</b> Click Import CSV to load the teams. The import will preserve those divisions and place each team directly into its registered division.</div>`}else if(format==='STANDARD'){$('importStatus').innerHTML=`<div class="status ok"><b>Standard scheduler CSV detected.</b><br>${Math.max(0,rows.length-1)} data row(s). Divisions will be created or matched from Grade, Gender and Skill.</div>`}else{$('importStatus').innerHTML='<div class="status bad">CSV format not recognized.</div>'}}catch(e){$('importStatus').innerHTML=`<div class="status bad">${esc(e.message)}</div>`}};r.readAsText(file)
 }
 function importCSV(){const f=$('csvFile').files[0];if(!f)return alert('Choose a CSV file.');const mode=$('importMode').value;const r=new FileReader();r.onload=()=>{try{const result=importCSVText(r.result,mode);const fmt=result.format==='MSS'?'MSS registration export':'standard CSV';$('importStatus').innerHTML=`<div class="status ok"><b>${result.added} teams imported from ${fmt}.</b><br>${result.divisionCount} division(s) are ready in Division Setup. ${result.format==='MSS'?'Teams were placed directly into the divisions they registered for.':'Review automatic assignments before approval.'}</div>`;renderDuplicateNameStatus();setTab('divisions')}catch(e){$('importStatus').innerHTML=`<div class="status bad">${esc(e.message)}</div>`}};r.readAsText(f)}
 const sampleCSV=`Team Name,Coach,Gender,Grade,Skill,Request

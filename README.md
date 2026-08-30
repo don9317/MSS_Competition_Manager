@@ -1,6 +1,6 @@
-MSS League Scheduler v11.3
+MSS League Scheduler v11.4
 
-Major v11.3 improvement: direct MSS registration-export support.
+Major v11.4 improvement: direct MSS registration-export support.
 
 - Automatically recognizes MSS registration CSVs using playerOrTeamName and name.
 - Treats the MSS registration `name` field as the already-selected registration division.
@@ -12,3 +12,10 @@ Major v11.3 improvement: direct MSS registration-export support.
 - Retains v11.1 season start/end dates, any-day-of-week scheduling, exception/off dates, court groups, division-specific time windows, games per playing date, rules, validation, schedule management, results, standings, and public portal.
 
 Open START_HERE.html or index.html in a modern browser.
+
+
+## v11.4 fixes
+- Uses a fresh browser-storage key to avoid carrying oversized/stale data from earlier test builds.
+- Replace import now clears prior divisions, published schedules, schedule history, and activity before loading the new registration file.
+- Clear Registrations & Schedule now also clears the selected CSV filename and import preview.
+- MSS import preview clearly says the file is ready to import; clicking Import CSV performs the actual load.
