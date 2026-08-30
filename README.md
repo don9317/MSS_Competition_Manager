@@ -1,23 +1,32 @@
-# MSS League Scheduler v11.6.2
+# MSS League Scheduler v11.7
 
-Version 11.6 replaces the League Scheduler's primary browser storage with IndexedDB and adds visible save-progress protection.
+Version 11.7 adds flexible season-game guarantees and an automatic Schedule & Rules Audit.
 
-## v11.6.2 storage and progress protection
-- League data is now stored in IndexedDB rather than localStorage, removing the small localStorage quota that blocked larger real-world imports.
-- Automatic saves occur after league changes.
-- A visible save indicator in the header shows Changes Pending, Saving Progress, League Saved, or Save Failed.
-- The Resources page now has an explicit **Save Progress** button for a manual checkpoint.
-- Export Setup remains available as a portable JSON backup.
-- Reset Everything deletes the saved IndexedDB league record for this scheduler.
-- No League Scheduler data is written to localStorage in v11.6.2.
+## New in v11.7
+- Season Games Guaranteed per team (default 12)
+- Preferred Games per Team per Playing Date (default 3)
+- Maximum Games per Team per Playing Date (default 4)
+- Per-division overrides for all three values
+- Scheduler can vary a team's games by date when availability or scheduling requests require it, while prioritizing the season guarantee
+- Catch-up logic increases a team's daily target (up to the configured maximum) when games are owed
+- Automatic audit runs after schedule generation
+- Audit Selected Scope and Audit Entire League buttons
+- Audit checks: season guarantee, max games/date, self-games, team/court double-booking, division time windows, approved court groups, schedule requests, shared-coach conflicts, immediate rematches, all opponents before repeats, and rest/back-to-back rules
+- Preferred games/date is treated as a warning rather than a hard failure when uneven distribution is necessary
+- Publishing is blocked when the full-league audit has failed hard rules
+- IndexedDB autosave and Save Progress remain in place
 
-## Existing v11 features retained
-- Direct MSS registration-export import, including existing registration divisions.
-- Director-editable Division Setup with combine, rename, and manual team reassignment.
-- League start/end dates, any combination of playing days, and exception/off dates.
-- Playing surfaces and court groups.
-- Division-specific court group, recurring start/end times, and games per team per playing date.
-- League Scheduling Rules with on/off policy toggles.
-- Director Dashboard, validation center, schedule generation and management, results, standings, Coach Tools, and League Portal.
+## Recommended workflow
+1. League Setup
+2. Registrations
+3. Division Setup
+4. Divisions & Pools
+5. Resources
+6. Division Scheduling
+7. League Rules
+8. Generate Schedule
+9. Review Schedule & Rules Audit
+10. Resolve hard-rule failures
+11. Publish
 
-Open `START_HERE.html` or `index.html` in a modern browser. For maximum persistence reliability, keep using the same browser and the same extracted folder/location for the scheduler during testing.
+Open `START_HERE.html` for the launcher or `index.html` directly.

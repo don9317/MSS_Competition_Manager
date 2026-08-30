@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.6.2.1</title>
+<title>MSS League Scheduler v11.7.1</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.6.2.1</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.7.1</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div class="viewbar">
@@ -194,7 +194,9 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <h2>League Setup</h2>
       <div class="row">
         <div class="field"><label>League Name</label><input id="leagueName"></div>
-        <div class="field"><label>Default Games / Team / Playing Date</label><input id="gamesPerWeek" type="number" min="1" max="8" value="3"></div>
+        <div class="field"><label>Season Games Guaranteed / Team</label><input id="seasonGuarantee" type="number" min="1" max="50" value="12"></div>
+        <div class="field"><label>Preferred Games / Team / Playing Date</label><input id="gamesPerWeek" type="number" min="1" max="8" value="3"></div>
+        <div class="field"><label>Maximum Games / Team / Playing Date</label><input id="maxGamesPerDate" type="number" min="1" max="8" value="4"></div>
         <div class="field"><label>Calculated Playing Dates</label><input id="seasonGameTotal" type="text" readonly></div>
       </div>
       <div class="row">
@@ -287,11 +289,13 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <div class="card">
     <div class="toolbar">
       <button class="primary" id="generateBtn">Generate Schedule</button>
+      <button class="secondary" id="auditScopeBtn">Audit Selected Scope</button>
+      <button class="secondary" id="auditAllBtn">Audit Entire League</button>
       <button class="secondary" id="exportScheduleBtn">Export CSV</button>
       <button class="secondary" id="printBtn">Print</button>
       <label style="margin:0;min-width:260px">Schedule / Display Scope<select id="scheduleFilter"></select></label>
     </div>
-    <div class="hint" style="margin-bottom:8px">Schedule generation follows the League Scheduling Rules configured under Resources. Core protections always prevent self-games, double-booked teams, and double-booked courts.</div><div id="genSummary"></div>
+    <div class="hint" style="margin-bottom:8px">Schedule generation follows the League Scheduling Rules configured under Resources. Core protections always prevent self-games, double-booked teams, and double-booked courts.</div><div id="genSummary"></div><div id="scheduleAudit" style="margin-top:12px"></div>
     <div class="table-wrap"><table id="scheduleTable"></table></div>
   </div>
 </section>
@@ -439,7 +443,7 @@ async function save(){syncSettings();renderAll();try{await queueSave(true)}catch
 async function load(){
   setSaveStatus('saving','Loading saved league…');
   try{const saved=await readStateFromDB();if(saved)state=Object.assign(state,saved)}catch(e){console.error(e);setSaveStatus('error','Storage unavailable',e.message||String(e))}
-  state.divisions=state.divisions||[];state.courtGroups=state.courtGroups||[];state.courtGroups.forEach(g=>{if(/^all\s+(courts|surfaces)$/i.test(g.name||''))g.dynamicAll=true});state.divisionConfig=state.divisionConfig||{};state.settings=state.settings||{};state.settings.gamesPerWeek=state.settings.gamesPerWeek||3;state.settings.days=Array.isArray(state.settings.days)?state.settings.days:[0];state.settings.exceptions=Array.isArray(state.settings.exceptions)?state.settings.exceptions:[];state.settings.exceptionNotes=state.settings.exceptionNotes||{};
+  state.divisions=state.divisions||[];state.courtGroups=state.courtGroups||[];state.courtGroups.forEach(g=>{if(/^all\s+(courts|surfaces)$/i.test(g.name||''))g.dynamicAll=true});state.divisionConfig=state.divisionConfig||{};state.settings=state.settings||{};state.settings.gamesPerWeek=state.settings.gamesPerWeek||3;state.settings.seasonGuarantee=state.settings.seasonGuarantee||12;state.settings.maxGamesPerDate=state.settings.maxGamesPerDate||4;state.settings.days=Array.isArray(state.settings.days)?state.settings.days:[0];state.settings.exceptions=Array.isArray(state.settings.exceptions)?state.settings.exceptions:[];state.settings.exceptionNotes=state.settings.exceptionNotes||{};
   if(!state.settings.seasonEnd){const weeks=Number(state.settings.seasonWeeks||8);state.settings.seasonEnd=addDaysISO(state.settings.seasonStart||new Date().toISOString().slice(0,10),weeks*7-1)}
   if(!state.divisions.length&&state.teams.length){const seen={};state.teams.forEach(t=>{const k=legacyDivisionKey(t);if(!seen[k]){const id='div_'+Math.random().toString(36).slice(2,9);seen[k]=id;state.divisions.push({id,name:(()=>{const [g,se,lv]=k.split('|');return `${g} ${se} • ${lv}`})(),grades:[t.grade],gender:t.gender,skill:t.skill});}t.divisionId=seen[k]})}
   state.scheduleChanges=state.scheduleChanges||[];state.activity=state.activity||[];state.settings.allowBackToBack=!!state.settings.allowBackToBack;state.settings.playAllTeamsOnce=state.settings.playAllTeamsOnce!==false;state.settings.avoidImmediateRematches=state.settings.avoidImmediateRematches!==false;state.settings.protectSharedCoaches=state.settings.protectSharedCoaches!==false;state.settings.honorScheduleRequests=state.settings.honorScheduleRequests!==false;state.settings.keepPoolPlay=true;state.games=(state.games||[]).map(g=>({...g,status:g.status||'Scheduled',pending:!!g.pending}));if(!Array.isArray(state.publishedGames)||(!state.publishedGames.length&&state.games.length))state.publishedGames=JSON.parse(JSON.stringify(state.games));
@@ -450,13 +454,13 @@ function addDaysISO(iso,days){const d=new Date(iso+'T00:00:00');if(isNaN(d))retu
 function updateLeagueDaysSummary(){const names=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],days=[...document.querySelectorAll('.dow:checked')].map(x=>+x.value);$('leagueDaysSummary').textContent=days.length?days.sort((a,b)=>(a+6)%7-(b+6)%7).map(d=>names[d]).join(', '):'Select playing days'}
 function hydrate(){
   $('leagueName').value=state.settings.leagueName||'MSS 3v3 League';$('seasonStart').value=state.settings.seasonStart||'';$('seasonEnd').value=state.settings.seasonEnd||'';
-  $('gamesPerWeek').value=state.settings.gamesPerWeek||3;$('gameLength').value=state.settings.gameLength||20;$('minRest').value=state.settings.minRest??0;$('defaultPoolMax').value=state.settings.defaultPoolMax||8;
+  $('gamesPerWeek').value=state.settings.gamesPerWeek||3;$('seasonGuarantee').value=state.settings.seasonGuarantee||12;$('maxGamesPerDate').value=state.settings.maxGamesPerDate||4;$('gameLength').value=state.settings.gameLength||20;$('minRest').value=state.settings.minRest??0;$('defaultPoolMax').value=state.settings.defaultPoolMax||8;
   $('avoidRepeats')&&($('avoidRepeats').checked=state.settings.avoidRepeats!==false);$('allowBackToBack').checked=!!state.settings.allowBackToBack;$('playAllTeamsOnce').checked=state.settings.playAllTeamsOnce!==false;$('avoidImmediateRematches').checked=state.settings.avoidImmediateRematches!==false;$('protectSharedCoaches').checked=state.settings.protectSharedCoaches!==false;$('honorScheduleRequests').checked=state.settings.honorScheduleRequests!==false;document.querySelectorAll('.dow').forEach(x=>x.checked=(state.settings.days||[0]).includes(+x.value));updateLeagueDaysSummary();updatePlayingDateSummary()
 }
 function updatePlayingDateSummary(){if(!$('seasonGameTotal'))return;const count=seasonDatesRaw().length;$('seasonGameTotal').value=count+` playing date${count===1?'':'s'}`}
 function syncSettings(){
   state.settings.leagueName=$('leagueName').value.trim()||'MSS 3v3 League';state.settings.seasonStart=$('seasonStart').value;state.settings.seasonEnd=$('seasonEnd').value;
-  state.settings.gamesPerWeek=+$('gamesPerWeek').value||3;state.settings.gameLength=+$('gameLength').value||20;state.settings.minRest=+$('minRest').value||0;
+  state.settings.gamesPerWeek=+$('gamesPerWeek').value||3;state.settings.seasonGuarantee=+$('seasonGuarantee').value||12;state.settings.maxGamesPerDate=+$('maxGamesPerDate').value||4;state.settings.gameLength=+$('gameLength').value||20;state.settings.minRest=+$('minRest').value||0;
   state.settings.defaultPoolMax=+$('defaultPoolMax').value||8;state.settings.days=[...document.querySelectorAll('.dow:checked')].map(x=>+x.value);state.settings.avoidRepeats=state.settings.playAllTeamsOnce;state.settings.allowBackToBack=$('allowBackToBack').checked;state.settings.playAllTeamsOnce=$('playAllTeamsOnce').checked;state.settings.avoidImmediateRematches=$('avoidImmediateRematches').checked;state.settings.protectSharedCoaches=$('protectSharedCoaches').checked;state.settings.honorScheduleRequests=$('honorScheduleRequests').checked;state.settings.keepPoolPlay=true;updateLeagueDaysSummary();updatePlayingDateSummary()
 }
 function setView(view){
@@ -691,8 +695,8 @@ function ensurePools(force=false){
 function ensureDivisionConfig(){
   const divisions=allDivisionKeys(),singleGroup=state.courtGroups?.length===1?state.courtGroups[0].id:'';
   divisions.forEach(d=>{
-    if(!state.divisionConfig[d]) state.divisionConfig[d]={start:'18:00',end:'20:00',courtGroupId:singleGroup,gamesPerWeek:state.settings.gamesPerWeek||3};
-    if(state.divisionConfig[d].gamesPerWeek==null)state.divisionConfig[d].gamesPerWeek=state.settings.gamesPerWeek||3;
+    if(!state.divisionConfig[d]) state.divisionConfig[d]={start:'18:00',end:'20:00',courtGroupId:singleGroup,gamesPerWeek:state.settings.gamesPerWeek||3,seasonGuarantee:state.settings.seasonGuarantee||12,maxGamesPerDate:state.settings.maxGamesPerDate||4};
+    if(state.divisionConfig[d].gamesPerWeek==null)state.divisionConfig[d].gamesPerWeek=state.settings.gamesPerWeek||3;if(state.divisionConfig[d].seasonGuarantee==null)state.divisionConfig[d].seasonGuarantee=state.settings.seasonGuarantee||12;if(state.divisionConfig[d].maxGamesPerDate==null)state.divisionConfig[d].maxGamesPerDate=state.settings.maxGamesPerDate||4;
     if(!state.divisionConfig[d].courtGroupId&&singleGroup)state.divisionConfig[d].courtGroupId=singleGroup;
   });
   Object.keys(state.divisionConfig||{}).filter(d=>!divisions.includes(d)).forEach(d=>delete state.divisionConfig[d]);
@@ -807,7 +811,7 @@ function addException(){
 }
 function removeException(d){state.settings.exceptions=state.settings.exceptions.filter(x=>x!==d);if(state.settings.exceptionNotes)delete state.settings.exceptionNotes[d];save()}
 function setDivisionConfig(d,field,value){
-  state.divisionConfig[d]=state.divisionConfig[d]||{start:'18:00',end:'20:00',courtGroupId:''};
+  state.divisionConfig[d]=state.divisionConfig[d]||{start:'18:00',end:'20:00',courtGroupId:'',gamesPerWeek:state.settings.gamesPerWeek||3,seasonGuarantee:state.settings.seasonGuarantee||12,maxGamesPerDate:state.settings.maxGamesPerDate||4};
   state.divisionConfig[d][field]=value;persist();renderCapacity();renderDashboard()
 }
 function renderSettings(){
@@ -830,7 +834,9 @@ function renderDivisionAssignments(){
       <div class="field"><label>Court Group</label><select data-div="${esc(d)}" data-div-field="courtGroupId"><option value="">Select court group</option>${state.courtGroups.map(g=>`<option value="${g.id}" ${g.id===c.courtGroupId?'selected':''}>${esc(g.name)} (${groupSurfaceIds(g).length} surfaces)</option>`).join('')}</select></div>
       <div class="field"><label>Recurring Start</label><input type="time" value="${c.start||'18:00'}" data-div="${esc(d)}" data-div-field="start"></div>
       <div class="field"><label>Recurring End</label><input type="time" value="${c.end||'20:00'}" data-div="${esc(d)}" data-div-field="end"></div>
-      <div class="field"><label>Games / Team / Playing Date</label><input type="number" min="1" max="8" value="${c.gamesPerWeek||state.settings.gamesPerWeek||3}" data-div="${esc(d)}" data-div-field="gamesPerWeek"></div>
+      <div class="field"><label>Season Games Guaranteed</label><input type="number" min="1" max="50" value="${c.seasonGuarantee||state.settings.seasonGuarantee||12}" data-div="${esc(d)}" data-div-field="seasonGuarantee"></div>
+      <div class="field"><label>Preferred Games / Playing Date</label><input type="number" min="1" max="8" value="${c.gamesPerWeek||state.settings.gamesPerWeek||3}" data-div="${esc(d)}" data-div-field="gamesPerWeek"></div>
+      <div class="field"><label>Maximum Games / Playing Date</label><input type="number" min="1" max="8" value="${c.maxGamesPerDate||state.settings.maxGamesPerDate||4}" data-div="${esc(d)}" data-div-field="maxGamesPerDate"></div>
     </div></div>`;
   }).join('')||'<div class="status warn">No divisions exist yet. Import or add teams on the Registrations page; division rows will appear here automatically.</div>';
   document.querySelectorAll('[data-div-field]').forEach(e=>e.addEventListener('change',()=>setDivisionConfig(e.dataset.div,e.dataset.divField,e.type==='number'?Number(e.value):e.value)));
@@ -839,7 +845,7 @@ function renderCapacity(){
   syncSettings();
   const weeks=seasonDates().length,len=state.settings.gameLength;
   let required=0,assigned=0;
-  allDivisionKeys().forEach(d=>{const teamCount=state.teams.filter(t=>divisionKey(t)===d).length,gpd=Number(state.divisionConfig[d]?.gamesPerWeek||state.settings.gamesPerWeek||3);required+=Math.ceil(teamCount*gpd*weeks/2)});
+  allDivisionKeys().forEach(d=>{const teamCount=state.teams.filter(t=>divisionKey(t)===d).length,guarantee=Number(state.divisionConfig[d]?.seasonGuarantee||state.settings.seasonGuarantee||12);required+=Math.ceil(teamCount*guarantee/2)});
   Object.entries(state.divisionConfig).forEach(([d,cfg])=>{
     const group=state.courtGroups.find(g=>g.id===cfg.courtGroupId);
     if(!group||cfg.start>=cfg.end)return;
@@ -910,12 +916,26 @@ function seedConflictMaps(existingGames,used,teamTimes,coachTimes){
     if(tb.coach)(coachTimes[tb.coach]??=new Set()).add(stamp)
   })
 }
+function candidatePairsFlexible(ids,dailyCounts,dailyTargets,seasonCounts,guarantee,pairCounts,lastOpponent){
+  const candidates=[];
+  for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
+    const a=ids[i],b=ids[j];if(!a||!b||a===b)continue;
+    if(dailyCounts[a]>=dailyTargets[a]||dailyCounts[b]>=dailyTargets[b])continue;
+    if(seasonCounts[a]>=guarantee||seasonCounts[b]>=guarantee)continue;
+    const played=pairCounts[pairId(a,b)]||0;
+    const immediate=(state.settings.avoidImmediateRematches&&(lastOpponent[a]===b||lastOpponent[b]===a))?1:0;
+    const seasonNeed=(guarantee-seasonCounts[a])+(guarantee-seasonCounts[b]);
+    const dayNeed=(dailyTargets[a]-dailyCounts[a])+(dailyTargets[b]-dailyCounts[b]);
+    const repeatWeight=state.settings.playAllTeamsOnce?10000:1000;
+    candidates.push({a,b,score:played*repeatWeight+immediate*1500-seasonNeed*120-dayNeed*100+Math.abs(seasonCounts[a]-seasonCounts[b])*10});
+  }
+  return candidates.sort((x,y)=>x.score-y.score)
+}
 function generateSchedule(){
   syncSettings();
   if(!state.approved)return alert('The Director must approve the Division & Pool Board before scheduling.');
   const dupes=duplicateDisplayedNames();if(dupes.length)return alert('Duplicate team names remain within the same division. Rename or distinguish those teams before scheduling.');
-  const {scope,targets}=selectedScheduleTargets();
-  if(!targets.length)return alert('Select a division/pool to schedule.');
+  const {scope,targets}=selectedScheduleTargets();if(!targets.length)return alert('Select a division/pool to schedule.');
   const validation=scheduleValidation(targets);if(validation.length)return alert(validation.join('\n'));
 
   const dates=seasonDates(),used=new Set(),teamTimes={},coachTimes={},newGames=[],warnings=[];
@@ -923,73 +943,93 @@ function generateSchedule(){
   seedConflictMaps(retainedGames,used,teamTimes,coachTimes);
 
   targets.forEach(({division:d,pool,ids:rawIds})=>{
-    const ids=[...new Set(rawIds)].filter(Boolean);
-    if(ids.length<2)return;
-    const pairCounts={},lastOpponent={};
-    dates.forEach((date,weekIndex)=>{
-      const available=divisionSlots(d,date);
-      const weeklyCounts=Object.fromEntries(ids.map(id=>[id,0]));
-      const weeklyLast={};
-      let guard=0;
+    const ids=[...new Set(rawIds)].filter(Boolean);if(ids.length<2)return;
+    const cfg=state.divisionConfig[d]||{};
+    const preferred=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3);
+    const maxPerDate=Math.max(preferred,Number(cfg.maxGamesPerDate||state.settings.maxGamesPerDate||4));
+    const guarantee=Number(cfg.seasonGuarantee||state.settings.seasonGuarantee||12);
+    const pairCounts={},lastOpponent={},seasonCounts=Object.fromEntries(ids.map(id=>[id,0]));
 
-      const weeklyTarget=Number(state.divisionConfig[d]?.gamesPerWeek||state.settings.gamesPerWeek||3);
-      while(!weeklyNeedsComplete(ids,weeklyCounts,weeklyTarget)&&guard++<500){
-        let placed=false;
-        const candidates=candidatePairs(ids,weeklyCounts,weeklyTarget,pairCounts,{...lastOpponent,...weeklyLast});
-
+    dates.forEach((date,dateIndex)=>{
+      const available=divisionSlots(d,date),remainingDates=dates.length-dateIndex;
+      const dailyCounts=Object.fromEntries(ids.map(id=>[id,0])),dailyTargets={};
+      ids.forEach(id=>{
+        const team=teamById(id),hasAny=available.some(s=>allowed(team,s));
+        const remaining=Math.max(0,guarantee-seasonCounts[id]);
+        if(!hasAny||remaining===0){dailyTargets[id]=0;return}
+        const catchUp=Math.ceil(remaining/Math.max(1,remainingDates));
+        dailyTargets[id]=Math.min(maxPerDate,remaining,Math.max(Math.min(preferred,remaining),catchUp));
+      });
+      const dailyLast={};let guard=0;
+      while(ids.some(id=>dailyCounts[id]<dailyTargets[id]&&seasonCounts[id]<guarantee)&&guard++<1500){
+        let placed=false;const candidates=candidatePairsFlexible(ids,dailyCounts,dailyTargets,seasonCounts,guarantee,pairCounts,{...lastOpponent,...dailyLast});
         for(const cand of candidates){
-          const {a,b}=cand,ta=teamById(a),tb=teamById(b);
-          let found=null;
-
+          const {a,b}=cand,ta=teamById(a),tb=teamById(b);let found=null;
           for(const s of available){
-            const sk=`${s.date}|${s.time}|${s.court}`;
-            if(used.has(sk)||!allowed(ta,s)||!allowed(tb,s))continue;
+            const sk=`${s.date}|${s.time}|${s.court}`;if(used.has(sk)||!allowed(ta,s)||!allowed(tb,s))continue;
             if((teamTimes[a]||new Set()).has(s.stamp)||(teamTimes[b]||new Set()).has(s.stamp))continue;
             if(state.settings.protectSharedCoaches&&ta.coach&&(coachTimes[ta.coach]||new Set()).has(s.stamp))continue;
             if(state.settings.protectSharedCoaches&&tb.coach&&(coachTimes[tb.coach]||new Set()).has(s.stamp))continue;
-
             const effectiveRestSlots=state.settings.allowBackToBack?Number(state.settings.minRest||0):Math.max(1,Number(state.settings.minRest||0));
             const rest=(effectiveRestSlots+1)*state.settings.gameLength*60000;
-            if(effectiveRestSlots>0){
-              if([...(teamTimes[a]||[])].some(x=>Math.abs(s.stamp-x)<rest))continue;
-              if([...(teamTimes[b]||[])].some(x=>Math.abs(s.stamp-x)<rest))continue;
-            }
+            if(effectiveRestSlots>0){if([...(teamTimes[a]||[])].some(x=>Math.abs(s.stamp-x)<rest))continue;if([...(teamTimes[b]||[])].some(x=>Math.abs(s.stamp-x)<rest))continue}
             found=s;break
           }
-
           if(!found)continue;
-
-          used.add(`${found.date}|${found.time}|${found.court}`);
-          (teamTimes[a]??=new Set()).add(found.stamp);(teamTimes[b]??=new Set()).add(found.stamp);
-          if(ta.coach)(coachTimes[ta.coach]??=new Set()).add(found.stamp);
-          if(tb.coach)(coachTimes[tb.coach]??=new Set()).add(found.stamp);
-
-          weeklyCounts[a]++;weeklyCounts[b]++;
-          pairCounts[pairId(a,b)]=(pairCounts[pairId(a,b)]||0)+1;
-          weeklyLast[a]=b;weeklyLast[b]=a;
-          lastOpponent[a]=b;lastOpponent[b]=a;
-
-          newGames.push({id:uid('g'),division:d,pool,aId:a,bId:b,date:found.date,time:found.time,court:found.court,sa:null,sb:null,week:weekIndex+1});
-          placed=true;
-          break
+          used.add(`${found.date}|${found.time}|${found.court}`);(teamTimes[a]??=new Set()).add(found.stamp);(teamTimes[b]??=new Set()).add(found.stamp);
+          if(ta.coach)(coachTimes[ta.coach]??=new Set()).add(found.stamp);if(tb.coach)(coachTimes[tb.coach]??=new Set()).add(found.stamp);
+          dailyCounts[a]++;dailyCounts[b]++;seasonCounts[a]++;seasonCounts[b]++;pairCounts[pairId(a,b)]=(pairCounts[pairId(a,b)]||0)+1;dailyLast[a]=b;dailyLast[b]=a;lastOpponent[a]=b;lastOpponent[b]=a;
+          newGames.push({id:uid('g'),division:d,pool,aId:a,bId:b,date:found.date,time:found.time,court:found.court,sa:null,sb:null,week:dateIndex+1});placed=true;break
         }
-
         if(!placed)break
       }
-
-      ids.filter(id=>weeklyCounts[id]<weeklyTarget).forEach(id=>
-        warnings.push(`Playing Date ${weekIndex+1}: ${teamById(id).name} received ${weeklyCounts[id]} of ${weeklyTarget} games.`)
-      )
-    })
+      ids.filter(id=>dailyCounts[id]!==preferred&&dailyCounts[id]>0).forEach(id=>warnings.push(`Playing Date ${dateIndex+1}: ${teamById(id).name} has ${dailyCounts[id]} game(s); preferred target is ${preferred}.`));
+    });
+    ids.filter(id=>seasonCounts[id]<guarantee).forEach(id=>warnings.push(`${teamById(id).name} received ${seasonCounts[id]} of ${guarantee} guaranteed season games.`));
   });
 
   state.games=[...retainedGames,...newGames].map(g=>({...g,status:g.status||'Scheduled',pending:true}));persist();renderAll();
-  const targetGames=targets.reduce((sum,t)=>sum+t.ids.length*Number(state.divisionConfig[t.division]?.gamesPerWeek||state.settings.gamesPerWeek||3)*dates.length,0);
-  const actualTeamGames=newGames.length*2;
   const scopeLabel=scope==='ALL'?'all divisions and pools':$('scheduleFilter').selectedOptions[0]?.textContent||scope;
-  $('genSummary').innerHTML=`<div class="status ${warnings.length?'warn':'ok'}">Generated ${newGames.length} games for ${esc(scopeLabel)} across ${dates.length} playing dates. Team-game assignments: ${actualTeamGames}/${targetGames}.${warnings.length?' '+warnings.length+' scheduling warning(s).':''}</div>${warnings.length?`<details><summary>View warnings</summary><div class="hint">${warnings.map(esc).join('<br>')}</div></details>`:''}`;
-  setTab('schedule')
+  $('genSummary').innerHTML=`<div class="status ${warnings.length?'warn':'ok'}">Generated ${newGames.length} games for ${esc(scopeLabel)} across ${dates.length} playing dates.${warnings.length?' '+warnings.length+' distribution/guarantee warning(s).':''}</div>${warnings.length?`<details><summary>View generation warnings</summary><div class="hint">${warnings.map(esc).join('<br>')}</div></details>`:''}`;
+  setTab('schedule');runScheduleAudit(scope==='ALL');
 }
+
+function auditResult(label,status,detail,violations=[]){return {label,status,detail,violations}}
+function runScheduleAudit(allLeague=false){
+  syncSettings();const selected=allLeague?'ALL':($('scheduleFilter').value||'ALL');
+  const games=state.games.filter(g=>g.status!=='Cancelled'&&(selected==='ALL'||poolKey(g.division,g.pool)===selected));
+  if(!games.length){$('scheduleAudit').innerHTML='<div class="status warn">No scheduled games are available to audit for this scope.</div>';return}
+  const targetPools=[];Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{if(selected==='ALL'||poolKey(d,pool)===selected)targetPools.push({d,pool,ids})}));
+  const results=[],gameLen=Number(state.settings.gameLength||20),dates=seasonDates();
+  let self=[],teamDouble=[],courtDouble=[],windowBad=[],courtBad=[],requestBad=[],coachBad=[],maxBad=[],guaranteeBad=[],distributionWarn=[],immediateBad=[],allBeforeRepeatBad=[],restBad=[];
+  const slotCourt={},slotTeam={},slotCoach={};
+  games.forEach(g=>{
+    if(g.aId===g.bId)self.push(`${teamById(g.aId).name} on ${g.date}`);
+    const sk=`${g.date}|${g.time}|${g.court}`;(slotCourt[sk]??=[]).push(g);
+    for(const id of [g.aId,g.bId]){const tk=`${g.date}|${g.time}|${id}`;(slotTeam[tk]??=[]).push(g)}
+    if(state.settings.protectSharedCoaches)for(const id of [g.aId,g.bId]){const c=teamById(id).coach;if(c){const ck=`${g.date}|${g.time}|${c}`;(slotCoach[ck]??=[]).push(g)}}
+    const cfg=state.divisionConfig[g.division],grp=state.courtGroups.find(x=>x.id===cfg?.courtGroupId),approvedCourts=new Set((grp?groupSurfaceIds(grp):[]).map(id=>state.courts.find(c=>c.id===id)?.name).filter(Boolean));
+    if(cfg&&(g.time<cfg.start||g.time>=cfg.end))windowBad.push(`${divisionLabel(g.division)}: ${g.date} ${fmtTime(g.time)} ${teamById(g.aId).name} vs ${teamById(g.bId).name}`);
+    if(grp&&!approvedCourts.has(g.court))courtBad.push(`${divisionLabel(g.division)}: ${g.court}`);
+    if(state.settings.honorScheduleRequests){if(!allowed(teamById(g.aId),{date:g.date,time:g.time})||!allowed(teamById(g.bId),{date:g.date,time:g.time}))requestBad.push(`${g.date} ${fmtTime(g.time)}: ${teamById(g.aId).name} vs ${teamById(g.bId).name}`)}
+  });
+  Object.entries(slotCourt).filter(([k,v])=>v.length>1).forEach(([k])=>courtDouble.push(k));Object.entries(slotTeam).filter(([k,v])=>v.length>1).forEach(([k])=>teamDouble.push(k));Object.entries(slotCoach).filter(([k,v])=>v.length>1).forEach(([k])=>coachBad.push(k));
+  targetPools.forEach(({d,pool,ids})=>{
+    const pg=games.filter(g=>g.division===d&&g.pool===pool).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));const cfg=state.divisionConfig[d]||{},guarantee=Number(cfg.seasonGuarantee||state.settings.seasonGuarantee||12),preferred=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3),max=Number(cfg.maxGamesPerDate||state.settings.maxGamesPerDate||4);
+    ids.forEach(id=>{
+      const tg=pg.filter(g=>g.aId===id||g.bId===id),name=teamById(id).name;if(tg.length<guarantee)guaranteeBad.push(`${name}: ${tg.length}/${guarantee}`);
+      const byDate={};tg.forEach(g=>(byDate[g.date]??=[]).push(g));Object.entries(byDate).forEach(([date,arr])=>{if(arr.length>max)maxBad.push(`${name}: ${arr.length} games on ${date} (max ${max})`);if(arr.length!==preferred)distributionWarn.push(`${name}: ${arr.length} games on ${date} (preferred ${preferred})`)});
+      const seq=[...tg].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));let seen=new Set();for(let i=0;i<seq.length;i++){const g=seq[i],opp=g.aId===id?g.bId:g.aId;if(i&&opp===(seq[i-1].aId===id?seq[i-1].bId:seq[i-1].aId)&&state.settings.avoidImmediateRematches)immediateBad.push(`${name}: consecutive games vs ${teamById(opp).name}`);if(state.settings.playAllTeamsOnce&&seen.has(opp)){const possible=ids.filter(x=>x!==id);if(possible.some(x=>!seen.has(x)))allBeforeRepeatBad.push(`${name}: repeated ${teamById(opp).name} before facing all pool opponents`)}seen.add(opp)}
+      for(let i=1;i<seq.length;i++){if(seq[i].date!==seq[i-1].date)continue;const t1=new Date(`${seq[i-1].date}T${seq[i-1].time}:00`).getTime(),t2=new Date(`${seq[i].date}T${seq[i].time}:00`).getTime(),diff=(t2-t1)/60000;const minGap=(state.settings.allowBackToBack?Number(state.settings.minRest||0)+1:Math.max(2,Number(state.settings.minRest||0)+1))*gameLen;if(diff<minGap)restBad.push(`${name}: ${diff} min between games on ${seq[i].date}; requires ${minGap} min`)}
+    })
+  });
+  const row=(label,viol,detail,soft=false)=>results.push(auditResult(label,viol.length?(soft?'WARN':'FAIL'):'PASS',viol.length?`${viol.length} issue(s)`:detail,viol));
+  row('No self-matchups',self,'No self-games');row('No team double-booking',teamDouble,'No teams scheduled twice in the same slot');row('No court double-booking',courtDouble,'No courts double-booked');row('Division time windows',windowBad,'All games inside assigned division windows');row('Assigned court groups',courtBad,'All games use approved courts');row('Team schedule requests',requestBad,state.settings.honorScheduleRequests?'All requests honored':'Rule is OFF',false);row('Shared-coach conflicts',coachBad,state.settings.protectSharedCoaches?'No shared-coach conflicts':'Rule is OFF');row('Season game guarantee',guaranteeBad,'Every team meets its season guarantee');row('Maximum games per playing date',maxBad,'No team exceeds its maximum');row('Immediate rematches',immediateBad,state.settings.avoidImmediateRematches?'No immediate rematches':'Rule is OFF',!state.settings.avoidImmediateRematches);row('All opponents before repeats',allBeforeRepeatBad,state.settings.playAllTeamsOnce?'Opponent rotation satisfied':'Rule is OFF',!state.settings.playAllTeamsOnce);row('Rest / back-to-back rule',restBad,'Rest rule satisfied');row('Preferred games per playing date',distributionWarn,'Preferred distribution achieved',true);
+  const fails=results.filter(r=>r.status==='FAIL').length,warns=results.filter(r=>r.status==='WARN').length,overall=fails?'FAIL':warns?'WARN':'PASS';
+  $('scheduleAudit').innerHTML=`<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Schedule & Rules Audit</h2><span class="status ${overall==='PASS'?'ok':'warn'}" style="display:inline-block;margin:0">${overall}${fails?` • ${fails} failed rule(s)`:''}${warns?` • ${warns} warning(s)`:''}</span></div><p class="hint">Scope: ${selected==='ALL'?'Entire League':esc($('scheduleFilter').selectedOptions[0]?.textContent||selected)}. Hard rules must PASS before publishing; preferred game distribution may WARN when requests require uneven dates.</p>${results.map(r=>`<div class="item"><b>${r.status==='PASS'?'✓':r.status==='WARN'?'!':'✕'} ${esc(r.label)}</b><span class="pill" style="float:right">${r.status}</span><br><span class="hint">${esc(r.detail)}</span>${r.violations.length?`<details><summary>Show details</summary><div class="hint">${r.violations.slice(0,50).map(esc).join('<br>')}${r.violations.length>50?'<br>…and more':''}</div></details>`:''}</div>`).join('')}</div>`;
+  return {fails,warns,overall,results};
+}
+
 function groupOptions(select){const current=select.value||select.dataset.lastValue||'ALL',groups=[];Object.entries(state.pools).forEach(([d,p])=>Object.keys(p.lists).forEach(pool=>groups.push({value:poolKey(d,pool),label:`${divisionLabel(d)} — Pool ${pool}`})));select.innerHTML='<option value="ALL">All divisions and pools</option>'+groups.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('');if(current==='ALL'||groups.some(x=>x.value===current))select.value=current;select.dataset.lastValue=select.value}
 function renderSchedule(){groupOptions($('scheduleFilter'));const f=$('scheduleFilter').value||'ALL',g=state.games.filter(x=>f==='ALL'||poolKey(x.division,x.pool)===f).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));$('scheduleTable').innerHTML='<thead><tr><th>Playing Date #</th><th>Date</th><th>Time</th><th>Court</th><th>Division / Pool</th><th>Matchup</th><th>Status</th><th>Result</th><th></th></tr></thead><tbody>'+g.map(x=>`<tr class="${x.pending?'pending-row':''}"><td>${x.week||''}</td><td>${x.date}</td><td>${fmtTime(x.time)}</td><td>${esc(x.court)}</td><td>${esc(divisionLabel(x.division))} — Pool ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td>${esc(x.status||'Scheduled')}${x.pending?' • Unpublished':''}</td><td>${x.sa==null?'—':x.sa+'–'+x.sb}</td><td><button class="edit-btn" data-edit-game="${x.id}">Edit</button></td></tr>`).join('')+'</tbody>';document.querySelectorAll('[data-edit-game]').forEach(b=>b.addEventListener('click',()=>openGameEditor(b.dataset.editGame)))}
 function sameSlot(g,date,time,court){return g.date===date&&g.time===time&&g.court===court}
@@ -1004,13 +1044,13 @@ function saveGameChange(forceStatus){const g=state.games.find(x=>x.id===$('editG
 function changeSummary(c){const b=c.before||{},a=c.after||{};if(c.kind==='score'||(b.sa!==undefined&&a.sa!==undefined&&(b.sa!==a.sa||b.sb!==a.sb)))return `Score ${b.sa==null?'—':b.sa+'–'+b.sb} → ${a.sa==null?'—':a.sa+'–'+a.sb}`;return `${b.date||''} ${b.time||''} ${b.court||''} → ${a.date||''} ${a.time||''} ${a.court||''} • ${a.status||''}`}
 function canDirectUndo(c){const g=state.games.find(x=>x.id===c.gameId);if(!g)return false;const current=gameSnapshot(g),a=c.after||{};return ['date','time','court','aId','bId','status','sa','sb'].every(k=>(current[k]??null)===(a[k]??null))}
 function restoreHistoryEntry(changeId){const c=state.scheduleChanges.find(x=>x.id===changeId),g=c&&state.games.find(x=>x.id===c.gameId);if(!c||!g)return;const label=canDirectUndo(c)?'Undo this change':'Restore the game to the version before this change';if(!confirm(`${label}? The reversal will be recorded as a new audit-history entry.`))return;const before=gameSnapshot(g),target={...c.before};Object.assign(g,target,{pending:true});state.scheduleChanges.unshift({id:uid('chg'),kind:'undo',gameId:g.id,changedAt:new Date().toISOString(),before,after:gameSnapshot(g),reason:`${canDirectUndo(c)?'Undo':'Restore'} of change made ${new Date(c.changedAt).toLocaleString()}`,warnings:[],sourceChangeId:c.id});persist();renderAll();setTab('management')}
-function publishScheduleChanges(){if(!state.games.length)return alert('There is no working schedule to publish.');state.games.forEach(g=>g.pending=false);state.publishedGames=JSON.parse(JSON.stringify(state.games));logActivity('Schedule changes published to the League Portal.');persist();renderAll();setTab('management')}
+function publishScheduleChanges(){if(!state.games.length)return alert('There is no working schedule to publish.');const audit=runScheduleAudit(true);if(audit&&audit.fails)return alert(`Schedule cannot be published yet. The automatic Rules Audit found ${audit.fails} failed hard rule(s). Review the Schedule & Rules Audit on the Schedule page.`);state.games.forEach(g=>g.pending=false);state.publishedGames=JSON.parse(JSON.stringify(state.games));logActivity('Schedule changes published to the League Portal.');persist();renderAll();setTab('management')}
 function restorePublishedSchedule(){if(!state.publishedGames?.length)return alert('There is no previously published schedule to restore.');if(!confirm('Restore the working schedule to the last published version? Current unpublished changes will be replaced.'))return;state.games=JSON.parse(JSON.stringify(state.publishedGames)).map(g=>({...g,pending:false}));logActivity('Working schedule restored to the last published version.');persist();renderAll();setTab('management')}
 function divisionProgressRows(){
   const weeks=seasonDatesRaw().length;
   return Object.entries(state.pools||{}).flatMap(([division,poolData])=>Object.entries(poolData.lists||{}).map(([pool,ids])=>{
     const key=poolKey(division,pool),games=state.games.filter(g=>poolKey(g.division,g.pool)===key),publishedGames=(state.publishedGames||[]).filter(g=>poolKey(g.division,g.pool)===key);
-    const gpw=Number(state.divisionConfig?.[division]?.gamesPerWeek||state.settings.gamesPerWeek||1),active=games.filter(g=>g.status!=='Cancelled'),completed=active.filter(g=>g.sa!=null&&g.sb!=null),pending=games.filter(g=>g.pending),target=Math.floor((ids.length*gpw*weeks)/2);
+    const guarantee=Number(state.divisionConfig?.[division]?.seasonGuarantee||state.settings.seasonGuarantee||12),active=games.filter(g=>g.status!=='Cancelled'),completed=active.filter(g=>g.sa!=null&&g.sb!=null),pending=games.filter(g=>g.pending),target=Math.ceil(ids.length*guarantee/2);
     const configured=!!(state.divisionConfig?.[division]?.start&&state.divisionConfig?.[division]?.end&&state.divisionConfig?.[division]?.courtGroupId);
     let status='Not Started',cls='bad';
     if(!configured) status='Needs Setup';
@@ -1130,7 +1170,7 @@ function loadCompleteDemo(){
     dynamicAll:false
   }));
   divisions.forEach((d,i)=>{
-    state.divisionConfig[d]={start:'12:00',end:'20:00',courtGroupId:`demo_group_${i+1}`,gamesPerWeek:2};
+    state.divisionConfig[d]={start:'12:00',end:'20:00',courtGroupId:`demo_group_${i+1}`,gamesPerWeek:2,seasonGuarantee:12,maxGamesPerDate:4};
   });
   state.approved=true;Object.values(state.pools).forEach(p=>p.approved=true);
   state.games=[];state.publishedGames=[];state.scheduleChanges=[];
@@ -1162,7 +1202,7 @@ function renderDashboard(){
   const seasonDateValid=!!state.settings.seasonStart&&!!state.settings.seasonEnd&&state.settings.seasonEnd>=state.settings.seasonStart;const offOutside=(state.settings.exceptions||[]).filter(d=>!seasonDateValid||d<state.settings.seasonStart||d>state.settings.seasonEnd);const unassignedTeams=state.teams.filter(t=>!t.divisionId);const validations=[['League start and end dates are valid',seasonDateValid,seasonDateValid?`${state.settings.seasonStart} through ${state.settings.seasonEnd}`:'Enter a valid start and end date','settings'],['At least one league playing day selected',(state.settings.days||[]).length>0,`${(state.settings.days||[]).length} day(s) selected`,'settings'],['Exception dates fall within the season',offOutside.length===0,offOutside.length?`${offOutside.length} off date(s) outside season`:`${(state.settings.exceptions||[]).length} off date(s)`,'settings'],['No duplicate displayed team names',dupes.length===0,dupes.length?`${dupes.length} duplicate name group(s)`:'Ready','registrations'],['Every team is assigned to a division',state.teams.length>0&&unassignedTeams.length===0,unassignedTeams.length?`${unassignedTeams.length} team(s) need Director assignment`:'Ready','divisions'],['Divisions & pools approved',state.approved,state.approved?'Ready':'Approval required','board'],['Playing surfaces available',state.courts.length>0,`${state.courts.length} surface(s)`,'settings'],['Court groups available',state.courtGroups.length>0,`${state.courtGroups.length} group(s)`,'settings'],['Every division has resources and a valid window',missingAssignments.length===0&&allDivisionKeys().length>0,missingAssignments.length?`${missingAssignments.length} division(s) need assignment`:'Ready','settings'],['Season contains playable dates',seasonDates().length>0,`${seasonDates().length} playable date(s)`,'settings'],['Shared-coach protection',true,state.settings.protectSharedCoaches?`ON • ${sharedCoachCount} shared coach name(s) detected`:'OFF by league rule','settings']];
   $('dashboardValidation').innerHTML=validations.map(([label,ok,detail,tab])=>`<div class="item"><b>${ok?'✓':'!'} ${esc(label)}</b><br><span class="hint">${esc(detail)}</span> <button class="team-link" data-dashboard-tab="${tab}">${ok?'Review':'Fix'}</button></div>`).join('');
   const ruleRows=[['Allow back-to-back games',state.settings.allowBackToBack],['Play every pool opponent before repeats',state.settings.playAllTeamsOnce],['Avoid immediate rematches',state.settings.avoidImmediateRematches],['Protect shared coaches',state.settings.protectSharedCoaches],['Honor team schedule requests',state.settings.honorScheduleRequests]];
-  $('dashboardRules').innerHTML=ruleRows.map(([label,on])=>`<div class="item"><b>${esc(label)}</b><span class="pill" style="float:right">${on?'YES':'NO'}</span></div>`).join('')+`<div class="item"><b>Game length / extra rest</b><span class="pill" style="float:right">${state.settings.gameLength} min / ${state.settings.minRest} slot(s)</span></div>`;
+  $('dashboardRules').innerHTML=ruleRows.map(([label,on])=>`<div class="item"><b>${esc(label)}</b><span class="pill" style="float:right">${on?'YES':'NO'}</span></div>`).join('')+`<div class="item"><b>Season guarantee / preferred / max</b><span class="pill" style="float:right">${state.settings.seasonGuarantee} / ${state.settings.gamesPerWeek} / ${state.settings.maxGamesPerDate}</span></div><div class="item"><b>Game length / extra rest</b><span class="pill" style="float:right">${state.settings.gameLength} min / ${state.settings.minRest} slot(s)</span></div>`;
   const activity=(state.activity||[]).slice(0,8);$('dashboardActivity').innerHTML=activity.length?activity.map(a=>`<div class="item"><b>${esc(a.message)}</b><br><span class="hint">${new Date(a.at).toLocaleString()}</span></div>`).join(''):'<p class="hint">No recorded activity yet. Schedule generation, publishing, and major setup changes will appear here.</p>';
   document.querySelectorAll('[data-dashboard-tab]').forEach(b=>b.onclick=()=>setTab(b.dataset.dashboardTab));
   document.querySelectorAll('[data-open-division]').forEach(b=>b.onclick=()=>{const key=b.dataset.openDivision,target=b.dataset.targetTab;if(target==='management'){$('managementDivision').dataset.lastValue=key;$('managementDivision').value=key;}if(target==='schedule'){$('scheduleFilter').dataset.lastValue=key;$('scheduleFilter').value=key;}setTab(target);renderAll()});
@@ -1172,7 +1212,7 @@ function renderAll(){renderDivisionSetup();renderDashboard();renderTeams();rende
 $('addTeamBtn').addEventListener('click',addTeam);$('loadDemoBtn').addEventListener('click',loadCompleteDemo);$('importCsvBtn').addEventListener('click',importCSV);$('csvFile').addEventListener('change',e=>previewCSVFile(e.target.files[0]));$('clearRegistrationsBtn').addEventListener('click',clearRegistrations);$('loadSampleBtn').addEventListener('click',()=>{const r=importCSVText(sampleCSV,'replace');$('importStatus').innerHTML=`<div class="status ok">${r.added} sample teams loaded into ${r.divisionCount} divisions, replacing prior registrations.</div>`;renderDuplicateNameStatus()});
 $('teamSearch').addEventListener('input',renderTeams);$('rebalanceBtn').addEventListener('click',rebalancePools);$('approveBtn').addEventListener('click',approveBoard);$('unlockBtn').addEventListener('click',unlockBoard);
 $('addExceptionBtn').addEventListener('click',addException);$('addCourtBtn').addEventListener('click',addCourt);$('addCourtGroupBtn').addEventListener('click',addCourtGroup);$('saveBtn').addEventListener('click',save);$('exportSetupBtn').addEventListener('click',exportSetup);
-$('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',generateSchedule);
+$('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',generateSchedule);$('auditScopeBtn').addEventListener('click',()=>runScheduleAudit(false));$('auditAllBtn').addEventListener('click',()=>runScheduleAudit(true));
 ['managementDivision','managementWeek','managementStatus','managementCourt'].forEach(id=>$(id).addEventListener('change',renderManagement));
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
 $('exportScheduleBtn').addEventListener('click',exportSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});
