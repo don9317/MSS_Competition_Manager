@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.9</title>
+<title>MSS League Scheduler v11.10</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.9</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.10</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div class="viewbar">
@@ -296,7 +296,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <button class="secondary" id="printBtn">Print</button>
       <label style="margin:0;min-width:260px">Schedule / Display Scope<select id="scheduleFilter"></select></label>
     </div>
-    <div class="hint" style="margin-bottom:8px">Schedule generation follows the League Scheduling Rules configured under Resources. Core protections always prevent self-games, double-booked teams, and double-booked courts.</div><div id="genSummary"></div><div id="scheduleAudit" style="margin-top:12px"></div>
+    <div class="hint" style="margin-bottom:8px">For multi-pool divisions, choose <b>Entire Division</b> to schedule all pools together and balance early/late times fairly. Matchups remain within pools. Schedule generation follows the League Scheduling Rules configured under Resources.</div><div id="genSummary"></div><div id="scheduleAudit" style="margin-top:12px"></div>
     <div class="table-wrap"><table id="scheduleTable"></table></div>
   </div>
 </section>
@@ -888,12 +888,45 @@ function candidatePairs(ids,scheduledCounts,target,pairCounts,lastOpponent){
 }
 function weeklyNeedsComplete(ids,counts,target){return ids.every(id=>counts[id]>=target)}
 function allowed(team,slot){if(!state.settings.honorScheduleRequests)return true;const d=new Date(slot.date+'T00:00:00'),h=+slot.time.slice(0,2);if(team.request==='no_sat_am'&&d.getDay()===6&&h<12)return false;if(team.request==='no_sun'&&d.getDay()===0)return false;if(team.request==='no_am'&&h<12)return false;if(team.request==='no_pm'&&h>=12)return false;return true}
+const divisionScopeKey=d=>`DIV::${d}`;
+function scopeMatches(scope,d,pool){return scope==='ALL'||scope===divisionScopeKey(d)||scope===poolKey(d,pool)}
+function scopeMatchesGame(scope,g){return scope==='ALL'||scope===divisionScopeKey(g.division)||scope===poolKey(g.division,g.pool)}
 function selectedScheduleTargets(){
   const scope=$('scheduleFilter').value||'ALL',targets=[];
   Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{
-    if(scope==='ALL'||poolKey(d,pool)===scope)targets.push({division:d,pool,ids})
+    if(scopeMatches(scope,d,pool))targets.push({division:d,pool,ids})
   }));
   return {scope,targets}
+}
+function buildFairDivisionSlotPlan(scope,targets,dates){
+  const plan={};
+  if(!String(scope).startsWith('DIV::'))return plan;
+  const division=scope.slice(5),poolTargets=targets.filter(t=>t.division===division);
+  if(poolTargets.length<2)return plan;
+  const cfg=state.divisionConfig[division]||{},minimum=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3);
+  dates.forEach((date,dateIndex)=>{
+    const slots=[...divisionSlots(division,date)].sort((a,b)=>a.time.localeCompare(b.time)||a.court.localeCompare(b.court));
+    if(!slots.length)return;
+    const needs=poolTargets.map(t=>({pool:t.pool,need:Math.ceil(t.ids.length*minimum/2),assigned:0}));
+    // Rotate which pool gets first choice each date, then use weighted need/assigned balancing.
+    const rotation=dateIndex%needs.length;
+    const rotated=[...needs.slice(rotation),...needs.slice(0,rotation)];
+    slots.forEach((slot,i)=>{
+      const eligible=rotated.filter(x=>x.assigned<x.need);
+      const pick=(eligible.length?eligible:rotated).slice().sort((a,b)=>{
+        const ar=a.assigned/Math.max(1,a.need),br=b.assigned/Math.max(1,b.need);
+        if(ar!==br)return ar-br;
+        return ((rotated.indexOf(a)-i)%rotated.length)-((rotated.indexOf(b)-i)%rotated.length)
+      })[0];
+      pick.assigned++;
+      (plan[`${division}::${pick.pool}::${date}`]??=[]).push(slot);
+    });
+  });
+  return plan
+}
+function targetSlots(d,pool,date,scope,fairPlan){
+  if(String(scope).startsWith('DIV::'))return fairPlan[`${d}::${pool}::${date}`]||[];
+  return divisionSlots(d,date)
 }
 function scheduleValidation(targets){
   const errors=[],divisions=[...new Set(targets.map(x=>x.division))];
@@ -958,17 +991,17 @@ function candidatePairsDailyMinimum(ids,dailyCounts,minimum,pairCounts,lastOppon
   }
   return candidates.sort((x,y)=>x.score-y.score)
 }
-function targetFeasibility(d,ids,guarantee,maxPerDate,dates){
+function targetFeasibility(d,pool,ids,guarantee,maxPerDate,dates,scope,fairPlan){
   const totalRequiredTeamGames=ids.length*guarantee;
   const requiredGames=Math.ceil(totalRequiredTeamGames/2);
-  const slotCounts=dates.map(date=>divisionSlots(d,date).length);
+  const slotCounts=dates.map(date=>targetSlots(d,pool,date,scope,fairPlan).length);
   const availableSlots=slotCounts.reduce((a,b)=>a+b,0);
   const oddTeamGameTotal=(totalRequiredTeamGames%2)!==0;
   const teamOpportunity={};
   ids.forEach(id=>{
     let opp=0;const team=teamById(id);
     dates.forEach(date=>{
-      const slots=divisionSlots(d,date).filter(s=>allowed(team,s));
+      const slots=targetSlots(d,pool,date,scope,fairPlan).filter(s=>allowed(team,s));
       const times=[...new Set(slots.map(s=>s.time))].sort();
       let perDate=0,last=-1e9;
       for(const time of times){
@@ -991,7 +1024,8 @@ function generateSchedule(){
   const validation=scheduleValidation(targets);if(validation.length)return alert(validation.join('\n'));
 
   const dates=seasonDates(),used=new Set(),teamTimes={},coachTimes={},newGames=[],warnings=[],feasibilityNotes=[];
-  const retainedGames=scope==='ALL'?[]:state.games.filter(g=>poolKey(g.division,g.pool)!==scope);
+  const fairPlan=buildFairDivisionSlotPlan(scope,targets,dates);
+  const retainedGames=scope==='ALL'?[]:state.games.filter(g=>!scopeMatchesGame(scope,g));
   seedConflictMaps(retainedGames,used,teamTimes,coachTimes);
 
   // Preflight capacity / feasibility check. A season guarantee is a hard target, so do not silently
@@ -1001,11 +1035,12 @@ function generateSchedule(){
     const ids=[...new Set(rawIds)].filter(Boolean),cfg=state.divisionConfig[d]||{};
     if(ids.length<2)return;
     const minimum=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3),guarantee=minimum*Math.max(1,dates.length),maxPerDate=Math.max(minimum,Number(cfg.maxGamesPerDate||state.settings.maxGamesPerDate||4));
-    const f=targetFeasibility(d,ids,guarantee,maxPerDate,dates),label=`${divisionLabel(d)} — Pool ${pool}`;
+    const f=targetFeasibility(d,pool,ids,guarantee,maxPerDate,dates,scope,fairPlan),label=`${divisionLabel(d)} — Pool ${pool}`;
     feasibilityNotes.push(`${label}: requires ${f.requiredGames} games; ${f.availableSlots} assigned court/time slots available.`);
     if(f.oddTeamGameTotal)hardPreflight.push(`${label}: ${ids.length} teams × ${guarantee} guaranteed games produces an odd total of team-games, so equal guarantees are mathematically impossible.`);
     if(f.availableSlots<f.requiredGames)hardPreflight.push(`${label}: needs ${f.requiredGames} games but only ${f.availableSlots} court/time slots are available.`);
     f.shortTeams.forEach(id=>hardPreflight.push(`${label}: ${teamById(id).name} can reach at most ${f.teamOpportunity[id]} games under the current dates, requests, rest rule, and max-games-per-date setting (guarantee ${guarantee}).`));
+    if(f.shortTeams.length&&!state.settings.allowBackToBack&&minimum>=3)hardPreflight.push(`${label}: Back-to-Back Games is OFF. A minimum of ${minimum} games per team per night commonly requires consecutive game slots. Enable Back-to-Back Games or add more time/court capacity.`);
   });
   if(hardPreflight.length){
     $('genSummary').innerHTML=`<div class="status warn"><b>Schedule cannot meet the season guarantee with the current setup.</b><br>${hardPreflight.map(esc).join('<br>')}</div><details open><summary>Capacity calculation</summary><div class="hint">${feasibilityNotes.map(esc).join('<br>')}</div></details>`;
@@ -1023,7 +1058,7 @@ function generateSchedule(){
 
     // PASS 1 — distribute toward the preferred games/date while keeping the season guarantee in view.
     dates.forEach((date,dateIndex)=>{
-      const available=divisionSlots(d,date),remainingDates=dates.length-dateIndex;
+      const available=targetSlots(d,pool,date,scope,fairPlan),remainingDates=dates.length-dateIndex;
       const dailyCounts=Object.fromEntries(ids.map(id=>[id,0])),dailyTargets={};
       ids.forEach(id=>{
         const team=teamById(id),hasAny=available.some(s=>allowed(team,s));
@@ -1060,7 +1095,7 @@ function generateSchedule(){
     // PASS 2 — NIGHTLY MINIMUM REPAIR. Three (or the configured minimum) per playing date is the primary hard rule.
     // Repair each date before using any remaining capacity for season-total balancing.
     dates.forEach((date,dateIndex)=>{
-      const available=divisionSlots(d,date),dailyCounts=Object.fromEntries(ids.map(id=>[id,0]));
+      const available=targetSlots(d,pool,date,scope,fairPlan),dailyCounts=Object.fromEntries(ids.map(id=>[id,0]));
       newGames.filter(g=>g.division===d&&g.pool===pool&&g.date===date).forEach(g=>{dailyCounts[g.aId]=(dailyCounts[g.aId]||0)+1;dailyCounts[g.bId]=(dailyCounts[g.bId]||0)+1});
       let guard=0;
       while(ids.some(id=>dailyCounts[id]<preferred&&available.some(sl=>allowed(teamById(id),sl)))&&guard++<2500){
@@ -1094,7 +1129,7 @@ function generateSchedule(){
     while(repairProgress&&ids.some(id=>seasonCounts[id]<guarantee)&&repairLoops++<20){
       repairProgress=false;
       for(let dateIndex=0;dateIndex<dates.length;dateIndex++){
-        const date=dates[dateIndex],available=divisionSlots(d,date);
+        const date=dates[dateIndex],available=targetSlots(d,pool,date,scope,fairPlan);
         const dailyCounts=Object.fromEntries(ids.map(id=>[id,0]));
         newGames.filter(g=>g.division===d&&g.pool===pool&&g.date===date).forEach(g=>{dailyCounts[g.aId]=(dailyCounts[g.aId]||0)+1;dailyCounts[g.bId]=(dailyCounts[g.bId]||0)+1});
         let localGuard=0;
@@ -1142,11 +1177,11 @@ function generateSchedule(){
 function auditResult(label,status,detail,violations=[]){return {label,status,detail,violations}}
 function runScheduleAudit(allLeague=false){
   syncSettings();const selected=allLeague?'ALL':($('scheduleFilter').value||'ALL');
-  const games=state.games.filter(g=>g.status!=='Cancelled'&&(selected==='ALL'||poolKey(g.division,g.pool)===selected));
+  const games=state.games.filter(g=>g.status!=='Cancelled'&&scopeMatchesGame(selected,g));
   if(!games.length){$('scheduleAudit').innerHTML='<div class="status warn">No scheduled games are available to audit for this scope.</div>';return}
-  const targetPools=[];Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{if(selected==='ALL'||poolKey(d,pool)===selected)targetPools.push({d,pool,ids})}));
+  const targetPools=[];Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{if(scopeMatches(selected,d,pool))targetPools.push({d,pool,ids})}));
   const results=[],gameLen=Number(state.settings.gameLength||20),dates=seasonDates();
-  let self=[],teamDouble=[],courtDouble=[],windowBad=[],courtBad=[],requestBad=[],coachBad=[],maxBad=[],guaranteeBad=[],minimumDateBad=[],overflowWarn=[],immediateBad=[],allBeforeRepeatBad=[],restBad=[];
+  let self=[],teamDouble=[],courtDouble=[],windowBad=[],courtBad=[],requestBad=[],coachBad=[],maxBad=[],guaranteeBad=[],minimumDateBad=[],overflowWarn=[],immediateBad=[],allBeforeRepeatBad=[],restBad=[],fairnessWarn=[];
   const slotCourt={},slotTeam={},slotCoach={};
   games.forEach(g=>{
     if(g.aId===g.bId)self.push(`${teamById(g.aId).name} on ${g.date}`);
@@ -1168,15 +1203,23 @@ function runScheduleAudit(allLeague=false){
       for(let i=1;i<seq.length;i++){if(seq[i].date!==seq[i-1].date)continue;const t1=new Date(`${seq[i-1].date}T${seq[i-1].time}:00`).getTime(),t2=new Date(`${seq[i].date}T${seq[i].time}:00`).getTime(),diff=(t2-t1)/60000;const minGap=(state.settings.allowBackToBack?Number(state.settings.minRest||0)+1:Math.max(2,Number(state.settings.minRest||0)+1))*gameLen;if(diff<minGap)restBad.push(`${name}: ${diff} min between games on ${seq[i].date}; requires ${minGap} min`)}
     })
   });
+  // Time-slot fairness across pools in the same division.
+  const divisionsInAudit=[...new Set(targetPools.map(x=>x.d))];
+  divisionsInAudit.forEach(d=>{
+    const pools=targetPools.filter(x=>x.d===d);if(pools.length<2)return;
+    const cfg=state.divisionConfig[d]||{},start=minutes(cfg.start||'00:00'),end=minutes(cfg.end||'23:59'),span=Math.max(1,end-start);
+    const avgs=pools.map(p=>{const pg=games.filter(g=>g.division===d&&g.pool===p.pool);const vals=pg.map(g=>(minutes(g.time)-start)/span);return {pool:p.pool,n:vals.length,avg:vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0}}).filter(x=>x.n);
+    if(avgs.length>1){const lo=Math.min(...avgs.map(x=>x.avg)),hi=Math.max(...avgs.map(x=>x.avg));if(hi-lo>.18)fairnessWarn.push(`${divisionLabel(d)}: ${avgs.map(x=>`Pool ${x.pool} average slot ${Math.round(x.avg*100)}% through the time window`).join('; ')}. Schedule the Entire Division together to rebalance early and late games.`)}
+  });
   const row=(label,viol,detail,soft=false)=>results.push(auditResult(label,viol.length?(soft?'WARN':'FAIL'):'PASS',viol.length?`${viol.length} issue(s)`:detail,viol));
-  row('No self-matchups',self,'No self-games');row('No team double-booking',teamDouble,'No teams scheduled twice in the same slot');row('No court double-booking',courtDouble,'No courts double-booked');row('Division time windows',windowBad,'All games inside assigned division windows');row('Assigned court groups',courtBad,'All games use approved courts');row('Team schedule requests',requestBad,state.settings.honorScheduleRequests?'All requests honored':'Rule is OFF',false);row('Shared-coach conflicts',coachBad,state.settings.protectSharedCoaches?'No shared-coach conflicts':'Rule is OFF');row('Minimum games per playing date',minimumDateBad,'Every available team receives at least its minimum games on every playing date');row('Calculated season minimum',guaranteeBad,'Every team meets the calculated season minimum');row('Maximum games per playing date',maxBad,'No team exceeds its maximum');row('Immediate rematches',immediateBad,state.settings.avoidImmediateRematches?'No immediate rematches':'Rule is OFF',!state.settings.avoidImmediateRematches);row('All opponents before repeats',allBeforeRepeatBad,state.settings.playAllTeamsOnce?'Opponent rotation satisfied':'Rule is OFF',!state.settings.playAllTeamsOnce);row('Rest / back-to-back rule',restBad,'Rest rule satisfied');row('Games above the nightly minimum',overflowWarn,'No teams needed more than the minimum games on a playing date',true);
+  row('No self-matchups',self,'No self-games');row('No team double-booking',teamDouble,'No teams scheduled twice in the same slot');row('No court double-booking',courtDouble,'No courts double-booked');row('Division time windows',windowBad,'All games inside assigned division windows');row('Assigned court groups',courtBad,'All games use approved courts');row('Team schedule requests',requestBad,state.settings.honorScheduleRequests?'All requests honored':'Rule is OFF',false);row('Shared-coach conflicts',coachBad,state.settings.protectSharedCoaches?'No shared-coach conflicts':'Rule is OFF');row('Minimum games per playing date',minimumDateBad,'Every available team receives at least its minimum games on every playing date');row('Calculated season minimum',guaranteeBad,'Every team meets the calculated season minimum');row('Maximum games per playing date',maxBad,'No team exceeds its maximum');row('Immediate rematches',immediateBad,state.settings.avoidImmediateRematches?'No immediate rematches':'Rule is OFF',!state.settings.avoidImmediateRematches);row('All opponents before repeats',allBeforeRepeatBad,state.settings.playAllTeamsOnce?'Opponent rotation satisfied':'Rule is OFF',!state.settings.playAllTeamsOnce);row('Rest / back-to-back rule',restBad,'Rest rule satisfied');row('Time-slot fairness',fairnessWarn,'Pools are reasonably balanced across early, middle, and late slots',true);row('Games above the nightly minimum',overflowWarn,'No teams needed more than the minimum games on a playing date',true);
   const fails=results.filter(r=>r.status==='FAIL').length,warns=results.filter(r=>r.status==='WARN').length,overall=fails?'FAIL':warns?'WARN':'PASS';
   $('scheduleAudit').innerHTML=`<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Schedule & Rules Audit</h2><span class="status ${overall==='PASS'?'ok':'warn'}" style="display:inline-block;margin:0">${overall}${fails?` • ${fails} failed rule(s)`:''}${warns?` • ${warns} warning(s)`:''}</span></div><p class="hint">Scope: ${selected==='ALL'?'Entire League':esc($('scheduleFilter').selectedOptions[0]?.textContent||selected)}. Hard rules must PASS before publishing. The nightly minimum is a hard rule; games above the minimum are allowed up to the configured maximum.</p>${results.map(r=>`<div class="item"><b>${r.status==='PASS'?'✓':r.status==='WARN'?'!':'✕'} ${esc(r.label)}</b><span class="pill" style="float:right">${r.status}</span><br><span class="hint">${esc(r.detail)}</span>${r.violations.length?`<details><summary>Show details</summary><div class="hint">${r.violations.slice(0,50).map(esc).join('<br>')}${r.violations.length>50?'<br>…and more':''}</div></details>`:''}</div>`).join('')}</div>`;
   return {fails,warns,overall,results};
 }
 
-function groupOptions(select){const current=select.value||select.dataset.lastValue||'ALL',groups=[];Object.entries(state.pools).forEach(([d,p])=>Object.keys(p.lists).forEach(pool=>groups.push({value:poolKey(d,pool),label:`${divisionLabel(d)} — Pool ${pool}`})));select.innerHTML='<option value="ALL">All divisions and pools</option>'+groups.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('');if(current==='ALL'||groups.some(x=>x.value===current))select.value=current;select.dataset.lastValue=select.value}
-function renderSchedule(){groupOptions($('scheduleFilter'));const f=$('scheduleFilter').value||'ALL',g=state.games.filter(x=>f==='ALL'||poolKey(x.division,x.pool)===f).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));$('scheduleTable').innerHTML='<thead><tr><th>Playing Date #</th><th>Date</th><th>Time</th><th>Court</th><th>Division / Pool</th><th>Matchup</th><th>Status</th><th>Result</th><th></th></tr></thead><tbody>'+g.map(x=>`<tr class="${x.pending?'pending-row':''}"><td>${x.week||''}</td><td>${x.date}</td><td>${fmtTime(x.time)}</td><td>${esc(x.court)}</td><td>${esc(divisionLabel(x.division))} — Pool ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td>${esc(x.status||'Scheduled')}${x.pending?' • Unpublished':''}</td><td>${x.sa==null?'—':x.sa+'–'+x.sb}</td><td><button class="edit-btn" data-edit-game="${x.id}">Edit</button></td></tr>`).join('')+'</tbody>';document.querySelectorAll('[data-edit-game]').forEach(b=>b.addEventListener('click',()=>openGameEditor(b.dataset.editGame)))}
+function groupOptions(select){const current=select.value||select.dataset.lastValue||'ALL',groups=[];Object.entries(state.pools).forEach(([d,p])=>{const pools=Object.keys(p.lists);if(pools.length>1)groups.push({value:divisionScopeKey(d),label:`${divisionLabel(d)} — Entire Division (${pools.length} pools)`,division:true});pools.forEach(pool=>groups.push({value:poolKey(d,pool),label:`${divisionLabel(d)} — Pool ${pool}`}))});select.innerHTML='<option value="ALL">Entire League</option>'+groups.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('');if(current==='ALL'||groups.some(x=>x.value===current))select.value=current;select.dataset.lastValue=select.value}
+function renderSchedule(){groupOptions($('scheduleFilter'));const f=$('scheduleFilter').value||'ALL',g=state.games.filter(x=>scopeMatchesGame(f,x)).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));$('scheduleTable').innerHTML='<thead><tr><th>Playing Date #</th><th>Date</th><th>Time</th><th>Court</th><th>Division / Pool</th><th>Matchup</th><th>Status</th><th>Result</th><th></th></tr></thead><tbody>'+g.map(x=>`<tr class="${x.pending?'pending-row':''}"><td>${x.week||''}</td><td>${x.date}</td><td>${fmtTime(x.time)}</td><td>${esc(x.court)}</td><td>${esc(divisionLabel(x.division))} — Pool ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td>${esc(x.status||'Scheduled')}${x.pending?' • Unpublished':''}</td><td>${x.sa==null?'—':x.sa+'–'+x.sb}</td><td><button class="edit-btn" data-edit-game="${x.id}">Edit</button></td></tr>`).join('')+'</tbody>';document.querySelectorAll('[data-edit-game]').forEach(b=>b.addEventListener('click',()=>openGameEditor(b.dataset.editGame)))}
 function sameSlot(g,date,time,court){return g.date===date&&g.time===time&&g.court===court}
 function gameWarnings(game,date,time,court,aId,bId){const warnings=[];if(aId===bId)warnings.push('A team cannot play itself.');const a=teamById(aId),b=teamById(bId);state.games.filter(g=>g.id!==game.id&&g.status!=='Cancelled').forEach(g=>{if(sameSlot(g,date,time,court))warnings.push(`Court conflict with ${teamById(g.aId).name} vs ${teamById(g.bId).name}.`);if(g.date===date&&g.time===time&&(g.aId===aId||g.bId===aId||g.aId===bId||g.bId===bId))warnings.push('One of the teams is already scheduled at that time.');const ga=teamById(g.aId),gb=teamById(g.bId),coaches=[a.coach,b.coach].filter(Boolean);if(g.date===date&&g.time===time&&coaches.some(c=>c===ga.coach||c===gb.coach))warnings.push('A shared coach is already scheduled at that time.')});const cfg=state.divisionConfig[game.division];if(cfg&&(time<cfg.start||time>=cfg.end))warnings.push(`Time is outside the division window (${fmtTime(cfg.start)}–${fmtTime(cfg.end)}).`);if(!state.courts.some(c=>c.name===court))warnings.push('The selected court is not an active playing surface.');return [...new Set(warnings)]}
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
