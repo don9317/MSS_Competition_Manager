@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.4</title>
+<title>MSS League Scheduler v11.5</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.4</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.5</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
 </header>
 <div class="viewbar">
   <button data-view="admin">Admin View</button>
@@ -361,7 +361,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </div>
 
 <script>
-const KEY='mssLeagueSchedulerV11_4';
+const KEY='mssLeagueSchedulerV11_5';
 const LEGACY_KEYS=[];
 let state={
   teams:[],courts:[],courtGroups:[],divisionConfig:{},divisions:[],
@@ -378,11 +378,24 @@ const teamById=id=>state.teams.find(t=>t.id===id)||{name:'Unknown'};
 function fmtTime(t){let[h,m]=t.split(':').map(Number);return `${((h+11)%12)+1}:${String(m).padStart(2,'0')} ${h>=12?'PM':'AM'}`}
 function minutes(t){let[h,m]=t.split(':').map(Number);return h*60+m}
 function requestLabel(r){return({no_sat_am:'No Saturday morning',no_sun:'No Sunday',no_am:'No morning games',no_pm:'No afternoon/evening'})[r]||''}
+function cleanupOldSchedulerStorage(){
+  const remove=[];
+  for(let i=0;i<localStorage.length;i++){
+    const k=localStorage.key(i)||'';
+    if(k!==KEY && (k.startsWith('mssLeagueSchedulerV')||k.startsWith('mss3v3LeagueV'))) remove.push(k);
+  }
+  remove.forEach(k=>localStorage.removeItem(k));
+  return remove.length;
+}
 function persist(){
-  try{localStorage.setItem(KEY,JSON.stringify(state));return true}
+  const payload=JSON.stringify(state);
+  try{localStorage.setItem(KEY,payload);return true}
   catch(e){
     if(e && (e.name==='QuotaExceededError'||String(e.message||'').toLowerCase().includes('quota'))){
-      throw new Error('Browser storage was full. v11.4 uses a fresh, smaller storage record; use Clear Registrations & Schedule if this message appears again.');
+      const removed=cleanupOldSchedulerStorage();
+      try{localStorage.setItem(KEY,payload);return true}catch(e2){
+        throw new Error(`Browser storage is still full after clearing ${removed} older League Scheduler record(s). Export Setup if needed, then use Clear Registrations & Schedule and reload this version.`);
+      }
     }
     throw e;
   }
@@ -390,6 +403,7 @@ function persist(){
 function save(){syncSettings();persist();renderAll()}
 function addDaysISO(iso,days){const d=new Date(iso+'T00:00:00');if(isNaN(d))return'';d.setDate(d.getDate()+days);return d.toISOString().slice(0,10)}
 function load(){
+  cleanupOldSchedulerStorage();
   let r=localStorage.getItem(KEY);
   if(!r){for(const k of LEGACY_KEYS){r=localStorage.getItem(k);if(r)break}}
   if(r)try{state=Object.assign(state,JSON.parse(r))}catch(e){}
@@ -706,7 +720,8 @@ function renderBoard(){
 function addCourt(){
   const name=$('courtName').value.trim(),start=$('courtStart').value,end=$('courtEnd').value;
   if(!name||!start||!end||start>=end)return alert('Enter a valid playing surface and availability.');
-  state.courts.push({id:uid('c'),name,start,end});$('courtName').value='';save()
+  state.courts.push({id:uid('c'),name,start,end});$('courtName').value='';
+  try{syncSettings();persist();renderAll()}catch(e){state.courts.pop();alert(e.message)}
 }
 function removeCourt(id){
   state.courts=state.courts.filter(c=>c.id!==id);
@@ -736,7 +751,13 @@ function groupSurfaceIds(group){
   }
   return (group.surfaceIds||[]).filter(id=>state.courts.some(c=>c.id===id))
 }
-function addException(){const d=$('exceptionDate').value,reason=$('exceptionReason').value.trim();if(d&&!state.settings.exceptions.includes(d)){state.settings.exceptions.push(d);state.settings.exceptions.sort();state.settings.exceptionNotes=state.settings.exceptionNotes||{};if(reason)state.settings.exceptionNotes[d]=reason;$('exceptionDate').value='';$('exceptionReason').value='';save()}}
+function addException(){
+  const d=$('exceptionDate').value,reason=$('exceptionReason').value.trim();
+  if(!d)return alert('Choose an exception/off date.');
+  if(state.settings.exceptions.includes(d))return alert('That exception date is already listed.');
+  state.settings.exceptions.push(d);state.settings.exceptions.sort();state.settings.exceptionNotes=state.settings.exceptionNotes||{};if(reason)state.settings.exceptionNotes[d]=reason;
+  try{syncSettings();persist();$('exceptionDate').value='';$('exceptionReason').value='';renderAll()}catch(e){state.settings.exceptions=state.settings.exceptions.filter(x=>x!==d);if(state.settings.exceptionNotes)delete state.settings.exceptionNotes[d];alert(e.message)}
+}
 function removeException(d){state.settings.exceptions=state.settings.exceptions.filter(x=>x!==d);if(state.settings.exceptionNotes)delete state.settings.exceptionNotes[d];save()}
 function setDivisionConfig(d,field,value){
   state.divisionConfig[d]=state.divisionConfig[d]||{start:'18:00',end:'20:00',courtGroupId:''};
