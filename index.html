@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.2</title>
+<title>MSS League Scheduler v11.3</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.2</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.3</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
 </header>
 <div class="viewbar">
   <button data-view="admin">Admin View</button>
@@ -106,7 +106,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <div class="grid">
     <div class="card">
       <h2>Import Registered Teams</h2>
-      <p class="hint">CSV headers: Team Name, Coach, Gender, Grade, Skill, Request. Use the clean team display name only; grade, gender and level are stored separately and shown by the division.</p>
+      <p class="hint"><b>Supported imports:</b> MSS registration exports are recognized automatically (playerOrTeamName + registration division name), as well as standard Team Name / Coach / Gender / Grade / Skill CSV files. If the MSS export already contains registration divisions, those divisions are created automatically and every team is placed into its registered division.</p>
       <input id="csvFile" type="file" accept=".csv">
       <label>Import Behavior</label>
       <select id="importMode">
@@ -361,8 +361,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </div>
 
 <script>
-const KEY='mssLeagueSchedulerV11_2';
-const LEGACY_KEYS=['mssLeagueSchedulerV11_1','mss3v3LeagueV8','mssLeagueSchedulerV11_0'];
+const KEY='mssLeagueSchedulerV11_3';
+const LEGACY_KEYS=['mssLeagueSchedulerV11_2','mssLeagueSchedulerV11_1','mss3v3LeagueV8','mssLeagueSchedulerV11_0'];
 let state={
   teams:[],courts:[],courtGroups:[],divisionConfig:{},divisions:[],
   settings:{leagueName:'MSS 3v3 League',seasonStart:new Date().toISOString().slice(0,10),seasonEnd:'',gamesPerWeek:3,gameLength:20,minRest:0,defaultPoolMax:8,days:[0],avoidRepeats:true,allowBackToBack:false,playAllTeamsOnce:true,avoidImmediateRematches:true,protectSharedCoaches:true,honorScheduleRequests:true,keepPoolPlay:true,exceptions:[],exceptionNotes:{}},
@@ -442,16 +442,61 @@ function clearRegistrations(){
   if(!confirm('Clear all teams, pools, games and scores? League settings and courts will remain.'))return;
   clearCompetitionData();persist();renderAll();setTab('registrations')
 }
+function parseRegistrationDivision(label){
+  const raw=String(label||'').trim(),lower=raw.toLowerCase();
+  const gender=/\bgirls?\b/.test(lower)?'Girls':/\bboys?\b/.test(lower)?'Boys':/co[- ]?ed/.test(lower)?'Co-Ed':'';
+  let grade='',skill='Open',grades=[];
+  const pair=raw.match(/(\d+)(?:st|nd|rd|th)?\s*\/\s*(\d+)(?:st|nd|rd|th)?\s*Grade/i);
+  const single=raw.match(/(\d+)(?:st|nd|rd|th)?\s*Grade/i);
+  if(pair){grade=`${pair[1]}${ordinalSuffix(+pair[1])}/${pair[2]}${ordinalSuffix(+pair[2])} Grade`;grades=[pair[1],pair[2]]}
+  else if(single){grade=`${single[1]}${ordinalSuffix(+single[1])} Grade`;grades=[single[1]]}
+  else if(/high school/.test(lower)&&/varsity/.test(lower)){grade='HS Varsity';grades=['9','10','11','12'];skill='Varsity'}
+  else if(/high school/.test(lower)&&/\bjv\b/.test(lower)){grade='HS JV';grades=['9','10','11','12'];skill='JV'}
+  else if(/high school/.test(lower)){grade='High School';grades=['9','10','11','12']}
+  return {raw,gender,grade:grade||raw,grades,skill};
+}
+function ordinalSuffix(n){const v=n%100;if(v>=11&&v<=13)return'th';return n%10===1?'st':n%10===2?'nd':n%10===3?'rd':'th'}
+function detectImportFormat(rows){
+  const h=rows[0].map(x=>String(x||'').trim().toLowerCase());
+  const has=x=>h.includes(x);
+  if(has('playerorteamname')&&has('name'))return'MSS';
+  if((has('team name')||has('team'))&&(has('gender')||has('sex'))&&(has('grade')||has('grade group')||has('division')))return'STANDARD';
+  return'UNKNOWN';
+}
 function importCSVText(text,mode='replace'){
   const rows=parseCSV(text);if(rows.length<2)throw new Error('CSV contains no data rows.');
-  const h=rows[0].map(x=>x.trim().toLowerCase()),ix=names=>h.findIndex(x=>names.includes(x));
-  const ti=ix(['team name','team','name']),ci=ix(['coach','coach name']),gi=ix(['gender','sex']),gri=ix(['grade','grade group','division']),si=ix(['skill','level']),ri=ix(['request','schedule request']);
-  if(ti<0||gi<0||gri<0)throw new Error('Required columns: Team Name, Gender, Grade.');
+  const h=rows[0].map(x=>String(x||'').trim().toLowerCase()),ix=names=>h.findIndex(x=>names.includes(x));
+  const format=detectImportFormat(rows);
+  if(format==='UNKNOWN')throw new Error('Unrecognized CSV format. Use an MSS registration export or a CSV with Team Name, Gender and Grade columns.');
   if(mode==='replace')clearCompetitionData();
-  let added=0;rows.slice(1).forEach(c=>{const name=c[ti]?.trim();if(!name)return;state.teams.push({id:uid('t'),name,coach:ci>=0?c[ci].trim():'',gender:c[gi].trim(),grade:c[gri].trim(),skill:si>=0?(c[si].trim()||'Open'):'Open',request:ri>=0?c[ri].trim():'',pool:null,divisionId:''});added++});
-  state.approved=false;if(state.divisions&&state.divisions.length)autoAssignDivisions();else detectDivisions();ensurePools(true);save();return added;
+  let added=0,divisionCount=0;
+  if(format==='MSS'){
+    const ti=ix(['playerorteamname']),di=ix(['name']),cfi=ix(['coachfirstname']),cli=ix(['coachlastname']);
+    if(ti<0||di<0)throw new Error('MSS export is missing playerOrTeamName or name.');
+    const byName=new Map((state.divisions||[]).map(d=>[String(d.sourceRegistrationName||d.name).trim().toLowerCase(),d]));
+    rows.slice(1).forEach(c=>{
+      const teamName=String(c[ti]||'').trim(),sourceDivision=String(c[di]||'').trim();if(!teamName||!sourceDivision)return;
+      const meta=parseRegistrationDivision(sourceDivision),key=sourceDivision.toLowerCase();
+      let d=byName.get(key);
+      if(!d){d={id:uid('div'),name:sourceDivision,sourceRegistrationName:sourceDivision,grades:meta.grades,gender:meta.gender,skill:meta.skill};state.divisions.push(d);byName.set(key,d);divisionCount++}
+      const coach=[cfi>=0?String(c[cfi]||'').trim():'',cli>=0?String(c[cli]||'').trim():''].filter(Boolean).join(' ');
+      state.teams.push({id:uid('t'),name:teamName,coach,gender:meta.gender||'',grade:meta.grade||sourceDivision,skill:meta.skill||'Open',request:'',pool:null,divisionId:d.id,sourceDivision});added++;
+    });
+  }else{
+    const ti=ix(['team name','team']),ci=ix(['coach','coach name']),gi=ix(['gender','sex']),gri=ix(['grade','grade group','division']),si=ix(['skill','level']),ri=ix(['request','schedule request']);
+    if(ti<0||gi<0||gri<0)throw new Error('Required columns: Team Name, Gender, Grade.');
+    rows.slice(1).forEach(c=>{const name=String(c[ti]||'').trim();if(!name)return;state.teams.push({id:uid('t'),name,coach:ci>=0?String(c[ci]||'').trim():'',gender:String(c[gi]||'').trim(),grade:String(c[gri]||'').trim(),skill:si>=0?(String(c[si]||'').trim()||'Open'):'Open',request:ri>=0?String(c[ri]||'').trim():'',pool:null,divisionId:''});added++});
+    if(state.divisions&&state.divisions.length)autoAssignDivisions();else detectDivisions();
+    divisionCount=state.divisions.length;
+  }
+  state.approved=false;ensurePools(true);persist();renderAll();
+  return {added,divisionCount:state.divisions.length,format};
 }
-function importCSV(){const f=$('csvFile').files[0];if(!f)return alert('Choose a CSV file.');const mode=$('importMode').value;const r=new FileReader();r.onload=()=>{try{const n=importCSVText(r.result,mode);$('importStatus').innerHTML=`<div class="status ok">${n} teams imported using ${mode==='replace'?'Replace':'Append'} mode. Registrations imported. Review Division Setup to confirm or combine divisions before approval.</div>`;renderDuplicateNameStatus()}catch(e){$('importStatus').innerHTML=`<div class="status bad">${esc(e.message)}</div>`}};r.readAsText(f)}
+function previewCSVFile(file){
+  if(!file){$('importStatus').innerHTML='';return}
+  const r=new FileReader();r.onload=()=>{try{const rows=parseCSV(r.result);const format=detectImportFormat(rows);if(format==='MSS'){const h=rows[0].map(x=>String(x||'').trim().toLowerCase()),ti=h.indexOf('playerorteamname'),di=h.indexOf('name'),data=rows.slice(1).filter(c=>String(c[ti]||'').trim()&&String(c[di]||'').trim()),divs=new Set(data.map(c=>String(c[di]||'').trim()));$('importStatus').innerHTML=`<div class="status ok"><b>MSS registration export detected.</b><br>${data.length} team registrations • ${divs.size} existing registration divisions. Import will preserve those divisions and place each team directly into its registered division.</div>`}else if(format==='STANDARD'){$('importStatus').innerHTML=`<div class="status ok"><b>Standard scheduler CSV detected.</b><br>${Math.max(0,rows.length-1)} data row(s). Divisions will be created or matched from Grade, Gender and Skill.</div>`}else{$('importStatus').innerHTML='<div class="status bad">CSV format not recognized.</div>'}}catch(e){$('importStatus').innerHTML=`<div class="status bad">${esc(e.message)}</div>`}};r.readAsText(file)
+}
+function importCSV(){const f=$('csvFile').files[0];if(!f)return alert('Choose a CSV file.');const mode=$('importMode').value;const r=new FileReader();r.onload=()=>{try{const result=importCSVText(r.result,mode);const fmt=result.format==='MSS'?'MSS registration export':'standard CSV';$('importStatus').innerHTML=`<div class="status ok"><b>${result.added} teams imported from ${fmt}.</b><br>${result.divisionCount} division(s) are ready in Division Setup. ${result.format==='MSS'?'Teams were placed directly into the divisions they registered for.':'Review automatic assignments before approval.'}</div>`;renderDuplicateNameStatus();setTab('divisions')}catch(e){$('importStatus').innerHTML=`<div class="status bad">${esc(e.message)}</div>`}};r.readAsText(f)}
 const sampleCSV=`Team Name,Coach,Gender,Grade,Skill,Request
 Swarm,Coach Taylor,Girls,3rd/4th Grade,Open,
 Thunder,Coach Rob,Girls,3rd/4th Grade,Open,
@@ -1037,7 +1082,7 @@ function renderDashboard(){
 }
 function renderAll(){renderDivisionSetup();renderDashboard();renderTeams();renderDuplicateNameStatus();renderSettings();renderBoard();renderSchedule();renderManagement();renderResults();renderStandings();renderCoachSelectors();renderCoach();renderPublic()}
 
-$('addTeamBtn').addEventListener('click',addTeam);$('loadDemoBtn').addEventListener('click',loadCompleteDemo);$('importCsvBtn').addEventListener('click',importCSV);$('clearRegistrationsBtn').addEventListener('click',clearRegistrations);$('loadSampleBtn').addEventListener('click',()=>{const n=importCSVText(sampleCSV,'replace');$('importStatus').innerHTML=`<div class="status ok">${n} sample teams loaded, replacing prior registrations.</div>`;renderDuplicateNameStatus()});
+$('addTeamBtn').addEventListener('click',addTeam);$('loadDemoBtn').addEventListener('click',loadCompleteDemo);$('importCsvBtn').addEventListener('click',importCSV);$('csvFile').addEventListener('change',e=>previewCSVFile(e.target.files[0]));$('clearRegistrationsBtn').addEventListener('click',clearRegistrations);$('loadSampleBtn').addEventListener('click',()=>{const r=importCSVText(sampleCSV,'replace');$('importStatus').innerHTML=`<div class="status ok">${r.added} sample teams loaded into ${r.divisionCount} divisions, replacing prior registrations.</div>`;renderDuplicateNameStatus()});
 $('teamSearch').addEventListener('input',renderTeams);$('rebalanceBtn').addEventListener('click',rebalancePools);$('approveBtn').addEventListener('click',approveBoard);$('unlockBtn').addEventListener('click',unlockBoard);
 $('addExceptionBtn').addEventListener('click',addException);$('addCourtBtn').addEventListener('click',addCourt);$('addCourtGroupBtn').addEventListener('click',addCourtGroup);$('saveBtn').addEventListener('click',save);$('exportSetupBtn').addEventListener('click',exportSetup);
 $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',generateSchedule);

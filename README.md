@@ -1,29 +1,14 @@
-MSS League Scheduler v11.2
+MSS League Scheduler v11.3
 
-Major v11.2 addition: explicit Division Setup.
+Major v11.3 improvement: direct MSS registration-export support.
 
-Two supported workflows:
-1. Create divisions first, then import teams. MSS attempts to place teams using grade, gender and level matching hints; ambiguous teams remain Unassigned for Director review.
-2. Import teams first. Use Build Divisions from Registrations to create grade/gender/level divisions, then rename, combine, or reassign before approval.
-
-Division Setup features:
-- Create custom/combined divisions (e.g. 3rd/4th Girls, 7th/8th Girls, High School)
-- Auto-build divisions from registration data
-- Auto-assign teams to Director-created divisions
-- Rename divisions
-- Combine one division into another
-- Delete divisions (teams become unassigned)
-- Team-by-team Division dropdown for manual moves, including playing up/down
-- Dashboard validation flags unassigned teams
-- Division & Pool Board now uses the approved Division Setup structure
-
-v11.1 features retained:
-- League start/end dates
-- Any day(s) of week as playing days
-- Exception/off dates with notes
-- Playing surfaces and court groups
-- Division-specific court group, start/end time and games per playing date
-- League scheduling rules and toggles
-- Schedule generation/management, publishing, results, standings, Coach Tools and League Portal
+- Automatically recognizes MSS registration CSVs using playerOrTeamName and name.
+- Treats the MSS registration `name` field as the already-selected registration division.
+- Creates each unique registration division automatically and places every team directly into it.
+- Parses grade/gender/HS JV/HS Varsity metadata when possible for display and later matching.
+- Preserves v11.2 Division Setup tools so the Director can rename, combine, split/reassign teams before approval.
+- Adds a file preview before import showing format, registration count, and number of source divisions detected.
+- Continues to support the standard Team Name / Coach / Gender / Grade / Skill / Request CSV format.
+- Retains v11.1 season start/end dates, any-day-of-week scheduling, exception/off dates, court groups, division-specific time windows, games per playing date, rules, validation, schedule management, results, standings, and public portal.
 
 Open START_HERE.html or index.html in a modern browser.
