@@ -1,20 +1,14 @@
-# MSS League Scheduler v11.10
+# MSS League Scheduler v11.11
 
-Key scheduling refinement:
-- Minimum Games / Team / Playing Date is now the primary hard rule.
-- Calculated Season Minimum = minimum games per playing date × league playing dates.
-- Maximum Games / Team / Playing Date permits controlled overflow (for example, 4 when the minimum is 3).
-- Schedule generation includes a dedicated nightly-minimum repair pass before season-total repair.
-- Schedule & Rules Audit FAILS when an available team receives fewer than its nightly minimum.
-- Games above the minimum are allowed up to the maximum and appear as an audit warning rather than a failure.
-- Existing IndexedDB autosave / Save Progress protection remains in place.
+Production-candidate browser build for MSS League Management.
 
-Typical 3v3 setup: 3 minimum games per date × 4 playing dates = 12-game season minimum, maximum 4 games per date.
+## v11.11 changes
+- Division-by-division approval on the Division & Pool Board.
+- Approved divisions can be scheduled while other divisions remain Draft.
+- Individual Unlock Division controls, plus Approve All Ready Divisions / Unlock All.
+- Capacity analysis now counts **unique physical court/date/time slots**, not duplicated division-assigned capacity.
+- Shared-resource capacity groups show when two or more divisions compete for the same physical slots.
+- Capacity by division shows required games versus locally assigned unique slots.
+- Existing v11.10 multi-pool Entire Division scheduling, time-slot fairness audit, IndexedDB autosave, schedule audit, schedule management, results, standings and League Portal remain included.
 
-
-## v11.10
-- Adds Entire Division scheduling scope for multi-pool divisions.
-- Pools are scheduled together while matchups remain inside their approved pools.
-- Fair slot allocation rotates and balances early/middle/late opportunities across pools.
-- Adds Time-Slot Fairness to the Schedule & Rules Audit.
-- Improves feasibility explanations when Back-to-Back Games or rest rules prevent the nightly minimum.
+Open `START_HERE.html` or `index.html` in a modern browser.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.10</title>
+<title>MSS League Scheduler v11.11</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.10</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div class="viewbar">
@@ -174,7 +174,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       </div>
       <div class="toolbar" style="margin:0">
         <button class="secondary" id="rebalanceBtn">Rebalance Pools</button>
-        <button class="success" id="approveBtn">Approve Divisions & Pools</button>
+        <button class="success" id="approveBtn">Approve All Ready Divisions</button>
         <button class="danger hidden" id="unlockBtn">Unlock Board</button>
       </div>
     </div>
@@ -703,8 +703,9 @@ function ensureDivisionConfig(){
   Object.keys(state.divisionConfig||{}).filter(d=>!divisions.includes(d)).forEach(d=>delete state.divisionConfig[d]);
 }
 function rebalancePools(){
-  if(state.approved)return;syncSettings();const groups=divisionGroups();
+  syncSettings();const groups=divisionGroups();
   Object.entries(groups).forEach(([d,teams])=>{
+    if(state.pools[d]?.approved)return;
     const max=state.pools[d]?.max||state.settings.defaultPoolMax||8,needed=Math.max(1,Math.ceil(teams.length/max)),letters=poolLetters(needed);
     state.pools[d]={max,approved:false,lists:Object.fromEntries(letters.map(x=>[x,[]]))};
     teams.sort((a,b)=>a.name.localeCompare(b.name)).forEach((t,i)=>state.pools[d].lists[letters[i%letters.length]].push(t.id));
@@ -720,13 +721,13 @@ function moveTeam(teamId,targetD,targetPool){
   state.pools[targetD].lists[targetPool].push(teamId);state.approved=false;persist();renderAll();
 }
 function setPoolMax(d,val){
-  if(state.approved)return;state.pools[d].max=Math.max(2,+val||8);state.pools[d].approved=false;persist();renderBoard();
+  if(state.pools[d]?.approved)return;state.pools[d].max=Math.max(2,+val||8);state.pools[d].approved=false;persist();renderBoard();
 }
 function addPool(d){
-  if(state.approved)return;const names=Object.keys(state.pools[d].lists),next=String.fromCharCode(65+names.length);state.pools[d].lists[next]=[];persist();renderBoard();
+  if(state.pools[d]?.approved)return;const names=Object.keys(state.pools[d].lists),next=String.fromCharCode(65+names.length);state.pools[d].lists[next]=[];persist();renderBoard();
 }
 function removePool(d,p){
-  if(state.approved)return;const ids=state.pools[d].lists[p];const other=Object.keys(state.pools[d].lists).filter(x=>x!==p)[0];if(!other)return alert('A division must have at least one pool.');state.pools[d].lists[other].push(...ids);delete state.pools[d].lists[p];persist();renderBoard();
+  if(state.pools[d]?.approved)return;const ids=state.pools[d].lists[p];const other=Object.keys(state.pools[d].lists).filter(x=>x!==p)[0];if(!other)return alert('A division must have at least one pool.');state.pools[d].lists[other].push(...ids);delete state.pools[d].lists[p];persist();renderBoard();
 }
 function boardValidation(){
   const errors=[];const all=[];
@@ -736,95 +737,41 @@ function boardValidation(){
   if(all.length!==state.teams.length||new Set(all).size!==state.teams.length)errors.push('One or more teams are unassigned or duplicated.');
   return errors;
 }
-function approveBoard(){
-  const errors=boardValidation();if(errors.length){$('boardStatus').innerHTML=`<div class="status bad">${errors.map(esc).join('<br>')}</div>`;return}
-  state.approved=true;Object.values(state.pools).forEach(p=>p.approved=true);persist();renderAll();
+function divisionBoardErrors(d){
+  const errors=[],p=state.pools[d];if(!p)return [`${divisionLabel(d)} has no pools.`];
+  const ids=[];Object.entries(p.lists||{}).forEach(([name,list])=>{ids.push(...list);if(list.length>p.max)errors.push(`${divisionLabel(d)} Pool ${name} exceeds ${p.max} teams.`);if(list.length<2)errors.push(`${divisionLabel(d)} Pool ${name} has fewer than 2 teams.`)});
+  const expected=state.teams.filter(t=>divisionKey(t)===d).map(t=>t.id);if(ids.length!==expected.length||new Set(ids).size!==expected.length||expected.some(id=>!ids.includes(id)))errors.push(`${divisionLabel(d)} has unassigned or duplicated teams.`);
+  return errors;
 }
-function unlockBoard(){if(state.games.length&&!confirm('Unlocking the board may require the current schedule to be regenerated. Continue?'))return;state.approved=false;Object.values(state.pools).forEach(p=>p.approved=false);persist();renderAll()}
+function refreshOverallApproval(){state.approved=allDivisionKeys().length>0&&allDivisionKeys().every(d=>!!state.pools[d]?.approved)}
+function approveDivision(d){const errors=divisionBoardErrors(d);if(errors.length){alert(errors.join('\n'));return}state.pools[d].approved=true;refreshOverallApproval();logActivity(`${divisionLabel(d)} divisions/pools approved`);persist();renderAll()}
+function unlockDivision(d){if(state.games.some(g=>g.division===d)&&!confirm(`Unlock ${divisionLabel(d)}? Its current schedule may need to be regenerated.`))return;state.pools[d].approved=false;refreshOverallApproval();persist();renderAll()}
+function approveBoard(){
+  const ready=allDivisionKeys().filter(d=>!divisionBoardErrors(d).length);if(!ready.length)return alert('No divisions are ready for approval.');ready.forEach(d=>state.pools[d].approved=true);refreshOverallApproval();persist();renderAll();
+}
+function unlockBoard(){if(state.games.length&&!confirm('Unlock all divisions? Existing schedules may require regeneration. Continue?'))return;Object.values(state.pools).forEach(p=>p.approved=false);refreshOverallApproval();persist();renderAll()}
 function renderBoard(){
-  ensurePools();const errors=boardValidation();$('approveBtn').classList.toggle('hidden',state.approved);$('unlockBtn').classList.toggle('hidden',!state.approved);$('rebalanceBtn').disabled=state.approved;
-  $('boardStatus').innerHTML=state.approved?'<div class="status ok">Divisions and pools are approved. Schedule generation is unlocked.</div>':errors.length?`<div class="status warn">${errors.length} item(s) require review before approval.</div>`:'<div class="status warn">Review the board, then approve divisions and pools before scheduling.</div>';
+  ensurePools();const errors=boardValidation(),keys=Object.keys(state.pools).sort(),approvedCount=keys.filter(d=>state.pools[d]?.approved).length;refreshOverallApproval();
+  $('approveBtn').classList.toggle('hidden',approvedCount===keys.length&&keys.length>0);$('unlockBtn').classList.toggle('hidden',approvedCount===0);$('rebalanceBtn').disabled=approvedCount>0;
+  $('boardStatus').innerHTML=keys.length?`<div class="status ${errors.length?'warn':approvedCount===keys.length?'ok':'warn'}"><b>${approvedCount}/${keys.length} divisions approved.</b> ${errors.length?errors.length+' board item(s) still need review.':'Approved divisions can be scheduled immediately; unfinished divisions may remain in Draft.'}</div>`:'<div class="status warn">Import or add teams first.</div>';
   const allTargets=[];Object.entries(state.pools).forEach(([d,p])=>Object.keys(p.lists).forEach(x=>allTargets.push({d,p:x,label:`${divisionLabel(d)} — Pool ${x}`})));
-  $('bigBoard').classList.toggle('locked',state.approved);
-  $('bigBoard').innerHTML=Object.keys(state.pools).sort().map(d=>{
-    const p=state.pools[d],pools=Object.entries(p.lists).map(([name,ids])=>{
-      const over=ids.length>p.max,approved=state.approved?' approved':'';
+  $('bigBoard').classList.remove('locked');
+  $('bigBoard').innerHTML=keys.map(d=>{
+    const p=state.pools[d],locked=!!p.approved,divErrors=divisionBoardErrors(d),pools=Object.entries(p.lists).map(([name,ids])=>{
+      const over=ids.length>p.max,approved=locked?' approved':'';
       return `<div class="pool${over?' over':''}${approved}" data-drop-d="${esc(d)}" data-drop-p="${name}">
-        <div class="pool-title"><span>Pool ${name} • ${ids.length}/${p.max}</span>${Object.keys(p.lists).length>1&&!state.approved?`<button class="danger" data-remove-pool="${name}" data-d="${esc(d)}">×</button>`:''}</div>
-        ${ids.map(id=>{const t=teamById(id);return `<div class="team-card" draggable="${!state.approved}" data-team="${id}">
-          <b>${esc(t.name)}</b><span class="hint">${esc(t.coach||'No coach')}</span>
-          ${!state.approved?`<select data-move="${id}">${allTargets.map(x=>`<option value="${esc(x.d)}::${x.p}" ${x.d===d&&x.p===name?'selected':''}>${esc(x.label)}</option>`).join('')}</select>`:''}
-        </div>`}).join('')||'<div class="hint">Drop teams here</div>'}
+        <div class="pool-title"><span>Pool ${name} • ${ids.length}/${p.max}</span>${Object.keys(p.lists).length>1&&!locked?`<button class="danger" data-remove-pool="${name}" data-d="${esc(d)}">×</button>`:''}</div>
+        ${ids.map(id=>{const t=teamById(id);return `<div class="team-card" draggable="${!locked}" data-team="${id}"><b>${esc(t.name)}</b><span class="hint">${esc(t.coach||'No coach')}</span>${!locked?`<select data-move="${id}">${allTargets.map(x=>`<option value="${esc(x.d)}::${x.p}" ${x.d===d&&x.p===name?'selected':''}>${esc(x.label)}</option>`).join('')}</select>`:''}</div>`}).join('')||'<div class="hint">Drop teams here</div>'}
       </div>`;
     }).join('');
-    return `<div class="division-board"><div class="division-head"><div><h3 style="margin:0">${esc(divisionLabel(d))}</h3><span class="hint">${Object.values(p.lists).flat().length} teams</span></div><div class="row"><label style="margin:0">Max / Pool <input style="width:72px" type="number" min="2" value="${p.max}" data-pool-max="${esc(d)}" ${state.approved?'disabled':''}></label>${!state.approved?`<button class="secondary" data-add-pool="${esc(d)}">Add Pool</button>`:''}</div></div><div class="pools">${pools}</div></div>`;
+    return `<div class="division-board"><div class="division-head"><div><h3 style="margin:0">${esc(divisionLabel(d))}</h3><span class="hint">${Object.values(p.lists).flat().length} teams • ${locked?'Approved':'Draft'}</span></div><div class="row"><label style="margin:0">Max / Pool <input style="width:72px" type="number" min="2" value="${p.max}" data-pool-max="${esc(d)}" ${locked?'disabled':''}></label>${!locked?`<button class="secondary" data-add-pool="${esc(d)}">Add Pool</button><button class="success" data-approve-division="${esc(d)}" ${divErrors.length?'disabled':''}>Approve Division</button>`:`<button class="secondary" data-unlock-division="${esc(d)}">Unlock Division</button>`}</div></div>${divErrors.length?`<div class="status warn">${divErrors.map(esc).join('<br>')}</div>`:''}<div class="pools">${pools}</div></div>`;
   }).join('')||'<p class="hint">Import or add teams first.</p>';
-  if(!state.approved){
-    document.querySelectorAll('[data-move]').forEach(s=>s.addEventListener('change',()=>{const [d,p]=s.value.split('::');moveTeam(s.dataset.move,d,p)}));
-    document.querySelectorAll('[data-pool-max]').forEach(i=>i.addEventListener('change',()=>setPoolMax(i.dataset.poolMax,i.value)));
-    document.querySelectorAll('[data-add-pool]').forEach(b=>b.addEventListener('click',()=>addPool(b.dataset.addPool)));
-    document.querySelectorAll('[data-remove-pool]').forEach(b=>b.addEventListener('click',()=>removePool(b.dataset.d,b.dataset.removePool)));
-    let dragged=null;document.querySelectorAll('.team-card').forEach(c=>{c.addEventListener('dragstart',()=>{dragged=c.dataset.team;c.classList.add('dragging')});c.addEventListener('dragend',()=>c.classList.remove('dragging'))});
-    document.querySelectorAll('.pool').forEach(p=>{p.addEventListener('dragover',e=>e.preventDefault());p.addEventListener('drop',e=>{e.preventDefault();if(dragged)moveTeam(dragged,p.dataset.dropD,p.dataset.dropP)})});
-  }
+  document.querySelectorAll('[data-move]').forEach(sel=>sel.addEventListener('change',()=>{const source=Object.keys(state.pools).find(d=>Object.values(state.pools[d].lists).some(ids=>ids.includes(sel.dataset.move)));if(source&&state.pools[source]?.approved)return alert('Unlock that division before moving its teams.');const [d,p]=sel.value.split('::');if(state.pools[d]?.approved)return alert('Unlock the destination division before moving teams into it.');moveTeam(sel.dataset.move,d,p)}));
+  document.querySelectorAll('[data-pool-max]').forEach(i=>i.addEventListener('change',()=>setPoolMax(i.dataset.poolMax,i.value)));document.querySelectorAll('[data-add-pool]').forEach(b=>b.addEventListener('click',()=>addPool(b.dataset.addPool)));document.querySelectorAll('[data-remove-pool]').forEach(b=>b.addEventListener('click',()=>removePool(b.dataset.d,b.dataset.removePool)));
+  document.querySelectorAll('[data-approve-division]').forEach(b=>b.onclick=()=>approveDivision(b.dataset.approveDivision));document.querySelectorAll('[data-unlock-division]').forEach(b=>b.onclick=()=>unlockDivision(b.dataset.unlockDivision));
+  let dragged=null;document.querySelectorAll('.team-card[draggable="true"]').forEach(c=>{c.addEventListener('dragstart',()=>{dragged=c.dataset.team;c.classList.add('dragging')});c.addEventListener('dragend',()=>c.classList.remove('dragging'))});document.querySelectorAll('.pool').forEach(p=>{p.addEventListener('dragover',e=>e.preventDefault());p.addEventListener('drop',e=>{e.preventDefault();if(!dragged)return;const source=Object.keys(state.pools).find(d=>Object.values(state.pools[d].lists).some(ids=>ids.includes(dragged)));if(state.pools[source]?.approved||state.pools[p.dataset.dropD]?.approved)return alert('Unlock the affected division before moving teams.');moveTeam(dragged,p.dataset.dropD,p.dataset.dropP)})});
 }
 
-function addCourt(){
-  const name=$('courtName').value.trim(),start=$('courtStart').value,end=$('courtEnd').value;
-  if(!name||!start||!end||start>=end)return alert('Enter a valid playing surface and availability.');
-  state.courts.push({id:uid('c'),name,start,end});$('courtName').value='';
-  try{syncSettings();persist();renderAll()}catch(e){state.courts.pop();alert(e.message)}
-}
-function removeCourt(id){
-  state.courts=state.courts.filter(c=>c.id!==id);
-  state.courtGroups.forEach(g=>g.surfaceIds=g.surfaceIds.filter(x=>x!==id));
-  save()
-}
-function addCourtGroup(){
-  const name=$('courtGroupName').value.trim();
-  const surfaceIds=[...document.querySelectorAll('[data-group-surface]:checked')].map(x=>x.value);
-  if(!name)return alert('Enter a court group name.');
-  const isAll=/^all\s+(courts|surfaces)$/i.test(name);
-  if(!isAll&&!surfaceIds.length)return alert('Select at least one playing surface.');
-  state.courtGroups.push({id:uid('cg'),name,surfaceIds:isAll?state.courts.map(c=>c.id):surfaceIds,dynamicAll:isAll});
-  ensureDivisionConfig();if(state.courtGroups.length===1)Object.values(state.divisionConfig).forEach(c=>{if(!c.courtGroupId)c.courtGroupId=state.courtGroups[0].id});logActivity(`Court group ${name} created.`);
-  $('courtGroupName').value='';save()
-}
-function removeCourtGroup(id){
-  state.courtGroups=state.courtGroups.filter(g=>g.id!==id);
-  Object.values(state.divisionConfig).forEach(c=>{if(c.courtGroupId===id)c.courtGroupId=''});
-  save()
-}
-function groupSurfaceIds(group){
-  if(!group)return[];
-  if(group.dynamicAll||/^all\s+(courts|surfaces)$/i.test(group.name||'')){
-    group.dynamicAll=true;
-    group.surfaceIds=state.courts.map(c=>c.id);
-  }
-  return (group.surfaceIds||[]).filter(id=>state.courts.some(c=>c.id===id))
-}
-function addException(){
-  const d=$('exceptionDate').value,reason=$('exceptionReason').value.trim();
-  if(!d)return alert('Choose an exception/off date.');
-  if(state.settings.exceptions.includes(d))return alert('That exception date is already listed.');
-  state.settings.exceptions.push(d);state.settings.exceptions.sort();state.settings.exceptionNotes=state.settings.exceptionNotes||{};if(reason)state.settings.exceptionNotes[d]=reason;
-  try{syncSettings();persist();$('exceptionDate').value='';$('exceptionReason').value='';renderAll()}catch(e){state.settings.exceptions=state.settings.exceptions.filter(x=>x!==d);if(state.settings.exceptionNotes)delete state.settings.exceptionNotes[d];alert(e.message)}
-}
-function removeException(d){state.settings.exceptions=state.settings.exceptions.filter(x=>x!==d);if(state.settings.exceptionNotes)delete state.settings.exceptionNotes[d];save()}
-function setDivisionConfig(d,field,value){
-  state.divisionConfig[d]=state.divisionConfig[d]||{start:'18:00',end:'20:00',courtGroupId:'',gamesPerWeek:state.settings.gamesPerWeek||3,seasonGuarantee:state.settings.seasonGuarantee||12,maxGamesPerDate:state.settings.maxGamesPerDate||4};
-  state.divisionConfig[d][field]=value;persist();renderCapacity();renderDashboard()
-}
-function renderSettings(){
-  $('exceptions').innerHTML=state.settings.exceptions.map(d=>`<div class="item"><b>${esc(d)}</b>${state.settings.exceptionNotes?.[d]?` <span class="hint">• ${esc(state.settings.exceptionNotes[d])}</span>`:''}<button class="danger" style="float:right;padding:4px 8px" data-remove-ex="${d}">Remove</button></div>`).join('')||'<span class="hint">No exception/off dates.</span>';
-  document.querySelectorAll('[data-remove-ex]').forEach(b=>b.addEventListener('click',()=>removeException(b.dataset.removeEx)));
-  $('courtsList').innerHTML=state.courts.map(c=>`<div class="item"><b>${esc(c.name)}</b> ${fmtTime(c.start)}–${fmtTime(c.end)} <button class="danger" data-remove-court="${c.id}">Remove</button></div>`).join('')||'<p class="hint">No playing surfaces added.</p>';
-  document.querySelectorAll('[data-remove-court]').forEach(b=>b.addEventListener('click',()=>removeCourt(b.dataset.removeCourt)));
-  $('courtGroupSurfaceChoices').innerHTML=state.courts.map(c=>`<label><input type="checkbox" data-group-surface value="${c.id}"><span>${esc(c.name)}</span></label>`).join('')||'<p class="hint">Add playing surfaces first.</p>';
-  $('courtGroupsList').innerHTML=state.courtGroups.map(g=>{const ids=groupSurfaceIds(g);return `<div class="item"><div class="row" style="justify-content:space-between;align-items:center"><div><b>${esc(g.name)} (${ids.length} surface${ids.length===1?'':'s'})</b><br><span class="hint">${ids.map(id=>esc((state.courts.find(c=>c.id===id)||{}).name||'Missing surface')).join(', ')||'No surfaces'}</span></div><button class="danger" data-remove-group="${g.id}">Remove</button></div></div>`}).join('')||'<p class="hint">No court groups created.</p>';
-  document.querySelectorAll('[data-remove-group]').forEach(b=>b.addEventListener('click',()=>removeCourtGroup(b.dataset.removeGroup)));
-  renderDivisionAssignments();renderCapacity();
-}
 function renderDivisionAssignments(){
   ensureDivisionConfig();
   const divisions=allDivisionKeys();
@@ -842,19 +789,22 @@ function renderDivisionAssignments(){
   }).join('')||'<div class="status warn">No divisions exist yet. Import or add teams on the Registrations page; division rows will appear here automatically.</div>';
   document.querySelectorAll('[data-div-field]').forEach(e=>e.addEventListener('change',()=>setDivisionConfig(e.dataset.div,e.dataset.divField,e.type==='number'?Number(e.value):e.value)));
 }
-function renderCapacity(){
-  syncSettings();
-  const weeks=seasonDates().length,len=state.settings.gameLength;
-  let required=0,assigned=0;
-  allDivisionKeys().forEach(d=>{const teamCount=state.teams.filter(t=>divisionKey(t)===d).length,guarantee=Number(state.divisionConfig[d]?.seasonGuarantee||state.settings.seasonGuarantee||12);required+=Math.ceil(teamCount*guarantee/2)});
-  Object.entries(state.divisionConfig).forEach(([d,cfg])=>{
-    const group=state.courtGroups.find(g=>g.id===cfg.courtGroupId);
-    if(!group||cfg.start>=cfg.end)return;
-    const perSurface=Math.floor((minutes(cfg.end)-minutes(cfg.start))/len);
-    assigned+=perSurface*groupSurfaceIds(group).length*weeks;
-  });
-  $('capacity').innerHTML=`<div class="row"><div><div class="kpi">${assigned}</div><div class="hint">division-assigned game slots</div></div><div><div class="kpi">${required}</div><div class="hint">estimated required games</div></div></div><div class="status ${assigned>=required?'ok':'warn'}">${assigned>=required?'Estimated assigned capacity is sufficient.':'Assigned court groups/time windows may be insufficient.'}</div>`
+function capacityAnalysis(){
+  const dates=seasonDates(),len=state.settings.gameLength||20,divisions=allDivisionKeys(),perDiv={},slotOwners=new Map();let totalRequired=0;
+  divisions.forEach(d=>{const teams=state.teams.filter(t=>divisionKey(t)===d).length,cfg=state.divisionConfig[d]||{},minimum=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3),required=Math.ceil(teams*minimum*Math.max(1,dates.length)/2),slots=new Set();dates.forEach(date=>divisionSlots(d,date).forEach(sl=>{const k=`${date}|${sl.time}|${sl.court}`;slots.add(k);if(!slotOwners.has(k))slotOwners.set(k,new Set());slotOwners.get(k).add(d)}));perDiv[d]={teams,required,slots:slots.size};totalRequired+=required});
+  const uniqueSlots=slotOwners.size,assignedSlots=[...Object.values(perDiv)].reduce((a,x)=>a+x.slots,0),overlapSlots=[...slotOwners.values()].filter(x=>x.size>1).length;
+  const graph=new Map(divisions.map(d=>[d,new Set()]));slotOwners.forEach(owners=>{const a=[...owners];for(let i=0;i<a.length;i++)for(let j=i+1;j<a.length;j++){graph.get(a[i]).add(a[j]);graph.get(a[j]).add(a[i])}});
+  const seen=new Set(),groups=[];divisions.forEach(d=>{if(seen.has(d))return;const stack=[d],members=[];seen.add(d);while(stack.length){const x=stack.pop();members.push(x);graph.get(x).forEach(n=>{if(!seen.has(n)){seen.add(n);stack.push(n)}})}const union=new Set();members.forEach(m=>{dates.forEach(date=>divisionSlots(m,date).forEach(sl=>union.add(`${date}|${sl.time}|${sl.court}`)))});const required=members.reduce((a,m)=>a+perDiv[m].required,0);groups.push({members,required,slots:union.size})});
+  return {perDiv,totalRequired,uniqueSlots,assignedSlots,overlapSlots,groups};
 }
+function renderCapacity(){
+  syncSettings();const a=capacityAnalysis(),localFails=Object.entries(a.perDiv).filter(([d,x])=>x.slots<x.required),sharedFails=a.groups.filter(g=>g.members.length>1&&g.slots<g.required);
+  const details=Object.entries(a.perDiv).map(([d,x])=>`${divisionLabel(d)}: ${x.required} required / ${x.slots} locally assigned unique slots`).join('<br>');
+  const shared=a.groups.filter(g=>g.members.length>1).map(g=>`${g.members.map(divisionLabel).join(' + ')}: ${g.required} combined required / ${g.slots} shared unique slots`).join('<br>');
+  const ok=a.uniqueSlots>=a.totalRequired&&!localFails.length&&!sharedFails.length;
+  $('capacity').innerHTML=`<div class="row"><div><div class="kpi">${a.uniqueSlots}</div><div class="hint">unique physical court/time slots</div></div><div><div class="kpi">${a.totalRequired}</div><div class="hint">estimated required games</div></div><div><div class="kpi">${a.overlapSlots}</div><div class="hint">slots shared by multiple divisions</div></div></div><div class="status ${ok?'ok':'warn'}">${ok?'Unique physical capacity appears sufficient.':'Capacity conflicts exist even though assigned capacity may look sufficient.'}</div><details><summary>Capacity by division</summary><div class="hint">${details||'No divisions configured.'}</div></details>${shared?`<details ${sharedFails.length?'open':''}><summary>Shared-resource capacity</summary><div class="hint">${shared}</div></details>`:''}`;
+}
+
 function seasonDatesRaw(){const s=new Date((state.settings.seasonStart||'')+'T00:00:00'),end=new Date((state.settings.seasonEnd||'')+'T00:00:00');if(isNaN(s)||isNaN(end)||end<s)return[];const exc=new Set(state.settings.exceptions||[]),days=state.settings.days||[],out=[];for(let d=new Date(s);d<=end;d.setDate(d.getDate()+1)){const iso=d.toISOString().slice(0,10);if(days.includes(d.getDay())&&!exc.has(iso))out.push(iso)}return out}
 function seasonDates(){syncSettings();return seasonDatesRaw()}
 function divisionSlots(d,date){
@@ -1018,9 +968,8 @@ function targetFeasibility(d,pool,ids,guarantee,maxPerDate,dates,scope,fairPlan)
 }
 function generateSchedule(){
   syncSettings();
-  if(!state.approved)return alert('The Director must approve the Division & Pool Board before scheduling.');
+  const {scope,targets}=selectedScheduleTargets();if(!targets.length)return alert('Select a division/pool to schedule.');const unapproved=[...new Set(targets.map(t=>t.division))].filter(d=>!state.pools[d]?.approved);if(unapproved.length)return alert('Approve these division(s) before scheduling: '+unapproved.map(divisionLabel).join(', '));
   const dupes=duplicateDisplayedNames();if(dupes.length)return alert('Duplicate team names remain within the same division. Rename or distinguish those teams before scheduling.');
-  const {scope,targets}=selectedScheduleTargets();if(!targets.length)return alert('Select a division/pool to schedule.');
   const validation=scheduleValidation(targets);if(validation.length)return alert(validation.join('\n'));
 
   const dates=seasonDates(),used=new Set(),teamTimes={},coachTimes={},newGames=[],warnings=[],feasibilityNotes=[];
@@ -1376,18 +1325,18 @@ function renderDashboard(){
   const completed=state.games.filter(g=>g.sa!=null&&g.sb!=null).length,pending=state.games.filter(g=>g.pending).length,cancelled=state.games.filter(g=>g.status==='Cancelled').length,activeGames=state.games.length-cancelled,published=(state.publishedGames||[]).length;
   const configuredDivisions=Object.keys(state.divisionConfig||{}).filter(d=>{const c=state.divisionConfig[d];return c&&c.start&&c.end&&c.courtGroupId}).length;
   const scheduledDivisions=rows.filter(r=>r.games>0).length,completeDivisions=rows.filter(r=>r.status==='Complete').length,publishedDivisions=rows.filter(r=>r.published>0).length,totalTarget=rows.reduce((n,r)=>n+r.target,0);
-  const setupItems=[['Registrations imported',state.teams.length>0,`${state.teams.length} team(s)`,'registrations'],['Teams assigned to divisions',state.teams.length>0&&state.teams.every(t=>t.divisionId),`${state.teams.filter(t=>t.divisionId).length}/${state.teams.length} assigned`,'divisions'],['Divisions and pools approved',state.approved,`${divisions} division/pool(s)`,'board'],['Playing surfaces configured',state.courts.length>0,`${state.courts.length} surface(s)`,'settings'],['Court groups configured',state.courtGroups.length>0,`${state.courtGroups.length} group(s)`,'settings'],['Season dates & playing days configured',!!state.settings.seasonStart&&!!state.settings.seasonEnd&&(state.settings.days||[]).length>0,`${seasonDatesRaw().length} playable date(s)`,'settings'],['Division scheduling assigned',divisions>0&&configuredDivisions===Object.keys(state.pools||{}).length,`${configuredDivisions}/${Object.keys(state.pools||{}).length} assigned`,'settings']];
+  const setupItems=[['Registrations imported',state.teams.length>0,`${state.teams.length} team(s)`,'registrations'],['Teams assigned to divisions',state.teams.length>0&&state.teams.every(t=>t.divisionId),`${state.teams.filter(t=>t.divisionId).length}/${state.teams.length} assigned`,'divisions'],['Divisions and pools approved',allDivisionKeys().length>0&&allDivisionKeys().every(d=>state.pools[d]?.approved),`${allDivisionKeys().filter(d=>state.pools[d]?.approved).length}/${allDivisionKeys().length} divisions approved`,'board'],['Playing surfaces configured',state.courts.length>0,`${state.courts.length} surface(s)`,'settings'],['Court groups configured',state.courtGroups.length>0,`${state.courtGroups.length} group(s)`,'settings'],['Season dates & playing days configured',!!state.settings.seasonStart&&!!state.settings.seasonEnd&&(state.settings.days||[]).length>0,`${seasonDatesRaw().length} playable date(s)`,'settings'],['Division scheduling assigned',divisions>0&&configuredDivisions===Object.keys(state.pools||{}).length,`${configuredDivisions}/${Object.keys(state.pools||{}).length} assigned`,'settings']];
   $('dashboardLeagueStatus').innerHTML=`<span class="pill">${esc(state.settings.leagueName||'MSS 3v3 League')}</span><span class="pill">${esc(state.settings.seasonStart||'Start?')} → ${esc(state.settings.seasonEnd||'End?')}</span><span class="pill">${seasonDatesRaw().length} playing dates</span>`;
   $('dashboardMetrics').innerHTML=[['Teams',state.teams.length,'registrations'],['Divisions / Pools',divisions,'board'],['Divisions Scheduled',`${scheduledDivisions}/${divisions}`,'management'],['Games Scheduled',`${activeGames}/${totalTarget||0}`,'schedule'],['Games Completed',completed,'results'],['Unpublished Changes',pending,'management']].map(([label,value,tab])=>`<div class="card"><div class="hint">${label}</div><div class="kpi">${value}</div><button class="team-link" data-dashboard-tab="${tab}">Open</button></div>`).join('');
   $('dashboardSetup').innerHTML=setupItems.map(([label,ok,detail,tab])=>`<div class="item"><b>${ok?'✓':'○'} ${label}</b><br><span class="hint">${esc(detail)}</span> <button class="team-link" data-dashboard-tab="${tab}">${ok?'Review':'Complete'}</button></div>`).join('');
   $('dashboardDivisionStatus').innerHTML='<thead><tr><th>Division / Pool</th><th>Teams</th><th>Games</th><th>Completed</th><th>Published</th><th>Status</th><th>Actions</th></tr></thead><tbody>'+rows.map(r=>`<tr><td><b>${esc(r.label)}</b></td><td>${r.teams}</td><td>${r.games}/${r.target}</td><td>${r.completed}/${r.games}</td><td>${r.published}</td><td><span class="status ${r.cls}" style="display:inline-block;margin:0;padding:5px 8px">${esc(r.status)}</span></td><td><button class="team-link" data-open-division="${esc(r.key)}" data-target-tab="management">Manage</button> · <button class="team-link" data-open-division="${esc(r.key)}" data-target-tab="schedule">Schedule</button> · <button class="team-link" data-open-division="${esc(r.key)}" data-target-tab="standings">Standings</button></td></tr>`).join('')+'</tbody>';
   $('dashboardScheduleStatus').innerHTML=`<div class="item"><b>Divisions scheduled</b><br>${scheduledDivisions}/${divisions}</div><div class="item"><b>Games scheduled</b><br>${activeGames}/${totalTarget||0}</div><div class="item"><b>Games completed</b><br>${completed}/${activeGames}</div><div class="item"><b>Divisions complete</b><br>${completeDivisions}/${divisions}</div><div class="item"><b>Divisions published</b><br>${publishedDivisions}/${divisions}</div>`;
   $('dashboardPublishStatus').innerHTML=pending?`<div class="status warn"><b>${pending} change(s) are not yet public.</b><br>The League Portal still displays the last published schedule.</div><button class="primary" data-dashboard-tab="management">Review & Publish</button>`:`<div class="status ok"><b>Working and published schedules match.</b><br>${published} game(s) are available in the League Portal.</div><button class="secondary" data-dashboard-tab="management">Schedule Management</button>`;
-  const wizard=[['Define season dates & playing days',!!state.settings.seasonStart&&!!state.settings.seasonEnd&&(state.settings.days||[]).length>0,'settings'],['Import registrations',state.teams.length>0,'registrations'],['Set up divisions & assign teams',state.teams.length>0&&state.teams.every(t=>t.divisionId),'divisions'],['Approve divisions & pools',state.approved,'board'],['Configure surfaces and court groups',state.courts.length>0&&state.courtGroups.length>0,'settings'],['Complete division scheduling',divisions>0&&configuredDivisions===allDivisionKeys().length,'settings'],['Generate schedules',divisions>0&&scheduledDivisions===divisions,'schedule'],['Publish league schedule',state.games.length>0&&pending===0&&published>0,'management']];
+  const wizard=[['Define season dates & playing days',!!state.settings.seasonStart&&!!state.settings.seasonEnd&&(state.settings.days||[]).length>0,'settings'],['Import registrations',state.teams.length>0,'registrations'],['Set up divisions & assign teams',state.teams.length>0&&state.teams.every(t=>t.divisionId),'divisions'],['Approve divisions & pools',allDivisionKeys().length>0&&allDivisionKeys().every(d=>state.pools[d]?.approved),'board'],['Configure surfaces and court groups',state.courts.length>0&&state.courtGroups.length>0,'settings'],['Complete division scheduling',divisions>0&&configuredDivisions===allDivisionKeys().length,'settings'],['Generate schedules',divisions>0&&scheduledDivisions===divisions,'schedule'],['Publish league schedule',state.games.length>0&&pending===0&&published>0,'management']];
   const firstOpen=Math.max(0,wizard.findIndex(x=>!x[1]));
   $('dashboardWizard').innerHTML=wizard.map((x,i)=>`<div class="wizard-step"><div class="step-dot ${x[1]?'done':i===firstOpen?'current':''}">${x[1]?'✓':i+1}</div><div><b>${esc(x[0])}</b><br><button class="team-link" data-dashboard-tab="${x[2]}">${x[1]?'Review':i===firstOpen?'Do this next':'Open'}</button></div></div>`).join('');
   const dupes=duplicateDisplayedNames(),missingAssignments=allDivisionKeys().filter(d=>{const c=state.divisionConfig[d],g=state.courtGroups.find(x=>x.id===c?.courtGroupId);return !(c&&g&&c.start&&c.end&&c.start<c.end)}),coachNames=state.teams.map(t=>t.coach).filter(Boolean),sharedCoachCount=new Set(coachNames.filter((c,i,a)=>a.indexOf(c)!==i)).size;
-  const seasonDateValid=!!state.settings.seasonStart&&!!state.settings.seasonEnd&&state.settings.seasonEnd>=state.settings.seasonStart;const offOutside=(state.settings.exceptions||[]).filter(d=>!seasonDateValid||d<state.settings.seasonStart||d>state.settings.seasonEnd);const unassignedTeams=state.teams.filter(t=>!t.divisionId);const validations=[['League start and end dates are valid',seasonDateValid,seasonDateValid?`${state.settings.seasonStart} through ${state.settings.seasonEnd}`:'Enter a valid start and end date','settings'],['At least one league playing day selected',(state.settings.days||[]).length>0,`${(state.settings.days||[]).length} day(s) selected`,'settings'],['Exception dates fall within the season',offOutside.length===0,offOutside.length?`${offOutside.length} off date(s) outside season`:`${(state.settings.exceptions||[]).length} off date(s)`,'settings'],['No duplicate displayed team names',dupes.length===0,dupes.length?`${dupes.length} duplicate name group(s)`:'Ready','registrations'],['Every team is assigned to a division',state.teams.length>0&&unassignedTeams.length===0,unassignedTeams.length?`${unassignedTeams.length} team(s) need Director assignment`:'Ready','divisions'],['Divisions & pools approved',state.approved,state.approved?'Ready':'Approval required','board'],['Playing surfaces available',state.courts.length>0,`${state.courts.length} surface(s)`,'settings'],['Court groups available',state.courtGroups.length>0,`${state.courtGroups.length} group(s)`,'settings'],['Every division has resources and a valid window',missingAssignments.length===0&&allDivisionKeys().length>0,missingAssignments.length?`${missingAssignments.length} division(s) need assignment`:'Ready','settings'],['Season contains playable dates',seasonDates().length>0,`${seasonDates().length} playable date(s)`,'settings'],['Shared-coach protection',true,state.settings.protectSharedCoaches?`ON • ${sharedCoachCount} shared coach name(s) detected`:'OFF by league rule','settings']];
+  const seasonDateValid=!!state.settings.seasonStart&&!!state.settings.seasonEnd&&state.settings.seasonEnd>=state.settings.seasonStart;const offOutside=(state.settings.exceptions||[]).filter(d=>!seasonDateValid||d<state.settings.seasonStart||d>state.settings.seasonEnd);const unassignedTeams=state.teams.filter(t=>!t.divisionId);const validations=[['League start and end dates are valid',seasonDateValid,seasonDateValid?`${state.settings.seasonStart} through ${state.settings.seasonEnd}`:'Enter a valid start and end date','settings'],['At least one league playing day selected',(state.settings.days||[]).length>0,`${(state.settings.days||[]).length} day(s) selected`,'settings'],['Exception dates fall within the season',offOutside.length===0,offOutside.length?`${offOutside.length} off date(s) outside season`:`${(state.settings.exceptions||[]).length} off date(s)`,'settings'],['No duplicate displayed team names',dupes.length===0,dupes.length?`${dupes.length} duplicate name group(s)`:'Ready','registrations'],['Every team is assigned to a division',state.teams.length>0&&unassignedTeams.length===0,unassignedTeams.length?`${unassignedTeams.length} team(s) need Director assignment`:'Ready','divisions'],['Divisions & pools approved',allDivisionKeys().length>0&&allDivisionKeys().every(d=>state.pools[d]?.approved),`${allDivisionKeys().filter(d=>state.pools[d]?.approved).length}/${allDivisionKeys().length} approved`,'board'],['Playing surfaces available',state.courts.length>0,`${state.courts.length} surface(s)`,'settings'],['Court groups available',state.courtGroups.length>0,`${state.courtGroups.length} group(s)`,'settings'],['Every division has resources and a valid window',missingAssignments.length===0&&allDivisionKeys().length>0,missingAssignments.length?`${missingAssignments.length} division(s) need assignment`:'Ready','settings'],['Season contains playable dates',seasonDates().length>0,`${seasonDates().length} playable date(s)`,'settings'],['Shared-coach protection',true,state.settings.protectSharedCoaches?`ON • ${sharedCoachCount} shared coach name(s) detected`:'OFF by league rule','settings']];
   $('dashboardValidation').innerHTML=validations.map(([label,ok,detail,tab])=>`<div class="item"><b>${ok?'✓':'!'} ${esc(label)}</b><br><span class="hint">${esc(detail)}</span> <button class="team-link" data-dashboard-tab="${tab}">${ok?'Review':'Fix'}</button></div>`).join('');
   const ruleRows=[['Allow back-to-back games',state.settings.allowBackToBack],['Play every pool opponent before repeats',state.settings.playAllTeamsOnce],['Avoid immediate rematches',state.settings.avoidImmediateRematches],['Protect shared coaches',state.settings.protectSharedCoaches],['Honor team schedule requests',state.settings.honorScheduleRequests]];
   $('dashboardRules').innerHTML=ruleRows.map(([label,on])=>`<div class="item"><b>${esc(label)}</b><span class="pill" style="float:right">${on?'YES':'NO'}</span></div>`).join('')+`<div class="item"><b>Season minimum / nightly minimum / max</b><span class="pill" style="float:right">${state.settings.seasonGuarantee} / ${state.settings.gamesPerWeek} / ${state.settings.maxGamesPerDate}</span></div><div class="item"><b>Game length / extra rest</b><span class="pill" style="float:right">${state.settings.gameLength} min / ${state.settings.minRest} slot(s)</span></div>`;
