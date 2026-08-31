@@ -1,21 +1,18 @@
-# MSS League Scheduler v11.11.1
+# MSS League Scheduler v11.11.2
 
-Production-candidate browser build for MSS League Management.
+Hotfix release focused only on startup/storage reliability.
 
-## v11.11.1 changes
-- Division-by-division approval on the Division & Pool Board.
-- Approved divisions can be scheduled while other divisions remain Draft.
-- Individual Unlock Division controls, plus Approve All Ready Divisions / Unlock All.
-- Capacity analysis now counts **unique physical court/date/time slots**, not duplicated division-assigned capacity.
-- Shared-resource capacity groups show when two or more divisions compete for the same physical slots.
-- Capacity by division shows required games versus locally assigned unique slots.
-- Existing v11.10 multi-pool Entire Division scheduling, time-slot fairness audit, IndexedDB autosave, schedule audit, schedule management, results, standings and League Portal remain included.
+## What changed
+- The application renders a usable clean league **before** attempting to restore IndexedDB data.
+- Saved-league restoration now has a timeout so a stalled IndexedDB request cannot leave the screen blank.
+- v11.11.2 uses a fresh IndexedDB database name to avoid a potentially stuck prior test database.
+- If saved data cannot be restored, the scheduler stays open in recovery mode instead of hanging.
+- Added **Reset Saved League** in the top navigation to clear this version's saved IndexedDB data and reload cleanly.
+- Existing scheduling, division approval, capacity, fairness, audit, and league-rule features were not intentionally changed.
 
-Open `START_HERE.html` or `index.html` in a modern browser.
-
-
-## v11.11.1 hotfix
-- Startup-only hotfix; no scheduling features changed.
-- Starts storage/rendering before optional control bindings so one control cannot blank the app.
-- Isolates page rendering so a noncritical panel error does not prevent the Director Dashboard from opening.
-- Adds visible startup diagnostics if a component fails.
+## Recommended test
+1. Open `START_HERE.html`, then launch the scheduler.
+2. Confirm the Director Dashboard appears immediately.
+3. Confirm the status at upper right changes from `Loading saved league…` to either `Ready — new league`, `League loaded`, or a visible recovery warning.
+4. Re-import the 97-team MSS registration CSV if this fresh storage version starts clean.
+5. Continue the JV Boys / division-approval tests.

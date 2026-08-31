@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.1</title>
+<title>MSS League Scheduler v11.11.2</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,13 +34,14 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.1</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.2</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div class="viewbar">
   <button data-view="admin">Admin View</button>
   <button data-view="coach">Coach Tools</button>
   <button data-view="public">League Portal</button>
+  <button id="resetStorageBtn" class="danger" type="button" title="Clear this version's saved league data and reload a clean league">Reset Saved League</button>
 </div>
 <div class="tabs admin-tabs">
   <button data-tab="dashboard">Director Dashboard</button>
@@ -367,7 +368,9 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </div>
 
 <script>
-const DB_NAME='MSSLeagueSchedulerDB';
+const DB_NAME='MSSLeagueSchedulerDB_v11112';
+const LEGACY_DB_NAMES=['MSSLeagueSchedulerDB'];
+const STORAGE_TIMEOUT_MS=2500;
 const DB_VERSION=1;
 const STORE_NAME='leagueState';
 const RECORD_KEY='current';
@@ -392,6 +395,18 @@ function minutes(t){if(!t)return 0;let[h,m]=t.split(':').map(Number);return h*60
 function requestLabel(r){return({no_sat_am:'No Saturday morning',no_sun:'No Sunday',no_am:'No morning games',no_pm:'No afternoon/evening'})[r]||''}
 function setSaveStatus(kind,message,detail='IndexedDB'){
   const el=$('saveStatus');if(!el)return;el.className='save-status '+kind;el.innerHTML=`<b>${esc(message)}</b><span>${esc(detail)}</span>`;
+}
+function withTimeout(promise,ms,label='Operation'){
+  return new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>reject(new Error(label+' timed out after '+Math.round(ms/1000)+' seconds.')),ms);
+    Promise.resolve(promise).then(v=>{clearTimeout(timer);resolve(v)},e=>{clearTimeout(timer);reject(e)});
+  });
+}
+function normalizeLoadedState(){
+  state.divisions=state.divisions||[];state.courtGroups=state.courtGroups||[];state.courtGroups.forEach(g=>{if(/^all\s+(courts|surfaces)$/i.test(g.name||''))g.dynamicAll=true});state.divisionConfig=state.divisionConfig||{};state.settings=state.settings||{};state.settings.gamesPerWeek=state.settings.gamesPerWeek||3;state.settings.seasonGuarantee=state.settings.seasonGuarantee||12;state.settings.maxGamesPerDate=state.settings.maxGamesPerDate||4;state.settings.days=Array.isArray(state.settings.days)?state.settings.days:[0];state.settings.exceptions=Array.isArray(state.settings.exceptions)?state.settings.exceptions:[];state.settings.exceptionNotes=state.settings.exceptionNotes||{};
+  if(!state.settings.seasonEnd){const weeks=Number(state.settings.seasonWeeks||8);state.settings.seasonEnd=addDaysISO(state.settings.seasonStart||new Date().toISOString().slice(0,10),weeks*7-1)}
+  if(!state.divisions.length&&state.teams.length){const seen={};state.teams.forEach(t=>{const k=legacyDivisionKey(t);if(!seen[k]){const id='div_'+Math.random().toString(36).slice(2,9);seen[k]=id;state.divisions.push({id,name:(()=>{const [g,se,lv]=k.split('|');return `${g} ${se} • ${lv}`})(),grades:[t.grade],gender:t.gender,skill:t.skill});}t.divisionId=seen[k]})}
+  state.scheduleChanges=state.scheduleChanges||[];state.activity=state.activity||[];state.settings.allowBackToBack=!!state.settings.allowBackToBack;state.settings.playAllTeamsOnce=state.settings.playAllTeamsOnce!==false;state.settings.avoidImmediateRematches=state.settings.avoidImmediateRematches!==false;state.settings.protectSharedCoaches=state.settings.protectSharedCoaches!==false;state.settings.honorScheduleRequests=state.settings.honorScheduleRequests!==false;state.settings.keepPoolPlay=true;state.games=(state.games||[]).map(g=>({...g,status:g.status||'Scheduled',pending:!!g.pending}));if(!Array.isArray(state.publishedGames)||(!state.publishedGames.length&&state.games.length))state.publishedGames=JSON.parse(JSON.stringify(state.games));
 }
 function openDatabase(){
   if(dbPromise)return dbPromise;
@@ -442,14 +457,28 @@ function queueSave(immediate=false){
 function persist(){queueSave(false);return true}
 async function save(){syncSettings();renderAll();try{await queueSave(true)}catch(e){alert('The league could not be saved: '+(e.message||e))}}
 async function load(){
-  setSaveStatus('saving','Loading saved league…');
-  try{const saved=await readStateFromDB();if(saved)state=Object.assign(state,saved)}catch(e){console.error(e);setSaveStatus('error','Storage unavailable',e.message||String(e))}
-  state.divisions=state.divisions||[];state.courtGroups=state.courtGroups||[];state.courtGroups.forEach(g=>{if(/^all\s+(courts|surfaces)$/i.test(g.name||''))g.dynamicAll=true});state.divisionConfig=state.divisionConfig||{};state.settings=state.settings||{};state.settings.gamesPerWeek=state.settings.gamesPerWeek||3;state.settings.seasonGuarantee=state.settings.seasonGuarantee||12;state.settings.maxGamesPerDate=state.settings.maxGamesPerDate||4;state.settings.days=Array.isArray(state.settings.days)?state.settings.days:[0];state.settings.exceptions=Array.isArray(state.settings.exceptions)?state.settings.exceptions:[];state.settings.exceptionNotes=state.settings.exceptionNotes||{};
-  if(!state.settings.seasonEnd){const weeks=Number(state.settings.seasonWeeks||8);state.settings.seasonEnd=addDaysISO(state.settings.seasonStart||new Date().toISOString().slice(0,10),weeks*7-1)}
-  if(!state.divisions.length&&state.teams.length){const seen={};state.teams.forEach(t=>{const k=legacyDivisionKey(t);if(!seen[k]){const id='div_'+Math.random().toString(36).slice(2,9);seen[k]=id;state.divisions.push({id,name:(()=>{const [g,se,lv]=k.split('|');return `${g} ${se} • ${lv}`})(),grades:[t.grade],gender:t.gender,skill:t.skill});}t.divisionId=seen[k]})}
-  state.scheduleChanges=state.scheduleChanges||[];state.activity=state.activity||[];state.settings.allowBackToBack=!!state.settings.allowBackToBack;state.settings.playAllTeamsOnce=state.settings.playAllTeamsOnce!==false;state.settings.avoidImmediateRematches=state.settings.avoidImmediateRematches!==false;state.settings.protectSharedCoaches=state.settings.protectSharedCoaches!==false;state.settings.honorScheduleRequests=state.settings.honorScheduleRequests!==false;state.settings.keepPoolPlay=true;state.games=(state.games||[]).map(g=>({...g,status:g.status||'Scheduled',pending:!!g.pending}));if(!Array.isArray(state.publishedGames)||(!state.publishedGames.length&&state.games.length))state.publishedGames=JSON.parse(JSON.stringify(state.games));
-  hydrate();ensurePools();ensureDivisionConfig();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin');
-  try{await queueSave(true)}catch(e){}
+  // Render a usable clean application FIRST. Saved data restoration is secondary.
+  try{normalizeLoadedState();hydrate();ensurePools();ensureDivisionConfig();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin')}catch(e){console.error('Initial clean render failed',e)}
+  setSaveStatus('saving','Loading saved league…','IndexedDB • safe startup');
+  try{
+    const saved=await withTimeout(readStateFromDB(),STORAGE_TIMEOUT_MS,'Saved league load');
+    if(saved){state=Object.assign(state,saved);normalizeLoadedState();hydrate();ensurePools();ensureDivisionConfig();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin');setSaveStatus('saved','League loaded','IndexedDB')}
+    else{setSaveStatus('saved','Ready — new league','IndexedDB');try{await withTimeout(queueSave(true),STORAGE_TIMEOUT_MS,'Initial save')}catch(e){console.warn(e)}}
+  }catch(e){
+    console.error(e);
+    setSaveStatus('error','Opened clean — saved data unavailable',e.message||String(e));
+    const dash=$('dashboardValidation');
+    if(dash)dash.insertAdjacentHTML('afterbegin',`<div class="status warn"><b>Storage recovery mode:</b> The app opened with a clean league because saved data could not be restored. You can continue testing, import registrations again, or use <b>Reset Saved League</b> above to clear this version's IndexedDB record.</div>`);
+  }
+}
+async function resetSavedLeagueStorage(){
+  if(!confirm('Clear the saved league data for v11.11.2 and reload a clean league? This cannot be undone unless you exported a setup backup.'))return;
+  setSaveStatus('saving','Resetting saved league…','IndexedDB');
+  try{
+    if(dbPromise){try{const db=await withTimeout(dbPromise,1000,'Database close');db&&db.close()}catch(e){}dbPromise=null}
+    await withTimeout(new Promise((resolve,reject)=>{const req=indexedDB.deleteDatabase(DB_NAME);req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error||new Error('Could not reset IndexedDB.'));req.onblocked=()=>reject(new Error('Reset is blocked by another open scheduler tab. Close other copies and try again.'))}),STORAGE_TIMEOUT_MS,'Storage reset');
+    location.reload();
+  }catch(e){setSaveStatus('error','Reset failed',e.message||String(e));alert('Saved league data could not be reset: '+(e.message||e))}
 }
 function addDaysISO(iso,days){const d=new Date(iso+'T00:00:00');if(isNaN(d))return'';d.setDate(d.getDate()+days);return d.toISOString().slice(0,10)}
 function updateLeagueDaysSummary(){const names=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],days=[...document.querySelectorAll('.dow:checked')].map(x=>+x.value);$('leagueDaysSummary').textContent=days.length?days.sort((a,b)=>(a+6)%7-(b+6)%7).map(d=>names[d]).join(', '):'Select playing days'}
@@ -1374,7 +1403,7 @@ load().catch(err=>{
 });
 
 try{
-$('addTeamBtn').addEventListener('click',addTeam);$('loadDemoBtn').addEventListener('click',loadCompleteDemo);$('importCsvBtn').addEventListener('click',importCSV);$('csvFile').addEventListener('change',e=>previewCSVFile(e.target.files[0]));$('clearRegistrationsBtn').addEventListener('click',clearRegistrations);$('loadSampleBtn').addEventListener('click',()=>{const r=importCSVText(sampleCSV,'replace');$('importStatus').innerHTML=`<div class="status ok">${r.added} sample teams loaded into ${r.divisionCount} divisions, replacing prior registrations.</div>`;renderDuplicateNameStatus()});
+$('resetStorageBtn')&&$('resetStorageBtn').addEventListener('click',resetSavedLeagueStorage);$('addTeamBtn').addEventListener('click',addTeam);$('loadDemoBtn').addEventListener('click',loadCompleteDemo);$('importCsvBtn').addEventListener('click',importCSV);$('csvFile').addEventListener('change',e=>previewCSVFile(e.target.files[0]));$('clearRegistrationsBtn').addEventListener('click',clearRegistrations);$('loadSampleBtn').addEventListener('click',()=>{const r=importCSVText(sampleCSV,'replace');$('importStatus').innerHTML=`<div class="status ok">${r.added} sample teams loaded into ${r.divisionCount} divisions, replacing prior registrations.</div>`;renderDuplicateNameStatus()});
 $('teamSearch').addEventListener('input',renderTeams);$('rebalanceBtn').addEventListener('click',rebalancePools);$('approveBtn').addEventListener('click',approveBoard);$('unlockBtn').addEventListener('click',unlockBoard);
 $('addExceptionBtn').addEventListener('click',addException);$('addCourtBtn').addEventListener('click',addCourt);$('addCourtGroupBtn').addEventListener('click',addCourtGroup);$('saveBtn').addEventListener('click',save);$('exportSetupBtn').addEventListener('click',exportSetup);
 $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',generateSchedule);$('auditScopeBtn').addEventListener('click',()=>runScheduleAudit(false));$('auditAllBtn').addEventListener('click',()=>runScheduleAudit(true));
