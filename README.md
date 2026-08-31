@@ -1,8 +1,8 @@
-# MSS League Scheduler v11.11
+# MSS League Scheduler v11.11.1
 
 Production-candidate browser build for MSS League Management.
 
-## v11.11 changes
+## v11.11.1 changes
 - Division-by-division approval on the Division & Pool Board.
 - Approved divisions can be scheduled while other divisions remain Draft.
 - Individual Unlock Division controls, plus Approve All Ready Divisions / Unlock All.
@@ -12,3 +12,10 @@ Production-candidate browser build for MSS League Management.
 - Existing v11.10 multi-pool Entire Division scheduling, time-slot fairness audit, IndexedDB autosave, schedule audit, schedule management, results, standings and League Portal remain included.
 
 Open `START_HERE.html` or `index.html` in a modern browser.
+
+
+## v11.11.1 hotfix
+- Startup-only hotfix; no scheduling features changed.
+- Starts storage/rendering before optional control bindings so one control cannot blank the app.
+- Isolates page rendering so a noncritical panel error does not prevent the Director Dashboard from opening.
+- Adds visible startup diagnostics if a component fails.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11</title>
+<title>MSS League Scheduler v11.11.1</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.1</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div class="viewbar">
@@ -1344,8 +1344,36 @@ function renderDashboard(){
   document.querySelectorAll('[data-dashboard-tab]').forEach(b=>b.onclick=()=>setTab(b.dataset.dashboardTab));
   document.querySelectorAll('[data-open-division]').forEach(b=>b.onclick=()=>{const key=b.dataset.openDivision,target=b.dataset.targetTab;if(target==='management'){$('managementDivision').dataset.lastValue=key;$('managementDivision').value=key;}if(target==='schedule'){$('scheduleFilter').dataset.lastValue=key;$('scheduleFilter').value=key;}setTab(target);renderAll()});
 }
-function renderAll(){renderDivisionSetup();renderDashboard();renderTeams();renderDuplicateNameStatus();renderSettings();renderBoard();renderSchedule();renderManagement();renderResults();renderStandings();renderCoachSelectors();renderCoach();renderPublic()}
+function reportRuntimeIssue(label,err){
+  console.error(label,err);
+  const el=$('saveStatus');
+  if(el&&el.textContent.includes('Starting storage')) setSaveStatus('error','Startup warning',label);
+}
+function renderAll(){
+  const steps=[
+    ['Division Setup',renderDivisionSetup],['Director Dashboard',renderDashboard],['Registrations',renderTeams],['Duplicate Check',renderDuplicateNameStatus],
+    ['Resources',renderSettings],['Division & Pool Board',renderBoard],['Schedule',renderSchedule],['Schedule Management',renderManagement],
+    ['Results',renderResults],['Standings',renderStandings],['Coach Selectors',renderCoachSelectors],['Coach Tools',renderCoach],['League Portal',renderPublic]
+  ];
+  const failures=[];
+  steps.forEach(([label,fn])=>{try{fn()}catch(err){failures.push(label);console.error('Render failed:',label,err)}});
+  if(failures.length){
+    const dash=$('dashboardValidation');
+    if(dash) dash.insertAdjacentHTML('afterbegin',`<div class="status warn"><b>Startup safety mode:</b> ${failures.map(esc).join(', ')} could not be rendered. Other league data remains available.</div>`);
+  }
+}
 
+window.addEventListener('error',e=>{reportRuntimeIssue('JavaScript error',e.error||new Error(e.message||'Unknown error'))});
+window.addEventListener('unhandledrejection',e=>{reportRuntimeIssue('Background task error',e.reason||new Error('Unknown promise rejection'))});
+
+// Start loading before wiring optional controls. This prevents a single control-binding issue
+// from leaving the application on a blank screen.
+load().catch(err=>{
+  reportRuntimeIssue('Application startup failed',err);
+  try{hydrate();ensurePools();ensureDivisionConfig();renderAll();setView('admin')}catch(fallbackErr){reportRuntimeIssue('Startup fallback failed',fallbackErr)}
+});
+
+try{
 $('addTeamBtn').addEventListener('click',addTeam);$('loadDemoBtn').addEventListener('click',loadCompleteDemo);$('importCsvBtn').addEventListener('click',importCSV);$('csvFile').addEventListener('change',e=>previewCSVFile(e.target.files[0]));$('clearRegistrationsBtn').addEventListener('click',clearRegistrations);$('loadSampleBtn').addEventListener('click',()=>{const r=importCSVText(sampleCSV,'replace');$('importStatus').innerHTML=`<div class="status ok">${r.added} sample teams loaded into ${r.divisionCount} divisions, replacing prior registrations.</div>`;renderDuplicateNameStatus()});
 $('teamSearch').addEventListener('input',renderTeams);$('rebalanceBtn').addEventListener('click',rebalancePools);$('approveBtn').addEventListener('click',approveBoard);$('unlockBtn').addEventListener('click',unlockBoard);
 $('addExceptionBtn').addEventListener('click',addException);$('addCourtBtn').addEventListener('click',addCourt);$('addCourtGroupBtn').addEventListener('click',addCourtGroup);$('saveBtn').addEventListener('click',save);$('exportSetupBtn').addEventListener('click',exportSetup);
@@ -1358,7 +1386,10 @@ document.querySelectorAll('#admin-settings input,#admin-settings select').forEac
 $('addDivisionBtn').onclick=addDivision;$('detectDivisionsBtn').onclick=detectDivisions;$('autoAssignDivisionsBtn').onclick=autoAssignDivisions;
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&saveTimer)queueSave(true).catch(()=>{})});
 window.addEventListener('pagehide',()=>{if(saveTimer)queueSave(true).catch(()=>{})});
-load();
+}catch(bindingErr){
+  reportRuntimeIssue('A control could not be initialized',bindingErr);
+}
+
 </script>
 </body>
 </html>
