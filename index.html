@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.4</title>
+<title>MSS League Scheduler v11.11.5</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -23,7 +23,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 .status{padding:10px;border-radius:8px;margin:10px 0}.ok{background:#eaf7e3;color:var(--ok)}.warn{background:#fff4d6;color:var(--warn)}.bad{background:#feeceb;color:var(--danger)}
 .item{padding:9px 0;border-bottom:1px solid #edf1f6}.item:last-child{border-bottom:0}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .score{width:64px}.hidden{display:none!important}.kpi{font-size:26px;font-weight:800}.metric-card{background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:10px;min-width:130px}.team-link{background:none;border:0;padding:0;color:var(--blue);font-weight:700;text-decoration:underline;cursor:pointer}.team-link:hover{text-decoration:none}.edit-btn{padding:5px 8px;border:1px solid var(--line);background:#eef2f7;border-radius:6px;font-weight:700}.pending-row{background:#fff8e7}.change-log{max-height:300px;overflow:auto}.public-title{font-size:22px;font-weight:800;margin-bottom:4px}
-.board{display:flex;gap:14px;overflow-x:auto;padding-bottom:8px}.division-board{min-width:620px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:12px}
+.board-wrap{position:relative}.board-nav{display:flex;justify-content:space-between;align-items:center;margin:8px 0}.board-nav button{min-width:44px}.board{display:flex;gap:12px;overflow-x:auto;scroll-behavior:smooth;padding:4px 2px 10px}.division-board{min-width:430px;max-width:520px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:10px}.division-board.collapsed{min-width:330px;max-width:360px}.division-board.collapsed .division-body{display:none}.division-head{gap:8px}.team-card{padding:7px 8px}.team-card select{margin-top:4px}.pools{gap:8px}.pool{padding:8px}
 .division-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}.pools{display:flex;gap:10px;align-items:flex-start}.pool{min-width:250px;flex:1;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:10px;padding:10px}.pool.over{border-color:#d92d20;background:#fff4f2}.pool.approved{border-style:solid;border-color:#12b76a}
 .team-card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px;margin:7px 0;cursor:grab}.team-card.dragging{opacity:.45}.team-card b{display:block}.pool-title{display:flex;justify-content:space-between;align-items:center;font-weight:700}
 .locked .team-card{cursor:default}.approval-banner{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.4</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.5</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div class="viewbar">
@@ -180,7 +180,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       </div>
     </div>
     <div id="boardStatus"></div>
-    <div id="bigBoard" class="board"></div>
+    <div class="board-nav"><button id="boardPrevBtn" class="secondary" type="button" title="Previous division">◀ Previous</button><span class="hint">Use arrows or scroll horizontally to move between divisions. Expand only the division you are working on.</span><button id="boardNextBtn" class="secondary" type="button" title="Next division">Next ▶</button></div>
+    <div class="board-wrap"><div id="bigBoard" class="board"></div></div>
   </div>
 </section>
 
@@ -402,10 +403,42 @@ function withTimeout(promise,ms,label='Operation'){
     Promise.resolve(promise).then(v=>{clearTimeout(timer);resolve(v)},e=>{clearTimeout(timer);reject(e)});
   });
 }
+function synchronizeDivisionState(){
+  state.teams=state.teams||[];state.divisions=state.divisions||[];state.pools=state.pools||{};state.divisionConfig=state.divisionConfig||{};
+  const teamBy=new Map(state.teams.map(t=>[t.id,t]));
+  const divById=new Map(state.divisions.map(d=>[d.id,d]));
+  // Recover division membership from saved pools before any legacy fallback can overwrite it.
+  Object.entries(state.pools||{}).forEach(([divId,p])=>{
+    const ids=[...new Set(Object.values(p?.lists||{}).flat())].filter(id=>teamBy.has(id));
+    ids.forEach(id=>{teamBy.get(id).divisionId=divId});
+    if(!divById.has(divId)){
+      const teams=ids.map(id=>teamBy.get(id));
+      const source=teams.map(t=>t.sourceDivision).find(Boolean);
+      const sample=teams[0]||{};
+      const name=source||(()=>{const g=sample.grade||'Division',sex=sample.gender||'',skill=sample.skill||'';return `${g}${sex?' '+sex:''}${skill?' • '+skill:''}`.trim()})();
+      const d={id:divId,name,sourceRegistrationName:source||'',grades:[...new Set(teams.map(t=>t.grade).filter(Boolean))],gender:sample.gender||'',skill:sample.skill||'Open'};
+      state.divisions.push(d);divById.set(divId,d);
+    }
+  });
+  // Recover missing division records from teams that already carry a divisionId.
+  const byAssigned={};state.teams.forEach(t=>{if(t.divisionId)(byAssigned[t.divisionId]??=[]).push(t)});
+  Object.entries(byAssigned).forEach(([divId,teams])=>{
+    if(divById.has(divId))return;
+    const source=teams.map(t=>t.sourceDivision).find(Boolean),sample=teams[0]||{};
+    const name=source||`${sample.grade||'Division'}${sample.gender?' '+sample.gender:''}${sample.skill?' • '+sample.skill:''}`.trim();
+    const d={id:divId,name,sourceRegistrationName:source||'',grades:[...new Set(teams.map(t=>t.grade).filter(Boolean))],gender:sample.gender||'',skill:sample.skill||'Open'};
+    state.divisions.push(d);divById.set(divId,d);
+  });
+  // Remove truly orphaned division records, but keep configured/scheduled divisions.
+  const live=new Set([...Object.keys(state.pools||{}),...state.teams.map(t=>t.divisionId).filter(Boolean),...Object.keys(state.divisionConfig||{}),...(state.games||[]).map(g=>g.division).filter(Boolean)]);
+  state.divisions=state.divisions.filter(d=>live.has(d.id)||state.teams.some(t=>t.divisionId===d.id));
+  return {teams:state.teams.length,divisions:state.divisions.length,assigned:state.teams.filter(t=>t.divisionId).length};
+}
 function normalizeLoadedState(){
+  synchronizeDivisionState();
   state.divisions=state.divisions||[];state.courtGroups=state.courtGroups||[];state.courtGroups.forEach(g=>{if(/^all\s+(courts|surfaces)$/i.test(g.name||''))g.dynamicAll=true});state.divisionConfig=state.divisionConfig||{};state.settings=state.settings||{};state.settings.gamesPerWeek=state.settings.gamesPerWeek||3;state.settings.seasonGuarantee=state.settings.seasonGuarantee||12;state.settings.maxGamesPerDate=state.settings.maxGamesPerDate||4;state.settings.days=Array.isArray(state.settings.days)?state.settings.days:[0];state.settings.exceptions=Array.isArray(state.settings.exceptions)?state.settings.exceptions:[];state.settings.exceptionNotes=state.settings.exceptionNotes||{};
   if(!state.settings.seasonEnd){const weeks=Number(state.settings.seasonWeeks||8);state.settings.seasonEnd=addDaysISO(state.settings.seasonStart||new Date().toISOString().slice(0,10),weeks*7-1)}
-  if(!state.divisions.length&&state.teams.length){const seen={};state.teams.forEach(t=>{const k=legacyDivisionKey(t);if(!seen[k]){const id='div_'+Math.random().toString(36).slice(2,9);seen[k]=id;state.divisions.push({id,name:(()=>{const [g,se,lv]=k.split('|');return `${g} ${se} • ${lv}`})(),grades:[t.grade],gender:t.gender,skill:t.skill});}t.divisionId=seen[k]})}
+  if(!state.divisions.length&&state.teams.length&&!Object.keys(state.pools||{}).length&&!state.teams.some(t=>t.divisionId)){const seen={};state.teams.forEach(t=>{const k=legacyDivisionKey(t);if(!seen[k]){const id='div_'+Math.random().toString(36).slice(2,9);seen[k]=id;state.divisions.push({id,name:t.sourceDivision||(()=>{const [g,se,lv]=k.split('|');return `${g} ${se} • ${lv}`})(),grades:[t.grade],gender:t.gender,skill:t.skill});}t.divisionId=seen[k]})}
   state.scheduleChanges=state.scheduleChanges||[];state.activity=state.activity||[];state.settings.allowBackToBack=!!state.settings.allowBackToBack;state.settings.playAllTeamsOnce=state.settings.playAllTeamsOnce!==false;state.settings.avoidImmediateRematches=state.settings.avoidImmediateRematches!==false;state.settings.protectSharedCoaches=state.settings.protectSharedCoaches!==false;state.settings.honorScheduleRequests=state.settings.honorScheduleRequests!==false;state.settings.keepPoolPlay=true;state.games=(state.games||[]).map(g=>({...g,status:g.status||'Scheduled',pending:!!g.pending}));if(!Array.isArray(state.publishedGames)||(!state.publishedGames.length&&state.games.length))state.publishedGames=JSON.parse(JSON.stringify(state.games));
 }
 function openDatabase(){
@@ -462,7 +495,7 @@ async function load(){
   setSaveStatus('saving','Loading saved league…','IndexedDB • safe startup');
   try{
     const saved=await withTimeout(readStateFromDB(),STORAGE_TIMEOUT_MS,'Saved league load');
-    if(saved){state=Object.assign(state,saved);normalizeLoadedState();hydrate();ensurePools();ensureDivisionConfig();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin');setSaveStatus('saved','League loaded','IndexedDB • saved progress restored')}
+    if(saved){state=Object.assign(state,saved);normalizeLoadedState();synchronizeDivisionState();hydrate();ensurePools();ensureDivisionConfig();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin');setSaveStatus('saved','League loaded','IndexedDB • saved progress restored')}
     else{setSaveStatus('saved','Ready — new league','IndexedDB');try{await withTimeout(queueSave(true),STORAGE_TIMEOUT_MS,'Initial save')}catch(e){console.warn(e)}}
   }catch(e){
     console.error(e);
@@ -782,7 +815,7 @@ function unlockBoard(){if(state.games.length&&!confirm('Unlock all divisions? Ex
 function renderBoard(){
   ensurePools();const errors=boardValidation(),keys=Object.keys(state.pools).sort(),approvedCount=keys.filter(d=>state.pools[d]?.approved).length;refreshOverallApproval();
   $('approveBtn').classList.toggle('hidden',approvedCount===keys.length&&keys.length>0);$('unlockBtn').classList.toggle('hidden',approvedCount===0);$('rebalanceBtn').disabled=approvedCount>0;
-  $('boardStatus').innerHTML=keys.length?`<div class="status ${errors.length?'warn':approvedCount===keys.length?'ok':'warn'}"><b>${approvedCount}/${keys.length} divisions approved.</b> ${errors.length?errors.length+' board item(s) still need review.':'Approved divisions can be scheduled immediately; unfinished divisions may remain in Draft.'}</div>`:'<div class="status warn">Import or add teams first.</div>';
+  const syncInfo=synchronizeDivisionState();$('boardStatus').innerHTML=keys.length?`<div class="status ${errors.length?'warn':approvedCount===keys.length?'ok':'warn'}"><b>${approvedCount}/${keys.length} divisions approved.</b> ${errors.length?errors.length+' board item(s) still need review.':'Approved divisions can be scheduled immediately; unfinished divisions may remain in Draft.'}<br><span class="hint">${syncInfo.divisions} divisions synchronized • ${syncInfo.assigned}/${syncInfo.teams} teams assigned</span></div>`:'<div class="status warn">Import or add teams first.</div>';
   const allTargets=[];Object.entries(state.pools).forEach(([d,p])=>Object.keys(p.lists).forEach(x=>allTargets.push({d,p:x,label:`${divisionLabel(d)} — Pool ${x}`})));
   $('bigBoard').classList.remove('locked');
   $('bigBoard').innerHTML=keys.map(d=>{
@@ -793,11 +826,12 @@ function renderBoard(){
         ${ids.map(id=>{const t=teamById(id);return `<div class="team-card" draggable="${!locked}" data-team="${id}"><b>${esc(t.name)}</b><span class="hint">${esc(t.coach||'No coach')}</span>${!locked?`<select data-move="${id}">${allTargets.map(x=>`<option value="${esc(x.d)}::${x.p}" ${x.d===d&&x.p===name?'selected':''}>${esc(x.label)}</option>`).join('')}</select>`:''}</div>`}).join('')||'<div class="hint">Drop teams here</div>'}
       </div>`;
     }).join('');
-    return `<div class="division-board"><div class="division-head"><div><h3 style="margin:0">${esc(divisionLabel(d))}</h3><span class="hint">${Object.values(p.lists).flat().length} teams • ${locked?'Approved':'Draft'}</span></div><div class="row"><label style="margin:0">Max / Pool <input style="width:72px" type="number" min="2" value="${p.max}" data-pool-max="${esc(d)}" ${locked?'disabled':''}></label>${!locked?`<button class="secondary" data-add-pool="${esc(d)}">Add Pool</button><button class="success" data-approve-division="${esc(d)}" ${divErrors.length?'disabled':''}>Approve Division</button>`:`<button class="secondary" data-unlock-division="${esc(d)}">Unlock Division</button>`}</div></div>${divErrors.length?`<div class="status warn">${divErrors.map(esc).join('<br>')}</div>`:''}<div class="pools">${pools}</div></div>`;
+    return `<div class="division-board collapsed" data-division-card="${esc(d)}"><div class="division-head"><div><h3 style="margin:0">${esc(divisionLabel(d))}</h3><span class="hint">${Object.values(p.lists).flat().length} teams • ${Object.keys(p.lists).length} pool(s) • ${locked?'Approved':'Draft'}</span></div><div class="row"><button class="secondary" type="button" data-toggle-division="${esc(d)}">Expand</button><label style="margin:0">Max / Pool <input style="width:72px" type="number" min="2" value="${p.max}" data-pool-max="${esc(d)}" ${locked?'disabled':''}></label>${!locked?`<button class="secondary" data-add-pool="${esc(d)}">Add Pool</button><button class="success" data-approve-division="${esc(d)}" ${divErrors.length?'disabled':''}>Approve Division</button>`:`<button class="secondary" data-unlock-division="${esc(d)}">Unlock Division</button>`}</div></div><div class="division-body">${divErrors.length?`<div class="status warn">${divErrors.map(esc).join('<br>')}</div>`:''}<div class="pools">${pools}</div></div></div>`;
   }).join('')||'<p class="hint">Import or add teams first.</p>';
   document.querySelectorAll('[data-move]').forEach(sel=>sel.addEventListener('change',()=>{const source=Object.keys(state.pools).find(d=>Object.values(state.pools[d].lists).some(ids=>ids.includes(sel.dataset.move)));if(source&&state.pools[source]?.approved)return alert('Unlock that division before moving its teams.');const [d,p]=sel.value.split('::');if(state.pools[d]?.approved)return alert('Unlock the destination division before moving teams into it.');moveTeam(sel.dataset.move,d,p)}));
   document.querySelectorAll('[data-pool-max]').forEach(i=>i.addEventListener('change',()=>setPoolMax(i.dataset.poolMax,i.value)));document.querySelectorAll('[data-add-pool]').forEach(b=>b.addEventListener('click',()=>addPool(b.dataset.addPool)));document.querySelectorAll('[data-remove-pool]').forEach(b=>b.addEventListener('click',()=>removePool(b.dataset.d,b.dataset.removePool)));
   document.querySelectorAll('[data-approve-division]').forEach(b=>b.onclick=()=>approveDivision(b.dataset.approveDivision));document.querySelectorAll('[data-unlock-division]').forEach(b=>b.onclick=()=>unlockDivision(b.dataset.unlockDivision));
+  document.querySelectorAll('[data-toggle-division]').forEach(b=>b.onclick=()=>{const card=document.querySelector(`[data-division-card="${CSS.escape(b.dataset.toggleDivision)}"]`);if(!card)return;const collapsed=card.classList.toggle('collapsed');b.textContent=collapsed?'Expand':'Collapse'});
   let dragged=null;document.querySelectorAll('.team-card[draggable="true"]').forEach(c=>{c.addEventListener('dragstart',()=>{dragged=c.dataset.team;c.classList.add('dragging')});c.addEventListener('dragend',()=>c.classList.remove('dragging'))});document.querySelectorAll('.pool').forEach(p=>{p.addEventListener('dragover',e=>e.preventDefault());p.addEventListener('drop',e=>{e.preventDefault();if(!dragged)return;const source=Object.keys(state.pools).find(d=>Object.values(state.pools[d].lists).some(ids=>ids.includes(dragged)));if(state.pools[source]?.approved||state.pools[p.dataset.dropD]?.approved)return alert('Unlock the affected division before moving teams.');moveTeam(dragged,p.dataset.dropD,p.dataset.dropP)})});
 }
 
@@ -1429,7 +1463,7 @@ load().catch(err=>{
 
 try{
 $('resetStorageBtn')&&$('resetStorageBtn').addEventListener('click',resetSavedLeagueStorage);$('addTeamBtn').addEventListener('click',addTeam);$('loadDemoBtn').addEventListener('click',loadCompleteDemo);$('importCsvBtn').addEventListener('click',importCSV);$('csvFile').addEventListener('change',e=>previewCSVFile(e.target.files[0]));$('clearRegistrationsBtn').addEventListener('click',clearRegistrations);$('loadSampleBtn').addEventListener('click',()=>{const r=importCSVText(sampleCSV,'replace');$('importStatus').innerHTML=`<div class="status ok">${r.added} sample teams loaded into ${r.divisionCount} divisions, replacing prior registrations.</div>`;renderDuplicateNameStatus()});
-$('teamSearch').addEventListener('input',renderTeams);$('rebalanceBtn').addEventListener('click',rebalancePools);$('approveBtn').addEventListener('click',approveBoard);$('unlockBtn').addEventListener('click',unlockBoard);
+$('teamSearch').addEventListener('input',renderTeams);$('boardPrevBtn')&&$('boardPrevBtn').addEventListener('click',()=>$('bigBoard').scrollBy({left:-460,behavior:'smooth'}));$('boardNextBtn')&&$('boardNextBtn').addEventListener('click',()=>$('bigBoard').scrollBy({left:460,behavior:'smooth'}));$('rebalanceBtn').addEventListener('click',rebalancePools);$('approveBtn').addEventListener('click',approveBoard);$('unlockBtn').addEventListener('click',unlockBoard);
 $('addExceptionBtn').addEventListener('click',addException);$('addCourtBtn').addEventListener('click',addCourt);$('addCourtGroupBtn').addEventListener('click',addCourtGroup);$('saveBtn').addEventListener('click',save);$('exportSetupBtn').addEventListener('click',exportSetup);
 $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',generateSchedule);/* Audit buttons use inline safeRunScheduleAudit handlers so they remain functional even if another optional control binding fails. */
 ['managementDivision','managementWeek','managementStatus','managementCourt'].forEach(id=>$(id).addEventListener('change',renderManagement));

@@ -1,11 +1,11 @@
-# MSS League Scheduler v11.11.4
+# MSS League Scheduler v11.11.5
 
 Hotfix release focused only on startup/storage reliability.
 
 ## What changed
 - The application renders a usable clean league **before** attempting to restore IndexedDB data.
 - Saved-league restoration now has a timeout so a stalled IndexedDB request cannot leave the screen blank.
-- v11.11.4 uses a fresh IndexedDB database name to avoid a potentially stuck prior test database.
+- v11.11.5 uses a fresh IndexedDB database name to avoid a potentially stuck prior test database.
 - If saved data cannot be restored, the scheduler stays open in recovery mode instead of hanging.
 - Added **Reset Saved League** in the top navigation to clear this version's saved IndexedDB data and reload cleanly.
 - Existing scheduling, division approval, capacity, fairness, audit, and league-rule features were not intentionally changed.
@@ -16,3 +16,10 @@ Hotfix release focused only on startup/storage reliability.
 3. Confirm the status at upper right changes from `Loading saved league…` to either `Ready — new league`, `League loaded`, or a visible recovery warning.
 4. Re-import the 97-team MSS registration CSV if this fresh storage version starts clean.
 5. Continue the JV Boys / division-approval tests.
+
+
+## v11.11.5
+- Synchronizes registrations, Division Setup, pool board, Division Scheduling, and schedule scopes on load.
+- Recovers missing division records from saved pool/team membership instead of discarding them.
+- Adds compact/collapsible division cards and Previous/Next navigation at the top of the Big Board.
+- Adds a division synchronization diagnostic count.
