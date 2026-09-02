@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.6</title>
+<title>MSS League Scheduler v11.11.7</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.6</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.7</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -435,11 +435,26 @@ function synchronizeDivisionState(){
   state.divisions=state.divisions.filter(d=>live.has(d.id)||state.teams.some(t=>t.divisionId===d.id));
   return {teams:state.teams.length,divisions:state.divisions.length,assigned:state.teams.filter(t=>t.divisionId).length};
 }
+function repairAccidentalSingleGroupAssignments(){
+  const groups=state.courtGroups||[],divisions=allDivisionKeys();
+  if(groups.length!==1||divisions.length<2)return;
+  const group=groups[0];
+  if(group.dynamicAll||/^all\s+(courts|surfaces)$/i.test(group.name||''))return;
+  const assigned=divisions.filter(d=>state.divisionConfig?.[d]?.courtGroupId===group.id);
+  if(assigned.length<2)return;
+  const tokens=x=>new Set(String(x||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').split(/\s+/).filter(w=>w.length>1&&!['division','grade','high','school','open'].includes(w)));
+  const gt=tokens(group.name),scores=assigned.map(d=>{const dt=tokens(divisionLabel(d));let score=0;gt.forEach(t=>{if(dt.has(t))score++});return {d,score}}).sort((a,b)=>b.score-a.score);
+  if(!scores.length||scores[0].score<2||scores.filter(x=>x.score===scores[0].score).length!==1)return;
+  const keep=scores[0].d;
+  assigned.forEach(d=>{if(d!==keep)state.divisionConfig[d].courtGroupId=''});
+  logActivity(`Recovered court-group assignments: ${group.name} kept on ${divisionLabel(keep)} and cleared from unrelated divisions.`);
+}
 function normalizeLoadedState(){
   synchronizeDivisionState();
   state.divisions=state.divisions||[];state.courtGroups=state.courtGroups||[];state.courtGroups.forEach(g=>{if(/^all\s+(courts|surfaces)$/i.test(g.name||''))g.dynamicAll=true});state.divisionConfig=state.divisionConfig||{};state.settings=state.settings||{};state.settings.gamesPerWeek=state.settings.gamesPerWeek||3;state.settings.seasonGuarantee=state.settings.seasonGuarantee||12;state.settings.maxGamesPerDate=state.settings.maxGamesPerDate||4;state.settings.days=Array.isArray(state.settings.days)?state.settings.days:[0];state.settings.exceptions=Array.isArray(state.settings.exceptions)?state.settings.exceptions:[];state.settings.exceptionNotes=state.settings.exceptionNotes||{};
   if(!state.settings.seasonEnd){const weeks=Number(state.settings.seasonWeeks||8);state.settings.seasonEnd=addDaysISO(state.settings.seasonStart||new Date().toISOString().slice(0,10),weeks*7-1)}
   if(!state.divisions.length&&state.teams.length&&!Object.keys(state.pools||{}).length&&!state.teams.some(t=>t.divisionId)){const seen={};state.teams.forEach(t=>{const k=legacyDivisionKey(t);if(!seen[k]){const id='div_'+Math.random().toString(36).slice(2,9);seen[k]=id;state.divisions.push({id,name:t.sourceDivision||(()=>{const [g,se,lv]=k.split('|');return `${g} ${se} • ${lv}`})(),grades:[t.grade],gender:t.gender,skill:t.skill});}t.divisionId=seen[k]})}
+  repairAccidentalSingleGroupAssignments();
   state.scheduleChanges=state.scheduleChanges||[];state.activity=state.activity||[];state.settings.allowBackToBack=!!state.settings.allowBackToBack;state.settings.playAllTeamsOnce=state.settings.playAllTeamsOnce!==false;state.settings.avoidImmediateRematches=state.settings.avoidImmediateRematches!==false;state.settings.protectSharedCoaches=state.settings.protectSharedCoaches!==false;state.settings.honorScheduleRequests=state.settings.honorScheduleRequests!==false;state.settings.keepPoolPlay=true;state.games=(state.games||[]).map(g=>({...g,status:g.status||'Scheduled',pending:!!g.pending}));if(!Array.isArray(state.publishedGames)||(!state.publishedGames.length&&state.games.length))state.publishedGames=JSON.parse(JSON.stringify(state.games));
 }
 function openDatabase(){
@@ -757,11 +772,12 @@ function ensurePools(force=false){
   ensureDivisionConfig();
 }
 function ensureDivisionConfig(){
-  const divisions=allDivisionKeys(),singleGroup=state.courtGroups?.length===1?state.courtGroups[0].id:'';
+  const divisions=allDivisionKeys();
   divisions.forEach(d=>{
-    if(!state.divisionConfig[d]) state.divisionConfig[d]={start:'18:00',end:'20:00',courtGroupId:singleGroup,gamesPerWeek:state.settings.gamesPerWeek||3,seasonGuarantee:state.settings.seasonGuarantee||12,maxGamesPerDate:state.settings.maxGamesPerDate||4};
-    if(state.divisionConfig[d].gamesPerWeek==null)state.divisionConfig[d].gamesPerWeek=state.settings.gamesPerWeek||3;if(state.divisionConfig[d].seasonGuarantee==null)state.divisionConfig[d].seasonGuarantee=state.settings.seasonGuarantee||12;if(state.divisionConfig[d].maxGamesPerDate==null)state.divisionConfig[d].maxGamesPerDate=state.settings.maxGamesPerDate||4;
-    if(!state.divisionConfig[d].courtGroupId&&singleGroup)state.divisionConfig[d].courtGroupId=singleGroup;
+    if(!state.divisionConfig[d]) state.divisionConfig[d]={start:'18:00',end:'20:00',courtGroupId:'',gamesPerWeek:state.settings.gamesPerWeek||3,seasonGuarantee:state.settings.seasonGuarantee||12,maxGamesPerDate:state.settings.maxGamesPerDate||4};
+    if(state.divisionConfig[d].gamesPerWeek==null)state.divisionConfig[d].gamesPerWeek=state.settings.gamesPerWeek||3;
+    if(state.divisionConfig[d].seasonGuarantee==null)state.divisionConfig[d].seasonGuarantee=state.settings.seasonGuarantee||12;
+    if(state.divisionConfig[d].maxGamesPerDate==null)state.divisionConfig[d].maxGamesPerDate=state.settings.maxGamesPerDate||4;
   });
   Object.keys(state.divisionConfig||{}).filter(d=>!divisions.includes(d)).forEach(d=>delete state.divisionConfig[d]);
 }
@@ -855,7 +871,7 @@ function addCourtGroup(){
   if(!name){showActionFeedback('Enter a court group name.',false,'addCourtGroupBtn');return}
   const isAll=/^all\s+(courts|surfaces)$/i.test(name);if(!isAll&&!surfaceIds.length){showActionFeedback('Select at least one playing surface.',false,'addCourtGroupBtn');return}
   const group={id:uid('cg'),name,surfaceIds:isAll?state.courts.map(c=>c.id):surfaceIds,dynamicAll:isAll};state.courtGroups.push(group);
-  ensureDivisionConfig();if(state.courtGroups.length===1)Object.values(state.divisionConfig).forEach(c=>{if(!c.courtGroupId)c.courtGroupId=group.id});logActivity(`Court group ${name} created.`);$('courtGroupName').value='';persist();renderAll();showActionFeedback(`${name} court group created with ${groupSurfaceIds(group).length} surface(s).`,true,'addCourtGroupBtn')
+  ensureDivisionConfig();logActivity(`Court group ${name} created.`);$('courtGroupName').value='';persist();renderAll();showActionFeedback(`${name} court group created with ${groupSurfaceIds(group).length} surface(s). Assign it to the intended division(s) below.`,true,'addCourtGroupBtn')
 }
 function removeCourtGroup(id){
   const g=state.courtGroups.find(x=>x.id===id),name=g?.name||'Court group';state.courtGroups=state.courtGroups.filter(g=>g.id!==id);Object.values(state.divisionConfig).forEach(c=>{if(c.courtGroupId===id)c.courtGroupId=''});persist();renderAll();showActionFeedback(`${name} removed.`)
@@ -899,19 +915,19 @@ function renderDivisionAssignments(){
   document.querySelectorAll('[data-div-field]').forEach(e=>e.addEventListener('change',()=>setDivisionConfig(e.dataset.div,e.dataset.divField,e.type==='number'?Number(e.value):e.value)));
 }
 function capacityAnalysis(){
-  const dates=seasonDates(),len=state.settings.gameLength||20,divisions=allDivisionKeys(),perDiv={},slotOwners=new Map();let totalRequired=0;
-  divisions.forEach(d=>{const teams=state.teams.filter(t=>divisionKey(t)===d).length,cfg=state.divisionConfig[d]||{},minimum=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3),required=Math.ceil(teams*minimum*Math.max(1,dates.length)/2),slots=new Set();dates.forEach(date=>divisionSlots(d,date).forEach(sl=>{const k=`${date}|${sl.time}|${sl.court}`;slots.add(k);if(!slotOwners.has(k))slotOwners.set(k,new Set());slotOwners.get(k).add(d)}));perDiv[d]={teams,required,slots:slots.size};totalRequired+=required});
+  const dates=seasonDates(),divisions=allDivisionKeys(),perDiv={},slotOwners=new Map();let totalRequired=0,unconfigured=0;
+  divisions.forEach(d=>{const teams=state.teams.filter(t=>divisionKey(t)===d).length,cfg=state.divisionConfig[d]||{},minimum=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3),required=Math.ceil(teams*minimum*Math.max(1,dates.length)/2),slots=new Set(),group=state.courtGroups.find(g=>g.id===cfg.courtGroupId);dates.forEach(date=>divisionSlots(d,date).forEach(sl=>{const k=`${date}|${sl.time}|${sl.court}`;slots.add(k);if(!slotOwners.has(k))slotOwners.set(k,new Set());slotOwners.get(k).add(d)}));const configured=!!(group&&cfg.start&&cfg.end&&cfg.start<cfg.end&&groupSurfaceIds(group).length);perDiv[d]={teams,required,slots:slots.size,configured,start:cfg.start||'',end:cfg.end||'',surfaces:group?groupSurfaceIds(group).length:0};if(configured)totalRequired+=required;else unconfigured++});
   const uniqueSlots=slotOwners.size,assignedSlots=[...Object.values(perDiv)].reduce((a,x)=>a+x.slots,0),overlapSlots=[...slotOwners.values()].filter(x=>x.size>1).length;
   const graph=new Map(divisions.map(d=>[d,new Set()]));slotOwners.forEach(owners=>{const a=[...owners];for(let i=0;i<a.length;i++)for(let j=i+1;j<a.length;j++){graph.get(a[i]).add(a[j]);graph.get(a[j]).add(a[i])}});
-  const seen=new Set(),groups=[];divisions.forEach(d=>{if(seen.has(d))return;const stack=[d],members=[];seen.add(d);while(stack.length){const x=stack.pop();members.push(x);graph.get(x).forEach(n=>{if(!seen.has(n)){seen.add(n);stack.push(n)}})}const union=new Set();members.forEach(m=>{dates.forEach(date=>divisionSlots(m,date).forEach(sl=>union.add(`${date}|${sl.time}|${sl.court}`)))});const required=members.reduce((a,m)=>a+perDiv[m].required,0);groups.push({members,required,slots:union.size})});
-  return {perDiv,totalRequired,uniqueSlots,assignedSlots,overlapSlots,groups};
+  const seen=new Set(),groups=[];divisions.forEach(d=>{if(seen.has(d))return;const stack=[d],members=[];seen.add(d);while(stack.length){const x=stack.pop();members.push(x);graph.get(x).forEach(n=>{if(!seen.has(n)){seen.add(n);stack.push(n)}})}const union=new Set();members.forEach(m=>{dates.forEach(date=>divisionSlots(m,date).forEach(sl=>union.add(`${date}|${sl.time}|${sl.court}`)))});const required=members.reduce((a,m)=>a+(perDiv[m].configured?perDiv[m].required:0),0);groups.push({members,required,slots:union.size})});
+  return {perDiv,totalRequired,uniqueSlots,assignedSlots,overlapSlots,groups,unconfigured};
 }
 function renderCapacity(){
-  syncSettings();const a=capacityAnalysis(),localFails=Object.entries(a.perDiv).filter(([d,x])=>x.slots<x.required),sharedFails=a.groups.filter(g=>g.members.length>1&&g.slots<g.required);
-  const details=Object.entries(a.perDiv).map(([d,x])=>`${divisionLabel(d)}: ${x.required} required / ${x.slots} locally assigned unique slots`).join('<br>');
+  syncSettings();const a=capacityAnalysis(),localFails=Object.entries(a.perDiv).filter(([d,x])=>x.configured&&x.slots<x.required),sharedFails=a.groups.filter(g=>g.members.length>1&&g.slots<g.required);
+  const details=Object.entries(a.perDiv).map(([d,x])=>`${divisionLabel(d)}: ${x.configured?`${x.required} required / ${x.slots} unique slots • ${x.surfaces} surface(s) • ${fmtTime(x.start)}–${fmtTime(x.end)}`:'Needs court-group/time assignment'}`).join('<br>');
   const shared=a.groups.filter(g=>g.members.length>1).map(g=>`${g.members.map(divisionLabel).join(' + ')}: ${g.required} combined required / ${g.slots} shared unique slots`).join('<br>');
-  const ok=a.uniqueSlots>=a.totalRequired&&!localFails.length&&!sharedFails.length;
-  $('capacity').innerHTML=`<div class="row"><div><div class="kpi">${a.uniqueSlots}</div><div class="hint">unique physical court/time slots</div></div><div><div class="kpi">${a.totalRequired}</div><div class="hint">estimated required games</div></div><div><div class="kpi">${a.overlapSlots}</div><div class="hint">slots shared by multiple divisions</div></div></div><div class="status ${ok?'ok':'warn'}">${ok?'Unique physical capacity appears sufficient.':'Capacity conflicts exist even though assigned capacity may look sufficient.'}</div><details><summary>Capacity by division</summary><div class="hint">${details||'No divisions configured.'}</div></details>${shared?`<details ${sharedFails.length?'open':''}><summary>Shared-resource capacity</summary><div class="hint">${shared}</div></details>`:''}`;
+  const configuredLocalFails=Object.entries(a.perDiv).filter(([d,x])=>x.configured&&x.slots<x.required),ok=a.uniqueSlots>=a.totalRequired&&!configuredLocalFails.length&&!sharedFails.length;
+  $('capacity').innerHTML=`<div class="row"><div><div class="kpi">${a.uniqueSlots}</div><div class="hint">unique physical court/time slots</div></div><div><div class="kpi">${a.totalRequired}</div><div class="hint">required games for configured divisions</div></div><div><div class="kpi">${a.overlapSlots}</div><div class="hint">slots shared by multiple divisions</div></div></div><div class="status ${ok?'ok':'warn'}">${ok?'Configured physical capacity appears sufficient.':'Configured divisions have a real capacity conflict.'}${a.unconfigured?` ${a.unconfigured} division(s) still need a court-group/time assignment.`:''}</div><details open><summary>Capacity by division</summary><div class="hint">${details||'No divisions configured.'}</div></details>${shared?`<details ${sharedFails.length?'open':''}><summary>Shared-resource capacity</summary><div class="hint">${shared}</div></details>`:''}`;
 }
 
 function seasonDatesRaw(){const s=new Date((state.settings.seasonStart||'')+'T00:00:00'),end=new Date((state.settings.seasonEnd||'')+'T00:00:00');if(isNaN(s)||isNaN(end)||end<s)return[];const exc=new Set(state.settings.exceptions||[]),days=state.settings.days||[],out=[];for(let d=new Date(s);d<=end;d.setDate(d.getDate()+1)){const iso=d.toISOString().slice(0,10);if(days.includes(d.getDay())&&!exc.has(iso))out.push(iso)}return out}
@@ -1094,7 +1110,7 @@ function generateSchedule(){
     if(ids.length<2)return;
     const minimum=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3),guarantee=minimum*Math.max(1,dates.length),maxPerDate=Math.max(minimum,Number(cfg.maxGamesPerDate||state.settings.maxGamesPerDate||4));
     const f=targetFeasibility(d,pool,ids,guarantee,maxPerDate,dates,scope,fairPlan),label=`${divisionLabel(d)} — Pool ${pool}`;
-    feasibilityNotes.push(`${label}: requires ${f.requiredGames} games; ${f.availableSlots} assigned court/time slots available.`);
+    feasibilityNotes.push(`${label}: requires ${f.requiredGames} games; ${f.availableSlots} assigned court/time slots available across ${dates.length} playing date(s), ${groupSurfaceIds(state.courtGroups.find(g=>g.id===(state.divisionConfig[d]||{}).courtGroupId)).length} surface(s), ${(state.divisionConfig[d]||{}).start||'?'}–${(state.divisionConfig[d]||{}).end||'?'}.`);
     if(f.oddTeamGameTotal)hardPreflight.push(`${label}: ${ids.length} teams × ${guarantee} guaranteed games produces an odd total of team-games, so equal guarantees are mathematically impossible.`);
     if(f.availableSlots<f.requiredGames)hardPreflight.push(`${label}: needs ${f.requiredGames} games but only ${f.availableSlots} court/time slots are available.`);
     f.shortTeams.forEach(id=>hardPreflight.push(`${label}: ${teamById(id).name} can reach at most ${f.teamOpportunity[id]} games under the current dates, requests, rest rule, and max-games-per-date setting (guarantee ${guarantee}).`));
