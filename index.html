@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.2</title>
+<title>MSS League Scheduler v11.11.3</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.2</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.3</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div class="viewbar">
@@ -368,8 +368,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </div>
 
 <script>
-const DB_NAME='MSSLeagueSchedulerDB_v11112';
-const LEGACY_DB_NAMES=['MSSLeagueSchedulerDB'];
+const DB_NAME='MSSLeagueSchedulerDB';
+const LEGACY_DB_NAMES=[];
 const STORAGE_TIMEOUT_MS=2500;
 const DB_VERSION=1;
 const STORE_NAME='leagueState';
@@ -462,7 +462,7 @@ async function load(){
   setSaveStatus('saving','Loading saved league…','IndexedDB • safe startup');
   try{
     const saved=await withTimeout(readStateFromDB(),STORAGE_TIMEOUT_MS,'Saved league load');
-    if(saved){state=Object.assign(state,saved);normalizeLoadedState();hydrate();ensurePools();ensureDivisionConfig();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin');setSaveStatus('saved','League loaded','IndexedDB')}
+    if(saved){state=Object.assign(state,saved);normalizeLoadedState();hydrate();ensurePools();ensureDivisionConfig();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin');setSaveStatus('saved','League loaded','IndexedDB • saved progress restored')}
     else{setSaveStatus('saved','Ready — new league','IndexedDB');try{await withTimeout(queueSave(true),STORAGE_TIMEOUT_MS,'Initial save')}catch(e){console.warn(e)}}
   }catch(e){
     console.error(e);
@@ -472,7 +472,7 @@ async function load(){
   }
 }
 async function resetSavedLeagueStorage(){
-  if(!confirm('Clear the saved league data for v11.11.2 and reload a clean league? This cannot be undone unless you exported a setup backup.'))return;
+  if(!confirm('Clear the saved league data and reload a clean league? This cannot be undone unless you exported a setup backup.'))return;
   setSaveStatus('saving','Resetting saved league…','IndexedDB');
   try{
     if(dbPromise){try{const db=await withTimeout(dbPromise,1000,'Database close');db&&db.close()}catch(e){}dbPromise=null}
@@ -801,6 +801,16 @@ function renderBoard(){
   let dragged=null;document.querySelectorAll('.team-card[draggable="true"]').forEach(c=>{c.addEventListener('dragstart',()=>{dragged=c.dataset.team;c.classList.add('dragging')});c.addEventListener('dragend',()=>c.classList.remove('dragging'))});document.querySelectorAll('.pool').forEach(p=>{p.addEventListener('dragover',e=>e.preventDefault());p.addEventListener('drop',e=>{e.preventDefault();if(!dragged)return;const source=Object.keys(state.pools).find(d=>Object.values(state.pools[d].lists).some(ids=>ids.includes(dragged)));if(state.pools[source]?.approved||state.pools[p.dataset.dropD]?.approved)return alert('Unlock the affected division before moving teams.');moveTeam(dragged,p.dataset.dropD,p.dataset.dropP)})});
 }
 
+function renderSettings(){
+  $('exceptions').innerHTML=state.settings.exceptions.map(d=>`<div class="item"><b>${esc(d)}</b>${state.settings.exceptionNotes?.[d]?` <span class="hint">• ${esc(state.settings.exceptionNotes[d])}</span>`:''}<button class="danger" style="float:right;padding:4px 8px" data-remove-ex="${d}">Remove</button></div>`).join('')||'<span class="hint">No exception/off dates.</span>';
+  document.querySelectorAll('[data-remove-ex]').forEach(b=>b.addEventListener('click',()=>removeException(b.dataset.removeEx)));
+  $('courtsList').innerHTML=state.courts.map(c=>`<div class="item"><b>${esc(c.name)}</b> ${fmtTime(c.start)}–${fmtTime(c.end)} <button class="danger" data-remove-court="${c.id}">Remove</button></div>`).join('')||'<p class="hint">No playing surfaces added.</p>';
+  document.querySelectorAll('[data-remove-court]').forEach(b=>b.addEventListener('click',()=>removeCourt(b.dataset.removeCourt)));
+  $('courtGroupSurfaceChoices').innerHTML=state.courts.map(c=>`<label><input type="checkbox" data-group-surface value="${c.id}"><span>${esc(c.name)}</span></label>`).join('')||'<p class="hint">Add playing surfaces first.</p>';
+  $('courtGroupsList').innerHTML=state.courtGroups.map(g=>{const ids=groupSurfaceIds(g);return `<div class="item"><div class="row" style="justify-content:space-between;align-items:center"><div><b>${esc(g.name)} (${ids.length} surface${ids.length===1?'':'s'})</b><br><span class="hint">${ids.map(id=>esc((state.courts.find(c=>c.id===id)||{}).name||'Missing surface')).join(', ')||'No surfaces'}</span></div><button class="danger" data-remove-group="${g.id}">Remove</button></div></div>`}).join('')||'<p class="hint">No court groups created.</p>';
+  document.querySelectorAll('[data-remove-group]').forEach(b=>b.addEventListener('click',()=>removeCourtGroup(b.dataset.removeGroup)));
+  renderDivisionAssignments();renderCapacity();
+}
 function renderDivisionAssignments(){
   ensureDivisionConfig();
   const divisions=allDivisionKeys();
