@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.3</title>
+<title>MSS League Scheduler v11.11.4</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.3</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.4</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div class="viewbar">
@@ -291,8 +291,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <div class="card">
     <div class="toolbar">
       <button class="primary" id="generateBtn">Generate Schedule</button>
-      <button class="secondary" id="auditScopeBtn">Audit Selected Scope</button>
-      <button class="secondary" id="auditAllBtn">Audit Entire League</button>
+      <button class="secondary" id="auditScopeBtn" type="button" onclick="safeRunScheduleAudit(false)">Audit Selected Scope</button>
+      <button class="secondary" id="auditAllBtn" type="button" onclick="safeRunScheduleAudit(true)">Audit Entire League</button>
       <button class="secondary" id="exportScheduleBtn">Export CSV</button>
       <button class="secondary" id="printBtn">Print</button>
       <label style="margin:0;min-width:260px">Schedule / Display Scope<select id="scheduleFilter"></select></label>
@@ -1162,6 +1162,21 @@ function generateSchedule(){
   setTab('schedule');runScheduleAudit(scope==='ALL');
 }
 
+function safeRunScheduleAudit(allLeague=false){
+  const out=$('scheduleAudit');
+  try{
+    const result=runScheduleAudit(allLeague);
+    if(out) out.scrollIntoView({behavior:'smooth',block:'start'});
+    return result;
+  }catch(err){
+    console.error('Schedule audit failed',err);
+    if(out){
+      out.innerHTML=`<div class="status warn"><b>Audit could not run.</b><br>${esc(err&&err.message?err.message:String(err))}</div>`;
+      out.scrollIntoView({behavior:'smooth',block:'start'});
+    }
+    return null;
+  }
+}
 function auditResult(label,status,detail,violations=[]){return {label,status,detail,violations}}
 function runScheduleAudit(allLeague=false){
   syncSettings();const selected=allLeague?'ALL':($('scheduleFilter').value||'ALL');
@@ -1220,7 +1235,7 @@ function saveGameChange(forceStatus){const g=state.games.find(x=>x.id===$('editG
 function changeSummary(c){const b=c.before||{},a=c.after||{};if(c.kind==='score'||(b.sa!==undefined&&a.sa!==undefined&&(b.sa!==a.sa||b.sb!==a.sb)))return `Score ${b.sa==null?'—':b.sa+'–'+b.sb} → ${a.sa==null?'—':a.sa+'–'+a.sb}`;return `${b.date||''} ${b.time||''} ${b.court||''} → ${a.date||''} ${a.time||''} ${a.court||''} • ${a.status||''}`}
 function canDirectUndo(c){const g=state.games.find(x=>x.id===c.gameId);if(!g)return false;const current=gameSnapshot(g),a=c.after||{};return ['date','time','court','aId','bId','status','sa','sb'].every(k=>(current[k]??null)===(a[k]??null))}
 function restoreHistoryEntry(changeId){const c=state.scheduleChanges.find(x=>x.id===changeId),g=c&&state.games.find(x=>x.id===c.gameId);if(!c||!g)return;const label=canDirectUndo(c)?'Undo this change':'Restore the game to the version before this change';if(!confirm(`${label}? The reversal will be recorded as a new audit-history entry.`))return;const before=gameSnapshot(g),target={...c.before};Object.assign(g,target,{pending:true});state.scheduleChanges.unshift({id:uid('chg'),kind:'undo',gameId:g.id,changedAt:new Date().toISOString(),before,after:gameSnapshot(g),reason:`${canDirectUndo(c)?'Undo':'Restore'} of change made ${new Date(c.changedAt).toLocaleString()}`,warnings:[],sourceChangeId:c.id});persist();renderAll();setTab('management')}
-function publishScheduleChanges(){if(!state.games.length)return alert('There is no working schedule to publish.');const audit=runScheduleAudit(true);if(audit&&audit.fails)return alert(`Schedule cannot be published yet. The automatic Rules Audit found ${audit.fails} failed hard rule(s). Review the Schedule & Rules Audit on the Schedule page.`);state.games.forEach(g=>g.pending=false);state.publishedGames=JSON.parse(JSON.stringify(state.games));logActivity('Schedule changes published to the League Portal.');persist();renderAll();setTab('management')}
+function publishScheduleChanges(){if(!state.games.length)return alert('There is no working schedule to publish.');const audit=safeRunScheduleAudit(true);if(audit&&audit.fails)return alert(`Schedule cannot be published yet. The automatic Rules Audit found ${audit.fails} failed hard rule(s). Review the Schedule & Rules Audit on the Schedule page.`);state.games.forEach(g=>g.pending=false);state.publishedGames=JSON.parse(JSON.stringify(state.games));logActivity('Schedule changes published to the League Portal.');persist();renderAll();setTab('management')}
 function restorePublishedSchedule(){if(!state.publishedGames?.length)return alert('There is no previously published schedule to restore.');if(!confirm('Restore the working schedule to the last published version? Current unpublished changes will be replaced.'))return;state.games=JSON.parse(JSON.stringify(state.publishedGames)).map(g=>({...g,pending:false}));logActivity('Working schedule restored to the last published version.');persist();renderAll();setTab('management')}
 function divisionProgressRows(){
   const weeks=seasonDatesRaw().length;
@@ -1416,7 +1431,7 @@ try{
 $('resetStorageBtn')&&$('resetStorageBtn').addEventListener('click',resetSavedLeagueStorage);$('addTeamBtn').addEventListener('click',addTeam);$('loadDemoBtn').addEventListener('click',loadCompleteDemo);$('importCsvBtn').addEventListener('click',importCSV);$('csvFile').addEventListener('change',e=>previewCSVFile(e.target.files[0]));$('clearRegistrationsBtn').addEventListener('click',clearRegistrations);$('loadSampleBtn').addEventListener('click',()=>{const r=importCSVText(sampleCSV,'replace');$('importStatus').innerHTML=`<div class="status ok">${r.added} sample teams loaded into ${r.divisionCount} divisions, replacing prior registrations.</div>`;renderDuplicateNameStatus()});
 $('teamSearch').addEventListener('input',renderTeams);$('rebalanceBtn').addEventListener('click',rebalancePools);$('approveBtn').addEventListener('click',approveBoard);$('unlockBtn').addEventListener('click',unlockBoard);
 $('addExceptionBtn').addEventListener('click',addException);$('addCourtBtn').addEventListener('click',addCourt);$('addCourtGroupBtn').addEventListener('click',addCourtGroup);$('saveBtn').addEventListener('click',save);$('exportSetupBtn').addEventListener('click',exportSetup);
-$('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',generateSchedule);$('auditScopeBtn').addEventListener('click',()=>runScheduleAudit(false));$('auditAllBtn').addEventListener('click',()=>runScheduleAudit(true));
+$('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',generateSchedule);/* Audit buttons use inline safeRunScheduleAudit handlers so they remain functional even if another optional control binding fails. */
 ['managementDivision','managementWeek','managementStatus','managementCourt'].forEach(id=>$(id).addEventListener('change',renderManagement));
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
 $('exportScheduleBtn').addEventListener('click',exportSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});
