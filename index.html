@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.8</title>
+<title>MSS League Scheduler v11.11.9</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.8</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.9</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -248,6 +248,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <h2>Court Groups</h2>
       <p class="hint">Court groups are reusable sets of playing surfaces. Multiple divisions can use the same group at different times. A group named “All Courts” automatically includes every current playing surface.</p>
       <label>Court Group Name</label><input id="courtGroupName" placeholder="Elementary Courts">
+      <label>Assign to Division</label><select id="courtGroupDivision"><option value="">Select division</option></select>
+      <p class="hint" style="margin-top:4px">When divisions exist, choose the division that will use this court group. The assignment is saved automatically into Division Scheduling. The same court group can still be assigned to additional divisions later.</p>
       <label>Playing Surfaces in This Group</label>
       <div id="courtGroupSurfaceChoices" class="check-grid"></div>
       <button class="primary" id="addCourtGroupBtn">Add Court Group</button>
@@ -867,11 +869,14 @@ function removeCourt(id){
   const c=state.courts.find(x=>x.id===id),name=c?.name||'Playing surface';state.courts=state.courts.filter(c=>c.id!==id);state.courtGroups.forEach(g=>g.surfaceIds=(g.surfaceIds||[]).filter(x=>x!==id));persist();renderAll();showActionFeedback(`${name} removed.`)
 }
 function addCourtGroup(){
-  const name=$('courtGroupName').value.trim();const surfaceIds=[...document.querySelectorAll('[data-group-surface]:checked')].map(x=>x.value);
+  const name=$('courtGroupName').value.trim();const surfaceIds=[...document.querySelectorAll('[data-group-surface]:checked')].map(x=>x.value);const divisionId=$('courtGroupDivision')?.value||'';
   if(!name){showActionFeedback('Enter a court group name.',false,'addCourtGroupBtn');return}
+  if(allDivisionKeys().length&&!divisionId){showActionFeedback('Select the division that should use this court group.',false,'addCourtGroupBtn');return}
   const isAll=/^all\s+(courts|surfaces)$/i.test(name);if(!isAll&&!surfaceIds.length){showActionFeedback('Select at least one playing surface.',false,'addCourtGroupBtn');return}
   const group={id:uid('cg'),name,surfaceIds:isAll?state.courts.map(c=>c.id):surfaceIds,dynamicAll:isAll};state.courtGroups.push(group);
-  ensureDivisionConfig();logActivity(`Court group ${name} created.`);$('courtGroupName').value='';persist();renderAll();showActionFeedback(`${name} court group created with ${groupSurfaceIds(group).length} surface(s). Assign it to the intended division(s) below.`,true,'addCourtGroupBtn')
+  ensureDivisionConfig();
+  if(divisionId){state.divisionConfig[divisionId]=state.divisionConfig[divisionId]||{start:'18:00',end:'20:00',courtGroupId:'',gamesPerWeek:state.settings.gamesPerWeek||3,seasonGuarantee:state.settings.seasonGuarantee||12,maxGamesPerDate:state.settings.maxGamesPerDate||4};state.divisionConfig[divisionId].courtGroupId=group.id}
+  logActivity(`Court group ${name} created${divisionId?` and assigned to ${divisionLabel(divisionId)}`:''}.`);$('courtGroupName').value='';persist();renderAll();showActionFeedback(`${name} court group created with ${groupSurfaceIds(group).length} surface(s)${divisionId?` and assigned to ${divisionLabel(divisionId)}`:''}.`,true,'addCourtGroupBtn')
 }
 function removeCourtGroup(id){
   const g=state.courtGroups.find(x=>x.id===id),name=g?.name||'Court group';state.courtGroups=state.courtGroups.filter(g=>g.id!==id);Object.values(state.divisionConfig).forEach(c=>{if(c.courtGroupId===id)c.courtGroupId=''});persist();renderAll();showActionFeedback(`${name} removed.`)
@@ -893,7 +898,8 @@ function renderSettings(){
   $('courtsList').innerHTML=state.courts.map(c=>`<div class="item"><b>${esc(c.name)}</b> ${fmtTime(c.start)}–${fmtTime(c.end)} <button class="danger" data-remove-court="${c.id}">Remove</button></div>`).join('')||'<p class="hint">No playing surfaces added.</p>';
   document.querySelectorAll('[data-remove-court]').forEach(b=>b.addEventListener('click',()=>removeCourt(b.dataset.removeCourt)));
   $('courtGroupSurfaceChoices').innerHTML=state.courts.map(c=>`<label><input type="checkbox" data-group-surface value="${c.id}"><span>${esc(c.name)}</span></label>`).join('')||'<p class="hint">Add playing surfaces first.</p>';
-  $('courtGroupsList').innerHTML=state.courtGroups.map(g=>{const ids=groupSurfaceIds(g);return `<div class="item"><div class="row" style="justify-content:space-between;align-items:center"><div><b>${esc(g.name)} (${ids.length} surface${ids.length===1?'':'s'})</b><br><span class="hint">${ids.map(id=>esc((state.courts.find(c=>c.id===id)||{}).name||'Missing surface')).join(', ')||'No surfaces'}</span></div><button class="danger" data-remove-group="${g.id}">Remove</button></div></div>`}).join('')||'<p class="hint">No court groups created.</p>';
+  const divisionSelect=$('courtGroupDivision');if(divisionSelect){const current=divisionSelect.value;divisionSelect.innerHTML='<option value="">Select division</option>'+allDivisionKeys().map(d=>`<option value="${esc(d)}">${esc(divisionLabel(d))}</option>`).join('');if(allDivisionKeys().includes(current))divisionSelect.value=current;divisionSelect.onchange=()=>{const d=divisionSelect.value;if(d&&!$('courtGroupName').value.trim())$('courtGroupName').value=`${divisionLabel(d)} Courts`}}
+  $('courtGroupsList').innerHTML=state.courtGroups.map(g=>{const ids=groupSurfaceIds(g),assigned=allDivisionKeys().filter(d=>state.divisionConfig?.[d]?.courtGroupId===g.id);return `<div class="item"><div class="row" style="justify-content:space-between;align-items:center"><div><b>${esc(g.name)} (${ids.length} surface${ids.length===1?'':'s'})</b><br><span class="hint">${ids.map(id=>esc((state.courts.find(c=>c.id===id)||{}).name||'Missing surface')).join(', ')||'No surfaces'}</span><br><span class="hint"><b>Assigned to:</b> ${assigned.length?assigned.map(d=>esc(divisionLabel(d))).join(', '):'No division yet'}</span></div><button class="danger" data-remove-group="${g.id}">Remove</button></div></div>`}).join('')||'<p class="hint">No court groups created.</p>';
   document.querySelectorAll('[data-remove-group]').forEach(b=>b.addEventListener('click',()=>removeCourtGroup(b.dataset.removeGroup)));
   renderDivisionAssignments();renderCapacity();
 }

@@ -1,4 +1,4 @@
-# MSS League Scheduler v11.11.8
+# MSS League Scheduler v11.11.9
 
 Regression / reliability release.
 
@@ -13,3 +13,7 @@ QA performed:
 - JavaScript syntax check.
 - Static regression check for critical resource functions and control IDs.
 - ZIP contents verification.
+
+
+## v11.11.9
+Court Group setup now requires an explicit Division selection when divisions exist. Creating the group automatically assigns it to that division in Division Scheduling, and saved Court Groups show their current division assignments.
