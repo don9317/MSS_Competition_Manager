@@ -1,4 +1,4 @@
-# MSS League Scheduler v11.11.7
+# MSS League Scheduler v11.11.8
 
 Regression / reliability release.
 

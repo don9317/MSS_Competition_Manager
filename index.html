@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.7</title>
+<title>MSS League Scheduler v11.11.8</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.7</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.8</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -197,6 +197,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <h2>League Setup</h2>
       <div class="row">
         <div class="field"><label>League Name</label><input id="leagueName"></div>
+        <div class="field"><label>Game Length</label><select id="gameLength"><option value="10">10 minutes</option><option value="12">12 minutes</option><option value="15">15 minutes</option><option value="20">20 minutes</option><option value="25">25 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="75">75 minutes</option></select><span class="hint">Used to calculate every court/time slot and schedule-capacity check.</span></div>
         <div class="field"><label>Calculated Season Minimum / Team</label><input id="seasonGuarantee" type="number" min="1" max="50" value="12" readonly></div>
         <div class="field"><label>Minimum Games / Team / Playing Date</label><input id="gamesPerWeek" type="number" min="1" max="8" value="3"></div>
         <div class="field"><label>Maximum Games / Team / Playing Date</label><input id="maxGamesPerDate" type="number" min="1" max="8" value="4"></div>
@@ -257,7 +258,6 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <h2>League Scheduling Rules</h2>
       <p class="hint">These rules are used by the schedule generator and conflict checker. Toggle the basic policies on or off for this league.</p>
       <div class="row">
-        <div class="field"><label>Game Length</label><select id="gameLength"><option value="15">15 minutes</option><option value="20" selected>20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="75">75 minutes</option></select></div>
         <div class="field"><label>Additional Minimum Rest</label><select id="minRest"><option value="0">No extra rest beyond Back-to-Back rule</option><option value="1">One additional game slot</option><option value="2">Two additional game slots</option></select></div>
         <div class="field"><label>Default Max Teams / Pool</label><input id="defaultPoolMax" type="number" min="2" max="16" value="8"></div>
       </div>
@@ -927,7 +927,7 @@ function renderCapacity(){
   const details=Object.entries(a.perDiv).map(([d,x])=>`${divisionLabel(d)}: ${x.configured?`${x.required} required / ${x.slots} unique slots • ${x.surfaces} surface(s) • ${fmtTime(x.start)}–${fmtTime(x.end)}`:'Needs court-group/time assignment'}`).join('<br>');
   const shared=a.groups.filter(g=>g.members.length>1).map(g=>`${g.members.map(divisionLabel).join(' + ')}: ${g.required} combined required / ${g.slots} shared unique slots`).join('<br>');
   const configuredLocalFails=Object.entries(a.perDiv).filter(([d,x])=>x.configured&&x.slots<x.required),ok=a.uniqueSlots>=a.totalRequired&&!configuredLocalFails.length&&!sharedFails.length;
-  $('capacity').innerHTML=`<div class="row"><div><div class="kpi">${a.uniqueSlots}</div><div class="hint">unique physical court/time slots</div></div><div><div class="kpi">${a.totalRequired}</div><div class="hint">required games for configured divisions</div></div><div><div class="kpi">${a.overlapSlots}</div><div class="hint">slots shared by multiple divisions</div></div></div><div class="status ${ok?'ok':'warn'}">${ok?'Configured physical capacity appears sufficient.':'Configured divisions have a real capacity conflict.'}${a.unconfigured?` ${a.unconfigured} division(s) still need a court-group/time assignment.`:''}</div><details open><summary>Capacity by division</summary><div class="hint">${details||'No divisions configured.'}</div></details>${shared?`<details ${sharedFails.length?'open':''}><summary>Shared-resource capacity</summary><div class="hint">${shared}</div></details>`:''}`;
+  $('capacity').innerHTML=`<div class="status info"><b>Capacity calculation uses ${Number(state.settings.gameLength||20)}-minute games.</b> Change Game Length in League Setup and this calculation updates immediately.</div><div class="row"><div><div class="kpi">${a.uniqueSlots}</div><div class="hint">unique physical court/time slots</div></div><div><div class="kpi">${a.totalRequired}</div><div class="hint">required games for configured divisions</div></div><div><div class="kpi">${a.overlapSlots}</div><div class="hint">slots shared by multiple divisions</div></div></div><div class="status ${ok?'ok':'warn'}">${ok?'Configured physical capacity appears sufficient.':'Configured divisions have a real capacity conflict.'}${a.unconfigured?` ${a.unconfigured} division(s) still need a court-group/time assignment.`:''}</div><details open><summary>Capacity by division</summary><div class="hint">${details||'No divisions configured.'}</div></details>${shared?`<details ${sharedFails.length?'open':''}><summary>Shared-resource capacity</summary><div class="hint">${shared}</div></details>`:''}`;
 }
 
 function seasonDatesRaw(){const s=new Date((state.settings.seasonStart||'')+'T00:00:00'),end=new Date((state.settings.seasonEnd||'')+'T00:00:00');if(isNaN(s)||isNaN(end)||end<s)return[];const exc=new Set(state.settings.exceptions||[]),days=state.settings.days||[],out=[];for(let d=new Date(s);d<=end;d.setDate(d.getDate()+1)){const iso=d.toISOString().slice(0,10);if(days.includes(d.getDay())&&!exc.has(iso))out.push(iso)}return out}
@@ -1110,7 +1110,7 @@ function generateSchedule(){
     if(ids.length<2)return;
     const minimum=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3),guarantee=minimum*Math.max(1,dates.length),maxPerDate=Math.max(minimum,Number(cfg.maxGamesPerDate||state.settings.maxGamesPerDate||4));
     const f=targetFeasibility(d,pool,ids,guarantee,maxPerDate,dates,scope,fairPlan),label=`${divisionLabel(d)} — Pool ${pool}`;
-    feasibilityNotes.push(`${label}: requires ${f.requiredGames} games; ${f.availableSlots} assigned court/time slots available across ${dates.length} playing date(s), ${groupSurfaceIds(state.courtGroups.find(g=>g.id===(state.divisionConfig[d]||{}).courtGroupId)).length} surface(s), ${(state.divisionConfig[d]||{}).start||'?'}–${(state.divisionConfig[d]||{}).end||'?'}.`);
+    feasibilityNotes.push(`${label}: requires ${f.requiredGames} games; ${f.availableSlots} assigned court/time slots available using ${state.settings.gameLength}-minute games across ${dates.length} playing date(s), ${groupSurfaceIds(state.courtGroups.find(g=>g.id===(state.divisionConfig[d]||{}).courtGroupId)).length} surface(s), ${(state.divisionConfig[d]||{}).start||'?'}–${(state.divisionConfig[d]||{}).end||'?'}.`);
     if(f.oddTeamGameTotal)hardPreflight.push(`${label}: ${ids.length} teams × ${guarantee} guaranteed games produces an odd total of team-games, so equal guarantees are mathematically impossible.`);
     if(f.availableSlots<f.requiredGames)hardPreflight.push(`${label}: needs ${f.requiredGames} games but only ${f.availableSlots} court/time slots are available.`);
     f.shortTeams.forEach(id=>hardPreflight.push(`${label}: ${teamById(id).name} can reach at most ${f.teamOpportunity[id]} games under the current dates, requests, rest rule, and max-games-per-date setting (guarantee ${guarantee}).`));
