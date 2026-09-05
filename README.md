@@ -1,4 +1,4 @@
-# MSS League Scheduler v11.11.10
+# MSS League Scheduler v11.11.11
 
 Regression / reliability release.
 
@@ -15,5 +15,12 @@ QA performed:
 - ZIP contents verification.
 
 
-## v11.11.10
+## v11.11.11
 Court Group setup now requires an explicit Division selection when divisions exist. Creating the group automatically assigns it to that division in Division Scheduling, and saved Court Groups show their current division assignments.
+
+## v11.11.11
+- Synchronizes a division's recurring time window to the common availability of its assigned Court Group.
+- Shows Court availability, Division window, and Effective scheduling window together in Division Scheduling.
+- Manual start/end edits remain allowed and are treated as an intentional custom window.
+- Strengthens Play Every Pool Opponent Before Repeats: a repeat matchup is blocked until both teams have faced every other pool opponent.
+- Preserves IndexedDB save/recovery and all v11.11.10 functionality.
