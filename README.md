@@ -1,4 +1,4 @@
-# MSS League Scheduler v11.11.12
+# MSS League Scheduler v11.11.13
 
 Regression / reliability release.
 
@@ -15,10 +15,10 @@ QA performed:
 - ZIP contents verification.
 
 
-## v11.11.12
+## v11.11.13
 Court Group setup now requires an explicit Division selection when divisions exist. Creating the group automatically assigns it to that division in Division Scheduling, and saved Court Groups show their current division assignments.
 
-## v11.11.12
+## v11.11.13
 - Synchronizes a division's recurring time window to the common availability of its assigned Court Group.
 - Shows Court availability, Division window, and Effective scheduling window together in Division Scheduling.
 - Manual start/end edits remain allowed and are treated as an intentional custom window.
@@ -26,7 +26,13 @@ Court Group setup now requires an explicit Division selection when divisions exi
 - Preserves IndexedDB save/recovery and all v11.11.10 functionality.
 
 
-## v11.11.12 opponent-rotation fix
+## v11.11.13 opponent-rotation fix
 - Opponent rotation is now checked chronologically at the actual candidate game date/time.
 - Nightly-minimum and season-repair passes can no longer use future games to justify an earlier repeat.
 - The Play Every Pool Opponent Before Repeats audit should now agree with schedule generation.
+
+
+## v11.11.13 changes
+- Odd-team nightly balancing: when a pool has an odd number of teams, the nightly-minimum repair can give one team the legal 4th game so every team still reaches the minimum (for example 4-3-3-3-3 in a five-team pool).
+- Extra games rotate toward teams that have received fewer prior overflow nights.
+- New Court Calendar tab: view a selected playing date as a time-by-court grid, filter by division/pool, click a game to edit it, and visually flag court/time or team double-booking conflicts.

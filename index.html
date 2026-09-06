@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.12</title>
+<title>MSS League Scheduler v11.11.13</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -24,6 +24,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 .item{padding:9px 0;border-bottom:1px solid #edf1f6}.item:last-child{border-bottom:0}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .score{width:64px}.hidden{display:none!important}.kpi{font-size:26px;font-weight:800}.metric-card{background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:10px;min-width:130px}.team-link{background:none;border:0;padding:0;color:var(--blue);font-weight:700;text-decoration:underline;cursor:pointer}.team-link:hover{text-decoration:none}.edit-btn{padding:5px 8px;border:1px solid var(--line);background:#eef2f7;border-radius:6px;font-weight:700}.pending-row{background:#fff8e7}.change-log{max-height:300px;overflow:auto}.public-title{font-size:22px;font-weight:800;margin-bottom:4px}
 .board-wrap{position:relative}.board-nav{display:flex;justify-content:space-between;align-items:center;margin:8px 0}.board-nav button{min-width:44px}.board{display:flex;gap:12px;overflow-x:auto;scroll-behavior:smooth;padding:4px 2px 10px}.division-board{min-width:430px;max-width:520px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:10px}.division-board.collapsed{min-width:330px;max-width:360px}.division-board.collapsed .division-body{display:none}.division-head{gap:8px}.team-card{padding:7px 8px}.team-card select{margin-top:4px}.pools{gap:8px}.pool{padding:8px}
+.calendar-table{border-collapse:separate;border-spacing:0;min-width:900px}.calendar-table th{position:sticky;top:0;z-index:2;background:#eaf0f7}.calendar-table th:first-child,.calendar-table td:first-child{position:sticky;left:0;z-index:1;background:#f8fafc;min-width:92px}.calendar-cell{min-width:180px;vertical-align:top;height:58px}.calendar-game{display:block;width:100%;text-align:left;border:1px solid var(--line);background:#f8fbff;border-radius:7px;padding:6px;margin:2px 0;font-size:12px;cursor:pointer}.calendar-game:hover{background:#eef6ff}.calendar-conflict{background:#fff0ef!important;border-color:#e5484d!important}.calendar-empty{color:#98a2b3;text-align:center}.calendar-summary{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}.calendar-summary .pill{padding:5px 9px}
 .division-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}.pools{display:flex;gap:10px;align-items:flex-start}.pool{min-width:250px;flex:1;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:10px;padding:10px}.pool.over{border-color:#d92d20;background:#fff4f2}.pool.approved{border-style:solid;border-color:#12b76a}
 .team-card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px;margin:7px 0;cursor:grab}.team-card.dragging{opacity:.45}.team-card b{display:block}.pool-title{display:flex;justify-content:space-between;align-items:center;font-weight:700}
 .locked .team-card{cursor:default}.approval-banner{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
@@ -34,7 +35,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.12</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.13</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -51,6 +52,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <button data-tab="board">Division & Pool Board</button>
   <button data-tab="settings">Resources</button>
   <button data-tab="schedule">Schedule</button>
+  <button data-tab="calendar">Court Calendar</button>
   <button data-tab="management">Schedule Management</button>
   <button data-tab="results">Results</button>
   <button data-tab="standings">Standings</button>
@@ -306,6 +308,21 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   </div>
 </section>
 
+<section id="admin-calendar" class="panel">
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:start">
+      <div><h2 style="margin-bottom:4px">Court Calendar</h2><div class="hint">Visual court/time grid for scheduled games. Red cells indicate more than one game assigned to the same court and time.</div></div>
+      <div class="toolbar" style="margin:0">
+        <label style="margin:0;min-width:210px">Playing Date<select id="calendarDate"></select></label>
+        <label style="margin:0;min-width:260px">Division / Pool<select id="calendarScope"></select></label>
+        <button class="secondary" id="calendarPrintBtn" type="button">Print</button>
+      </div>
+    </div>
+    <div id="calendarSummary" class="calendar-summary"></div>
+    <div class="table-wrap"><table id="calendarTable" class="calendar-table"></table></div>
+  </div>
+</section>
+
 <section id="admin-management" class="panel">
   <div class="card">
     <div class="row" style="justify-content:space-between;align-items:start">
@@ -551,7 +568,7 @@ function setView(view){
   document.querySelector('.admin-tabs').classList.toggle('hidden',view!=='admin');document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   if(view==='admin')setTab('dashboard');else{$(view+'-view').classList.add('active');view==='coach'?renderCoach():renderPublic()}
 }
-function setTab(tab){document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));document.querySelectorAll('[id^="admin-"]').forEach(p=>p.classList.remove('active'));const panel=$('admin-'+tab);if(!panel)return setTab('dashboard');panel.classList.add('active');if(tab==='dashboard')renderDashboard();if(tab==='divisions')renderDivisionSetup();if(tab==='board')renderBoard();if(tab==='schedule')renderSchedule();if(tab==='management')renderManagement();if(tab==='results')renderResults();if(tab==='standings')renderStandings()}
+function setTab(tab){document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));document.querySelectorAll('[id^="admin-"]').forEach(p=>p.classList.remove('active'));const panel=$('admin-'+tab);if(!panel)return setTab('dashboard');panel.classList.add('active');if(tab==='dashboard')renderDashboard();if(tab==='divisions')renderDivisionSetup();if(tab==='board')renderBoard();if(tab==='schedule')renderSchedule();if(tab==='calendar')renderCourtCalendar();if(tab==='management')renderManagement();if(tab==='results')renderResults();if(tab==='standings')renderStandings()}
 document.querySelectorAll('.viewbar button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 
 function addTeam(){
@@ -1160,15 +1177,24 @@ function candidatePairsRepair(ids,dailyCounts,maxPerDate,seasonCounts,guarantee,
   }
   return candidates.sort((x,y)=>x.score-y.score)
 }
-function candidatePairsDailyMinimum(ids,dailyCounts,minimum,pairCounts,lastOpponent){
+function candidatePairsDailyMinimum(ids,dailyCounts,minimum,maxPerDate,pairCounts,lastOpponent,overflowHistory={}){
   const candidates=[];
   for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
     const a=ids[i],b=ids[j];if(!a||!b||a===b)continue;
-    if(dailyCounts[a]>=minimum||dailyCounts[b]>=minimum)continue;
+    // At least one team must still be below the nightly minimum. The other may already
+    // be at the minimum (but below the max) so odd-team pools can finish 4-3-3-3-3.
+    const underA=dailyCounts[a]<minimum,underB=dailyCounts[b]<minimum;
+    if(!underA&&!underB)continue;
+    if(dailyCounts[a]>=maxPerDate||dailyCounts[b]>=maxPerDate)continue;
     const played=pairCounts[pairId(a,b)]||0;
     const immediate=(state.settings.avoidImmediateRematches&&(lastOpponent[a]===b||lastOpponent[b]===a))?1:0;
     const repeatWeight=state.settings.playAllTeamsOnce?4000:700;
-    candidates.push({a,b,score:played*repeatWeight+immediate*1200+(dailyCounts[a]+dailyCounts[b])*25});
+    const deficit=(underA?(minimum-dailyCounts[a]):0)+(underB?(minimum-dailyCounts[b]):0);
+    // If exactly one team needs a game, make the extra-game partner the team that has
+    // received the fewest prior overflow games. This rotates 4th games fairly.
+    const extraPartnerPenalty=(underA&&!underB ? (overflowHistory[b]||0) : (!underA&&underB ? (overflowHistory[a]||0) : 0))*700;
+    const currentOverflowPenalty=(Math.max(0,dailyCounts[a]-minimum)+Math.max(0,dailyCounts[b]-minimum))*300;
+    candidates.push({a,b,score:played*repeatWeight+immediate*1200-deficit*500+extraPartnerPenalty+currentOverflowPenalty+(dailyCounts[a]+dailyCounts[b])*20});
   }
   return candidates.sort((x,y)=>x.score-y.score)
 }
@@ -1278,9 +1304,20 @@ function generateSchedule(){
     dates.forEach((date,dateIndex)=>{
       const available=targetSlots(d,pool,date,scope,fairPlan),dailyCounts=Object.fromEntries(ids.map(id=>[id,0]));
       newGames.filter(g=>g.division===d&&g.pool===pool&&g.date===date).forEach(g=>{dailyCounts[g.aId]=(dailyCounts[g.aId]||0)+1;dailyCounts[g.bId]=(dailyCounts[g.bId]||0)+1});
+      const overflowHistory=Object.fromEntries(ids.map(id=>[id,0]));
+      newGames.filter(g=>g.division===d&&g.pool===pool&&g.date<date).forEach(g=>{
+        // Count prior dates on which a team received an overflow game beyond the nightly minimum.
+        // Recompute per date below to avoid counting multiple overflow games on the same night twice.
+      });
+      ids.forEach(id=>{
+        dates.filter(prior=>prior<date).forEach(prior=>{
+          const n=newGames.filter(g=>g.division===d&&g.pool===pool&&g.date===prior&&(g.aId===id||g.bId===id)).length;
+          if(n>preferred)overflowHistory[id]++;
+        });
+      });
       let guard=0;
       while(ids.some(id=>dailyCounts[id]<preferred&&available.some(sl=>allowed(teamById(id),sl)))&&guard++<2500){
-        let placed=false;const candidates=candidatePairsDailyMinimum(ids,dailyCounts,preferred,pairCounts,lastOpponent);
+        let placed=false;const candidates=candidatePairsDailyMinimum(ids,dailyCounts,preferred,maxPerDate,pairCounts,lastOpponent,overflowHistory);
         for(const cand of candidates){
           const {a,b}=cand,ta=teamById(a),tb=teamById(b);let found=null;
           for(const sl of available){
@@ -1417,6 +1454,26 @@ function runScheduleAudit(allLeague=false){
 }
 
 function groupOptions(select){const current=select.value||select.dataset.lastValue||'ALL',groups=[];Object.entries(state.pools).forEach(([d,p])=>{const pools=Object.keys(p.lists);if(pools.length>1)groups.push({value:divisionScopeKey(d),label:`${divisionLabel(d)} — Entire Division (${pools.length} pools)`,division:true});pools.forEach(pool=>groups.push({value:poolKey(d,pool),label:`${divisionLabel(d)} — Pool ${pool}`}))});select.innerHTML='<option value="ALL">Entire League</option>'+groups.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('');if(current==='ALL'||groups.some(x=>x.value===current))select.value=current;select.dataset.lastValue=select.value}
+function renderCourtCalendar(){
+  const dateSel=$('calendarDate'),scopeSel=$('calendarScope'),table=$('calendarTable'),summary=$('calendarSummary');
+  if(!dateSel||!scopeSel||!table||!summary)return;
+  const priorDate=dateSel.value,priorScope=scopeSel.value||'ALL';
+  const dates=[...new Set([...seasonDates(),...state.games.map(g=>g.date).filter(Boolean)])].sort();
+  dateSel.innerHTML=dates.map(d=>`<option value="${d}">${d}</option>`).join('')||'<option value="">No playing dates</option>';
+  if(dates.includes(priorDate))dateSel.value=priorDate; else if(dates.length)dateSel.value=dates[0];
+  groupOptions(scopeSel); if([...scopeSel.options].some(o=>o.value===priorScope))scopeSel.value=priorScope;
+  const date=dateSel.value,scope=scopeSel.value||'ALL';
+  const games=state.games.filter(g=>g.date===date&&scopeMatchesGame(scope,g)).sort((a,b)=>(a.time+a.court).localeCompare(b.time+b.court));
+  const courts=[...new Set((state.courts||[]).map(c=>c.name).concat(games.map(g=>g.court)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+  const times=[...new Set(games.map(g=>g.time).filter(Boolean))].sort();
+  const slotMap={};games.forEach(g=>{const k=`${g.time}|${g.court}`;(slotMap[k]??=[]).push(g)});
+  const duplicateSlots=Object.values(slotMap).filter(arr=>arr.length>1).length;
+  const teamSlot={};let teamConflicts=0;games.forEach(g=>{[g.aId,g.bId].forEach(id=>{const k=`${g.time}|${id}`;teamSlot[k]=(teamSlot[k]||0)+1;if(teamSlot[k]===2)teamConflicts++})});
+  summary.innerHTML=`<span class="pill">${games.length} game(s)</span><span class="pill">${courts.length} court(s)</span><span class="pill">${times.length} occupied time(s)</span><span class="pill ${duplicateSlots?'warn':'ok'}">${duplicateSlots} court/time conflict(s)</span><span class="pill ${teamConflicts?'warn':'ok'}">${teamConflicts} team double-booking(s)</span>`;
+  if(!games.length){table.innerHTML='<tbody><tr><td class="calendar-empty">No scheduled games for this date and scope.</td></tr></tbody>';return}
+  table.innerHTML=`<thead><tr><th>Time</th>${courts.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${times.map(time=>`<tr><th>${fmtTime(time)}</th>${courts.map(c=>{const arr=slotMap[`${time}|${c}`]||[];return `<td class="calendar-cell ${arr.length>1?'calendar-conflict':''}">${arr.length?arr.map(g=>`<button class="calendar-game ${arr.length>1?'calendar-conflict':''}" type="button" data-calendar-game="${g.id}"><b>${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</b><br><span class="hint">${esc(divisionLabel(g.division))} • Pool ${esc(g.pool)}</span></button>`).join(''):'<span class="calendar-empty">—</span>'}</td>`}).join('')}</tr>`).join('')}</tbody>`;
+  document.querySelectorAll('[data-calendar-game]').forEach(b=>b.onclick=()=>openGameEditor(b.dataset.calendarGame));
+}
 function renderSchedule(){groupOptions($('scheduleFilter'));const f=$('scheduleFilter').value||'ALL',g=state.games.filter(x=>scopeMatchesGame(f,x)).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));$('scheduleTable').innerHTML='<thead><tr><th>Playing Date #</th><th>Date</th><th>Time</th><th>Court</th><th>Division / Pool</th><th>Matchup</th><th>Status</th><th>Result</th><th></th></tr></thead><tbody>'+g.map(x=>`<tr class="${x.pending?'pending-row':''}"><td>${x.week||''}</td><td>${x.date}</td><td>${fmtTime(x.time)}</td><td>${esc(x.court)}</td><td>${esc(divisionLabel(x.division))} — Pool ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td>${esc(x.status||'Scheduled')}${x.pending?' • Unpublished':''}</td><td>${x.sa==null?'—':x.sa+'–'+x.sb}</td><td><button class="edit-btn" data-edit-game="${x.id}">Edit</button></td></tr>`).join('')+'</tbody>';document.querySelectorAll('[data-edit-game]').forEach(b=>b.addEventListener('click',()=>openGameEditor(b.dataset.editGame)))}
 function sameSlot(g,date,time,court){return g.date===date&&g.time===time&&g.court===court}
 function gameWarnings(game,date,time,court,aId,bId){const warnings=[];if(aId===bId)warnings.push('A team cannot play itself.');const a=teamById(aId),b=teamById(bId);state.games.filter(g=>g.id!==game.id&&g.status!=='Cancelled').forEach(g=>{if(sameSlot(g,date,time,court))warnings.push(`Court conflict with ${teamById(g.aId).name} vs ${teamById(g.bId).name}.`);if(g.date===date&&g.time===time&&(g.aId===aId||g.bId===aId||g.aId===bId||g.bId===bId))warnings.push('One of the teams is already scheduled at that time.');const ga=teamById(g.aId),gb=teamById(g.bId),coaches=[a.coach,b.coach].filter(Boolean);if(g.date===date&&g.time===time&&coaches.some(c=>c===ga.coach||c===gb.coach))warnings.push('A shared coach is already scheduled at that time.')});const cfg=state.divisionConfig[game.division];if(cfg&&(time<cfg.start||time>=cfg.end))warnings.push(`Time is outside the division window (${fmtTime(cfg.start)}–${fmtTime(cfg.end)}).`);if(!state.courts.some(c=>c.name===court))warnings.push('The selected court is not an active playing surface.');return [...new Set(warnings)]}
@@ -1602,7 +1659,7 @@ function reportRuntimeIssue(label,err){
 function renderAll(){
   const steps=[
     ['Division Setup',renderDivisionSetup],['Director Dashboard',renderDashboard],['Registrations',renderTeams],['Duplicate Check',renderDuplicateNameStatus],
-    ['Resources',renderSettings],['Division & Pool Board',renderBoard],['Schedule',renderSchedule],['Schedule Management',renderManagement],
+    ['Resources',renderSettings],['Division & Pool Board',renderBoard],['Schedule',renderSchedule],['Court Calendar',renderCourtCalendar],['Schedule Management',renderManagement],
     ['Results',renderResults],['Standings',renderStandings],['Coach Selectors',renderCoachSelectors],['Coach Tools',renderCoach],['League Portal',renderPublic]
   ];
   const failures=[];
@@ -1631,7 +1688,7 @@ safeBind('addExceptionBtn','click',addException);safeBind('addCourtBtn','click',
 $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',generateSchedule);/* Audit buttons use inline safeRunScheduleAudit handlers so they remain functional even if another optional control binding fails. */
 ['managementDivision','managementWeek','managementStatus','managementCourt'].forEach(id=>$(id).addEventListener('change',renderManagement));
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
-$('exportScheduleBtn').addEventListener('click',exportSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});
+$('exportScheduleBtn').addEventListener('click',exportSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});safeBind('calendarDate','change',renderCourtCalendar);safeBind('calendarScope','change',renderCourtCalendar);safeBind('calendarPrintBtn','click',()=>window.print());
 $('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());$('sampleScoresBtn').addEventListener('click',createSampleScores);$('clearScoresBtn').addEventListener('click',clearAllScores);document.addEventListener('click',e=>{const close=e.target.closest&&e.target.closest('#closeTeamModal');if(close){e.preventDefault();e.stopPropagation();closeTeamModal();return}if(e.target===$('teamModal'))closeTeamModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTeamModal();closeGameEditor()}});
 document.querySelectorAll('#admin-settings input,#admin-settings select').forEach(e=>e.addEventListener('change',()=>{syncSettings();ensureDivisionConfig();persist();renderAll()}));
 $('addDivisionBtn').onclick=addDivision;$('detectDivisionsBtn').onclick=detectDivisions;$('autoAssignDivisionsBtn').onclick=autoAssignDivisions;
