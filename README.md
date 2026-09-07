@@ -1,4 +1,4 @@
-# MSS League Scheduler v11.11.22
+# MSS League Scheduler v11.11.23
 
 Regression / reliability release.
 
@@ -87,7 +87,7 @@ Court Group setup now requires an explicit Division selection when divisions exi
 - Added Schedule All Ready Divisions so blocked pools do not prevent other approved/ready divisions from being scheduled.
 - Entire League preflight now identifies blocked divisions instead of leaving the Director to hunt for the mismatch.
 
-## v11.11.22 — Physical courts + multiple availability windows
+## v11.11.23 — Physical courts + multiple availability windows
 - Playing Surfaces now represent a physical court once, with one or more availability windows. Adding the same court name again adds another time window instead of creating a duplicate court.
 - Existing duplicate court entries are merged automatically on load and Court Group references are preserved.
 - Playing Surfaces are sorted naturally (Court 1, Court 2, … Court 10) and each court shows its time blocks together.
@@ -95,13 +95,13 @@ Court Group setup now requires an explicit Division selection when divisions exi
 - Division/pool time synchronization uses the assigned Court Group. When multiple time blocks exist, HS divisions default to the later block and elementary/middle divisions to the earlier block; intentional custom restrictions are preserved.
 - Scheduling and capacity calculations now generate slots from all availability windows on each physical court.
 
-QA performed for v11.11.22:
+QA performed for v11.11.23:
 - JavaScript syntax check with Node.
 - Static check that the multi-window court functions, synchronization functions, and resource controls are present.
 - ZIP integrity verification.
 
 
-## v11.11.22
+## v11.11.23
 - Removes the hidden 6:00–8:00 division default for new divisions.
 - Re-synchronizes saved division windows from their assigned Court Groups when the stored time has no usable court overlap.
 - Court Groups may contain surfaces with different availability windows; scheduling uses each physical court only during its own available hours.
