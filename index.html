@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.14</title>
+<title>MSS League Scheduler v11.11.15</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -35,7 +35,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.14</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.15</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -470,7 +470,7 @@ function repairAccidentalSingleGroupAssignments(){
 }
 function normalizeLoadedState(){
   synchronizeDivisionState();
-  state.divisions=state.divisions||[];state.courtGroups=state.courtGroups||[];state.courtGroups.forEach(g=>{if(/^all\s+(courts|surfaces)$/i.test(g.name||''))g.dynamicAll=true});state.divisionConfig=state.divisionConfig||{};state.settings=state.settings||{};state.settings.gamesPerWeek=state.settings.gamesPerWeek||3;state.settings.seasonGuarantee=state.settings.seasonGuarantee||12;state.settings.maxGamesPerDate=state.settings.maxGamesPerDate||4;state.settings.days=Array.isArray(state.settings.days)?state.settings.days:[0];state.settings.exceptions=Array.isArray(state.settings.exceptions)?state.settings.exceptions:[];state.settings.exceptionNotes=state.settings.exceptionNotes||{};
+  state.divisions=state.divisions||[];state.courtGroups=state.courtGroups||[];state.courtGroups.forEach(g=>{if(/^all\s+(courts|surfaces)$/i.test(g.name||''))g.dynamicAll=true});state.divisionConfig=state.divisionConfig||{};state.settings=state.settings||{};state.settings.gamesPerWeek=state.settings.gamesPerWeek||3;state.settings.seasonGuarantee=state.settings.seasonGuarantee||12;state.settings.maxGamesPerDate=state.settings.maxGamesPerDate||4;state.settings.days=Array.isArray(state.settings.days)?state.settings.days:[0];state.settings.exceptions=Array.isArray(state.settings.exceptions)?state.settings.exceptions:[];state.settings.exceptionNotes=state.settings.exceptionNotes||{};Object.keys(state.divisionConfig||{}).forEach(d=>{const c=state.divisionConfig[d];if(!c.courtMode)c.courtMode='preferred';if(typeof c.overflowApproved!=='boolean')c.overflowApproved=false});
   if(!state.settings.seasonEnd){const weeks=Number(state.settings.seasonWeeks||8);state.settings.seasonEnd=addDaysISO(state.settings.seasonStart||new Date().toISOString().slice(0,10),weeks*7-1)}
   if(!state.divisions.length&&state.teams.length&&!Object.keys(state.pools||{}).length&&!state.teams.some(t=>t.divisionId)){const seen={};state.teams.forEach(t=>{const k=legacyDivisionKey(t);if(!seen[k]){const id='div_'+Math.random().toString(36).slice(2,9);seen[k]=id;state.divisions.push({id,name:t.sourceDivision||(()=>{const [g,se,lv]=k.split('|');return `${g} ${se} • ${lv}`})(),grades:[t.grade],gender:t.gender,skill:t.skill});}t.divisionId=seen[k]})}
   repairAccidentalSingleGroupAssignments();
@@ -981,11 +981,17 @@ function addException(){
 }
 function removeException(d){state.settings.exceptions=state.settings.exceptions.filter(x=>x!==d);if(state.settings.exceptionNotes)delete state.settings.exceptionNotes[d];persist();renderAll();showActionFeedback(`Off date ${d} removed.`)}
 function setDivisionConfig(d,field,value){
-  state.divisionConfig[d]=state.divisionConfig[d]||{start:'18:00',end:'20:00',courtGroupId:'',gamesPerWeek:state.settings.gamesPerWeek||3,seasonGuarantee:state.settings.seasonGuarantee||12,maxGamesPerDate:state.settings.maxGamesPerDate||4};
+  state.divisionConfig[d]=state.divisionConfig[d]||{start:'18:00',end:'20:00',courtGroupId:'',gamesPerWeek:state.settings.gamesPerWeek||3,seasonGuarantee:state.settings.seasonGuarantee||12,maxGamesPerDate:state.settings.maxGamesPerDate||4,courtMode:'preferred',overflowApproved:false};
   state.divisionConfig[d][field]=value;
-  if(field==='start'||field==='end')state.divisionConfig[d].timeWindowSource='custom';
-  if(field==='courtGroupId'){const group=state.courtGroups.find(g=>g.id===value);if(group)syncDivisionWindowToGroup(d,group,true)}
-  persist();renderAll();showActionFeedback(`${divisionLabel(d)} scheduling assignment updated.`)
+  if(field==='start'||field==='end'){state.divisionConfig[d].timeWindowSource='custom';state.divisionConfig[d].overflowApproved=false}
+  if(field==='courtGroupId'){
+    state.courtGroups.forEach(g=>{if(g.primaryDivisionId===d&&g.id!==value)g.primaryDivisionId=''});
+    const group=state.courtGroups.find(g=>g.id===value);
+    if(group){group.primaryDivisionId=d;syncDivisionWindowToGroup(d,group,true)}
+    state.divisionConfig[d].overflowApproved=false;
+  }
+  if(field==='courtMode'&&value!=='preferred')state.divisionConfig[d].overflowApproved=(value==='open');
+  persist();renderAll();showActionFeedback(`${divisionLabel(d)} scheduling assignment updated and saved.`)
 }
 function renderSettings(){
   $('exceptions').innerHTML=state.settings.exceptions.map(d=>`<div class="item"><b>${esc(d)}</b>${state.settings.exceptionNotes?.[d]?` <span class="hint">• ${esc(state.settings.exceptionNotes[d])}</span>`:''}<button class="danger" style="float:right;padding:4px 8px" data-remove-ex="${d}">Remove</button></div>`).join('')||'<span class="hint">No exception/off dates.</span>';
@@ -1012,7 +1018,8 @@ function renderDivisionAssignments(){
       <div class="field"><label>Calculated Season Minimum</label><input type="number" min="1" max="50" value="${c.seasonGuarantee||state.settings.seasonGuarantee||12}" data-div="${esc(d)}" data-div-field="seasonGuarantee" readonly></div>
       <div class="field"><label>Minimum Games / Playing Date</label><input type="number" min="1" max="8" value="${c.gamesPerWeek||state.settings.gamesPerWeek||3}" data-div="${esc(d)}" data-div-field="gamesPerWeek"></div>
       <div class="field"><label>Maximum Games / Playing Date</label><input type="number" min="1" max="8" value="${c.maxGamesPerDate||state.settings.maxGamesPerDate||4}" data-div="${esc(d)}" data-div-field="maxGamesPerDate"></div>
-    </div></div>`;
+      <div class="field"><label>Court Use</label><select data-div="${esc(d)}" data-div-field="courtMode"><option value="preferred" ${(c.courtMode||'preferred')==='preferred'?'selected':''}>Preferred — primary courts first; offer overflow if needed</option><option value="exclusive" ${c.courtMode==='exclusive'?'selected':''}>Exclusive — assigned group only</option><option value="open" ${c.courtMode==='open'?'selected':''}>Open — any compatible court</option></select></div>
+    </div>${(c.courtMode||'preferred')==='preferred'?`<div class="hint"><b>Overflow:</b> ${c.overflowApproved?'Approved for this division. Compatible open courts may be used after primary courts fill.':'Not approved. If primary courts are short, Generate Schedule will search the facility and ask before using overflow courts.'}</div>`:''}</div>`;
   }).join('')||'<div class="status warn">No divisions exist yet. Import or add teams on the Registrations page; division rows will appear here automatically.</div>';
   document.querySelectorAll('[data-div-field]').forEach(e=>e.addEventListener('change',()=>setDivisionConfig(e.dataset.div,e.dataset.divField,e.type==='number'?Number(e.value):e.value)));
 }
@@ -1034,26 +1041,49 @@ function renderCapacity(){
 
 function seasonDatesRaw(){const s=new Date((state.settings.seasonStart||'')+'T00:00:00'),end=new Date((state.settings.seasonEnd||'')+'T00:00:00');if(isNaN(s)||isNaN(end)||end<s)return[];const exc=new Set(state.settings.exceptions||[]),days=state.settings.days||[],out=[];for(let d=new Date(s);d<=end;d.setDate(d.getDate()+1)){const iso=d.toISOString().slice(0,10);if(days.includes(d.getDay())&&!exc.has(iso))out.push(iso)}return out}
 function seasonDates(){syncSettings();return seasonDatesRaw()}
-function divisionSlots(d,date){
-  const cfg=state.divisionConfig[d],group=state.courtGroups.find(g=>g.id===cfg?.courtGroupId);
-  if(!cfg||!group||cfg.start>=cfg.end)return[];
-  const len=state.settings.gameLength,out=[];
-  groupSurfaceIds(group).forEach(id=>{
+function slotsOnSurfaces(d,date,surfaceIds){
+  const cfg=state.divisionConfig[d];if(!cfg||!cfg.start||!cfg.end||cfg.start>=cfg.end)return[];
+  const len=Number(state.settings.gameLength||20),out=[];
+  surfaceIds.forEach(id=>{
     const surface=state.courts.find(c=>c.id===id);if(!surface)return;
     const start=Math.max(minutes(surface.start),minutes(cfg.start)),end=Math.min(minutes(surface.end),minutes(cfg.end));
     for(let m=start;m+len<=end;m+=len){
       const time=`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-      out.push({date,time,court:surface.name,stamp:new Date(`${date}T${time}:00`).getTime()})
+      out.push({date,time,court:surface.name,stamp:new Date(`${date}T${time}:00`).getTime(),surfaceId:id})
     }
   });
   return out.sort((a,b)=>a.stamp-b.stamp||a.court.localeCompare(b.court))
+}
+function baseDivisionSlots(d,date){
+  const cfg=state.divisionConfig[d],group=state.courtGroups.find(g=>g.id===cfg?.courtGroupId);
+  if(!cfg||!group)return[];
+  return slotsOnSurfaces(d,date,groupSurfaceIds(group)).map(s=>({...s,overflow:false}))
+}
+function allFacilitySlotsForDivision(d,date){return slotsOnSurfaces(d,date,state.courts.map(c=>c.id))}
+function divisionSlots(d,date){
+  const cfg=state.divisionConfig[d]||{},base=baseDivisionSlots(d,date),mode=cfg.courtMode||'preferred';
+  if(mode==='exclusive'||(mode==='preferred'&&!cfg.overflowApproved))return base;
+  const baseKeys=new Set(base.map(s=>`${s.date}|${s.time}|${s.court}`));
+  const extras=allFacilitySlotsForDivision(d,date).filter(s=>!baseKeys.has(`${s.date}|${s.time}|${s.court}`)).map(s=>({...s,overflow:true}));
+  return [...base,...extras].sort((a,b)=>a.stamp-b.stamp||Number(a.overflow)-Number(b.overflow)||a.court.localeCompare(b.court))
+}
+function overflowSuggestionForDivision(d,divisionTargets,dates,retainedGames=[]){
+  const cfg=state.divisionConfig[d]||{},mode=cfg.courtMode||'preferred';if(mode==='exclusive')return null;
+  const minimum=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3);
+  const required=divisionTargets.reduce((sum,t)=>sum+Math.ceil([...new Set(t.ids||[])].length*minimum/2)*dates.length,0);
+  const occupied=new Set(retainedGames.map(g=>`${g.date}|${g.time}|${g.court}`));
+  const base=[],all=[];dates.forEach(date=>{base.push(...baseDivisionSlots(d,date));all.push(...allFacilitySlotsForDivision(d,date))});
+  const unique=arr=>[...new Map(arr.map(sl=>[`${sl.date}|${sl.time}|${sl.court}`,sl])).values()].filter(sl=>!occupied.has(`${sl.date}|${sl.time}|${sl.court}`));
+  const b=unique(base),a=unique(all),baseKeys=new Set(b.map(sl=>`${sl.date}|${sl.time}|${sl.court}`)),extra=a.filter(sl=>!baseKeys.has(`${sl.date}|${sl.time}|${sl.court}`));
+  const courts={};extra.forEach(sl=>courts[sl.court]=(courts[sl.court]||0)+1);
+  return {required,baseAvailable:b.length,totalAvailable:a.length,extraAvailable:extra.length,courts:Object.entries(courts).sort((x,y)=>y[1]-x[1])}
 }
 function pairId(a,b){return [a,b].sort().join('|')}
 function hasUnplayedOpponent(id,ids,pairCounts){return ids.some(x=>x!==id&&(pairCounts[pairId(id,x)]||0)===0)}
 function opponentRotationAllows(a,b,ids,pairCounts){
   if(!state.settings.playAllTeamsOnce)return true;
   const played=pairCounts[pairId(a,b)]||0;if(played===0)return true;
-  // A repeat is legal only after BOTH teams have already faced every available pool opponent.
+  // STRUCTURAL ROUND-ROBIN CYCLE: a repeat is not eligible until BOTH teams have faced every available pool opponent.
   return !hasUnplayedOpponent(a,ids,pairCounts)&&!hasUnplayedOpponent(b,ids,pairCounts);
 }
 function chronologicalPairCounts(games,division,pool,date,time){
@@ -1224,7 +1254,7 @@ function targetFeasibility(d,pool,ids,guarantee,maxPerDate,dates,scope,fairPlan)
   return {requiredGames,availableSlots,oddTeamGameTotal,shortTeams,teamOpportunity,possible:!oddTeamGameTotal&&availableSlots>=requiredGames&&!shortTeams.length}
 }
 
-// v11.11.14 — iterative post-generation repair engine.
+// v11.11.15 — iterative post-generation repair engine.
 // The generator first satisfies nightly/season counts, then this local-search pass repairs
 // matchup/slot side effects without changing any team's games-per-date totals.
 function repairScoreForSchedule(allGames,touchedPools){
@@ -1291,7 +1321,9 @@ function autoRepairGeneratedSchedule(newGames,retainedGames,targets){
           const v1=g1[e1],v2=g2[e2];if(!v1||!v2||v1===v2)continue;
           g1[e1]=v2;g2[e2]=v1;
           const next=repairScoreForSchedule([...retainedGames,...newGames],touchedPools);
-          if(next.score<current.score){current=next;iterations++;improved=true;break outer}
+          const preservesRotation=!state.settings.playAllTeamsOnce||next.rotation<=current.rotation;
+          const preservesImmediate=!state.settings.avoidImmediateRematches||next.immediate<=current.immediate;
+          if(next.score<current.score&&preservesRotation&&preservesImmediate){current=next;iterations++;improved=true;break outer}
           g1[e1]=v1;g2[e2]=v2;
         }
       }
@@ -1316,8 +1348,24 @@ function generateSchedule(){
   const validation=scheduleValidation(targets);if(validation.length)return alert(validation.join('\n'));
 
   const dates=seasonDates(),used=new Set(),teamTimes={},coachTimes={},newGames=[],warnings=[],feasibilityNotes=[];
-  const fairPlan=buildFairDivisionSlotPlan(scope,targets,dates);
   const retainedGames=scope==='ALL'?[]:state.games.filter(g=>!scopeMatchesGame(scope,g));
+  const targetDivisions=[...new Set(targets.map(t=>t.division))];
+  for(const d of targetDivisions){
+    const cfg=state.divisionConfig[d]||{},mode=cfg.courtMode||'preferred';if(mode!=='preferred'||cfg.overflowApproved)continue;
+    const suggestion=overflowSuggestionForDivision(d,targets.filter(t=>t.division===d),dates,retainedGames);
+    if(suggestion&&suggestion.baseAvailable<suggestion.required&&suggestion.totalAvailable>=suggestion.required){
+      const short=suggestion.required-suggestion.baseAvailable,top=suggestion.courts.slice(0,6).map(([c,n])=>`${c} (${n} open slots)`).join(', ');
+      const ok=confirm(`${divisionLabel(d)} is short ${short} primary-court slot(s).
+
+The scheduler found ${suggestion.extraAvailable} compatible open slot(s) elsewhere in the facility${top?` on ${top}`:''}.
+
+Use available overflow courts for this division?
+
+Primary courts will still be used first.`);
+      if(ok){cfg.overflowApproved=true;persist();showActionFeedback(`${divisionLabel(d)}: overflow courts approved. Primary courts remain first choice.`)}
+    }
+  }
+  const fairPlan=buildFairDivisionSlotPlan(scope,targets,dates);
   seedConflictMaps(retainedGames,used,teamTimes,coachTimes);
 
   // Preflight capacity / feasibility check. A season guarantee is a hard target, so do not silently
@@ -1330,7 +1378,7 @@ function generateSchedule(){
     const f=targetFeasibility(d,pool,ids,guarantee,maxPerDate,dates,scope,fairPlan),label=`${divisionLabel(d)} — Pool ${pool}`;
     feasibilityNotes.push(`${label}: requires ${f.requiredGames} games; ${f.availableSlots} assigned court/time slots available using ${state.settings.gameLength}-minute games across ${dates.length} playing date(s), ${groupSurfaceIds(state.courtGroups.find(g=>g.id===(state.divisionConfig[d]||{}).courtGroupId)).length} surface(s), ${(state.divisionConfig[d]||{}).start||'?'}–${(state.divisionConfig[d]||{}).end||'?'}.`);
     if(f.oddTeamGameTotal)hardPreflight.push(`${label}: ${ids.length} teams × ${guarantee} guaranteed games produces an odd total of team-games, so equal guarantees are mathematically impossible.`);
-    if(f.availableSlots<f.requiredGames)hardPreflight.push(`${label}: needs ${f.requiredGames} games but only ${f.availableSlots} court/time slots are available.`);
+    if(f.availableSlots<f.requiredGames){const sug=overflowSuggestionForDivision(d,targets.filter(t=>t.division===d),dates,retainedGames),mode=(state.divisionConfig[d]||{}).courtMode||'preferred';let extra='';if(sug&&sug.totalAvailable>=f.requiredGames&&mode!=='exclusive'&&!(state.divisionConfig[d]||{}).overflowApproved)extra=' Compatible overflow capacity exists elsewhere in the facility; choose Preferred/Open court use and approve overflow when prompted.';hardPreflight.push(`${label}: needs ${f.requiredGames} games but only ${f.availableSlots} court/time slots are available.${extra}`)}
     f.shortTeams.forEach(id=>hardPreflight.push(`${label}: ${teamById(id).name} can reach at most ${f.teamOpportunity[id]} games under the current dates, requests, rest rule, and max-games-per-date setting (guarantee ${guarantee}).`));
     if(f.shortTeams.length&&!state.settings.allowBackToBack&&minimum>=3)hardPreflight.push(`${label}: Back-to-Back Games is OFF. A minimum of ${minimum} games per team per night commonly requires consecutive game slots. Enable Back-to-Back Games or add more time/court capacity.`);
   });
@@ -1504,7 +1552,7 @@ function runScheduleAudit(allLeague=false){
   if(!games.length){$('scheduleAudit').innerHTML='<div class="status warn">No scheduled games are available to audit for this scope.</div>';return}
   const targetPools=[];Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{if(scopeMatches(selected,d,pool))targetPools.push({d,pool,ids})}));
   const results=[],gameLen=Number(state.settings.gameLength||20),dates=seasonDates();
-  let self=[],teamDouble=[],courtDouble=[],windowBad=[],courtBad=[],requestBad=[],coachBad=[],maxBad=[],guaranteeBad=[],minimumDateBad=[],overflowWarn=[],immediateBad=[],allBeforeRepeatBad=[],restBad=[],fairnessWarn=[];
+  let self=[],teamDouble=[],courtDouble=[],windowBad=[],courtBad=[],requestBad=[],coachBad=[],maxBad=[],guaranteeBad=[],minimumDateBad=[],overflowWarn=[],overflowCourtInfo=[],immediateBad=[],allBeforeRepeatBad=[],restBad=[],fairnessWarn=[];
   const slotCourt={},slotTeam={},slotCoach={};
   games.forEach(g=>{
     if(g.aId===g.bId)self.push(`${teamById(g.aId).name} on ${g.date}`);
@@ -1513,7 +1561,7 @@ function runScheduleAudit(allLeague=false){
     if(state.settings.protectSharedCoaches)for(const id of [g.aId,g.bId]){const c=teamById(id).coach;if(c){const ck=`${g.date}|${g.time}|${c}`;(slotCoach[ck]??=[]).push(g)}}
     const cfg=state.divisionConfig[g.division],grp=state.courtGroups.find(x=>x.id===cfg?.courtGroupId),approvedCourts=new Set((grp?groupSurfaceIds(grp):[]).map(id=>state.courts.find(c=>c.id===id)?.name).filter(Boolean));
     if(cfg&&(g.time<cfg.start||g.time>=cfg.end))windowBad.push(`${divisionLabel(g.division)}: ${g.date} ${fmtTime(g.time)} ${teamById(g.aId).name} vs ${teamById(g.bId).name}`);
-    if(grp&&!approvedCourts.has(g.court))courtBad.push(`${divisionLabel(g.division)}: ${g.court}`);
+    if(grp&&!approvedCourts.has(g.court)){const mode=cfg?.courtMode||'preferred',overflowOK=mode==='open'||(mode==='preferred'&&cfg?.overflowApproved);if(overflowOK)overflowCourtInfo.push(`${divisionLabel(g.division)}: ${g.date} ${fmtTime(g.time)} on ${g.court}`);else courtBad.push(`${divisionLabel(g.division)}: ${g.court}`)}
     if(state.settings.honorScheduleRequests){if(!allowed(teamById(g.aId),{date:g.date,time:g.time})||!allowed(teamById(g.bId),{date:g.date,time:g.time}))requestBad.push(`${g.date} ${fmtTime(g.time)}: ${teamById(g.aId).name} vs ${teamById(g.bId).name}`)}
   });
   Object.entries(slotCourt).filter(([k,v])=>v.length>1).forEach(([k])=>courtDouble.push(k));Object.entries(slotTeam).filter(([k,v])=>v.length>1).forEach(([k])=>teamDouble.push(k));Object.entries(slotCoach).filter(([k,v])=>v.length>1).forEach(([k])=>coachBad.push(k));
@@ -1535,7 +1583,7 @@ function runScheduleAudit(allLeague=false){
     if(avgs.length>1){const lo=Math.min(...avgs.map(x=>x.avg)),hi=Math.max(...avgs.map(x=>x.avg));if(hi-lo>.18)fairnessWarn.push(`${divisionLabel(d)}: ${avgs.map(x=>`Pool ${x.pool} average slot ${Math.round(x.avg*100)}% through the time window`).join('; ')}. Schedule the Entire Division together to rebalance early and late games.`)}
   });
   const row=(label,viol,detail,soft=false)=>results.push(auditResult(label,viol.length?(soft?'WARN':'FAIL'):'PASS',viol.length?`${viol.length} issue(s)`:detail,viol));
-  row('No self-matchups',self,'No self-games');row('No team double-booking',teamDouble,'No teams scheduled twice in the same slot');row('No court double-booking',courtDouble,'No courts double-booked');row('Division time windows',windowBad,'All games inside assigned division windows');row('Assigned court groups',courtBad,'All games use approved courts');row('Team schedule requests',requestBad,state.settings.honorScheduleRequests?'All requests honored':'Rule is OFF',false);row('Shared-coach conflicts',coachBad,state.settings.protectSharedCoaches?'No shared-coach conflicts':'Rule is OFF');row('Minimum games per playing date',minimumDateBad,'Every available team receives at least its minimum games on every playing date');row('Calculated season minimum',guaranteeBad,'Every team meets the calculated season minimum');row('Maximum games per playing date',maxBad,'No team exceeds its maximum');row('Immediate rematches',immediateBad,state.settings.avoidImmediateRematches?'No immediate rematches':'Rule is OFF',!state.settings.avoidImmediateRematches);row('All opponents before repeats',allBeforeRepeatBad,state.settings.playAllTeamsOnce?'Opponent rotation satisfied chronologically — future games never justify an earlier repeat':'Rule is OFF',!state.settings.playAllTeamsOnce);row('Rest / back-to-back rule',restBad,'Rest rule satisfied');row('Time-slot fairness',fairnessWarn,'Pools are reasonably balanced across early, middle, and late slots',true);
+  row('No self-matchups',self,'No self-games');row('No team double-booking',teamDouble,'No teams scheduled twice in the same slot');row('No court double-booking',courtDouble,'No courts double-booked');row('Division time windows',windowBad,'All games inside assigned division windows');row('Assigned court groups',courtBad,'All games use primary courts or Director-approved overflow courts');row('Overflow court usage',overflowCourtInfo,overflowCourtInfo.length?'Director-approved overflow courts were used':'No overflow courts used',true);row('Team schedule requests',requestBad,state.settings.honorScheduleRequests?'All requests honored':'Rule is OFF',false);row('Shared-coach conflicts',coachBad,state.settings.protectSharedCoaches?'No shared-coach conflicts':'Rule is OFF');row('Minimum games per playing date',minimumDateBad,'Every available team receives at least its minimum games on every playing date');row('Calculated season minimum',guaranteeBad,'Every team meets the calculated season minimum');row('Maximum games per playing date',maxBad,'No team exceeds its maximum');row('Immediate rematches',immediateBad,state.settings.avoidImmediateRematches?'No immediate rematches':'Rule is OFF',!state.settings.avoidImmediateRematches);row('All opponents before repeats',allBeforeRepeatBad,state.settings.playAllTeamsOnce?'Opponent rotation satisfied chronologically — future games never justify an earlier repeat':'Rule is OFF',!state.settings.playAllTeamsOnce);row('Rest / back-to-back rule',restBad,'Rest rule satisfied');row('Time-slot fairness',fairnessWarn,'Pools are reasonably balanced across early, middle, and late slots',true);
   // An odd-sized pool with an odd nightly minimum mathematically requires at least one
   // team to take an extra game. Report those expected overflow games as PASS rather than WARN.
   const unexpectedOverflow=overflowWarn.filter(msg=>{
