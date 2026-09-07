@@ -1,4 +1,4 @@
-# MSS League Scheduler v11.11.24
+# MSS League Scheduler v11.11.25
 
 Regression / reliability release.
 
@@ -109,14 +109,18 @@ QA performed for v11.11.23:
 - Improves overlap diagnostics so stale time defaults do not masquerade as missing assignments.
 
 
-## v11.11.24 — Bounded overflow scheduling / performance hotfix
+## v11.11.25 — Bounded overflow scheduling / performance hotfix
 - Reworks approved overflow-court scheduling so the generator does not search every compatible court/time combination in the facility.
 - Builds a small, ranked overflow plan per pool/date, using primary courts first and only enough extra slots to cover the expected shortage plus a limited safety buffer.
 - Caps nightly repair loops, season-repair loops, and post-generation swap repairs so the browser returns a result instead of running indefinitely.
 - Existing overflow approval behavior remains: the Director must approve use of additional courts before they are considered.
 - Capacity, audit, Court Calendar, pool-specific court groups, and Division Week/Season exports remain available.
 
-QA performed for v11.11.24:
+QA performed for v11.11.25:
 - JavaScript extracted from the standalone HTML and syntax-checked with Node.
 - Static verification of bounded overflow planning and loop caps.
 - ZIP integrity verification.
+
+
+## v11.11.25 stability change
+Alternate/overflow-court approval is now a separate saved step. Approving alternate courts does not continue into schedule generation. Click Generate Schedule again after approval. A visible scheduling-stage indicator was also added to help isolate any future long-running stage.

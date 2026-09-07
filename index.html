@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.24</title>
+<title>MSS League Scheduler v11.11.25</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -35,7 +35,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.24</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.25</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -970,7 +970,7 @@ function mergeDuplicatePlayingSurfaces(){
   state.courtGroups.forEach(g=>{g.surfaceIds=[...new Set((g.surfaceIds||[]).map(id=>idMap.get(id)||id).filter(id=>state.courts.some(c=>c.id===id)))]});
 }
 function commonGroupWindows(group){
-  // v11.11.24: a court group does not require every surface to share the exact same hours.
+  // v11.11.25: a court group does not require every surface to share the exact same hours.
   // Build the group availability from the UNION of member-surface windows; actual capacity
   // is still calculated court-by-court, so a court is never used outside its own hours.
   const surfaces=groupSurfaceIds(group).map(id=>state.courts.find(c=>c.id===id)).filter(Boolean);
@@ -1327,7 +1327,7 @@ function divisionSlots(d,date){
   return [...m.values()].sort((a,b)=>a.stamp-b.stamp||a.court.localeCompare(b.court))
 }
 
-// v11.11.24 — bounded overflow planning.
+// v11.11.25 — bounded overflow planning.
 // Overflow searches are intentionally limited to a small, ranked set of compatible slots.
 // This prevents a full-facility combinatorial search from freezing the browser.
 let runtimeOverflowPlan=new Map();
@@ -1698,6 +1698,11 @@ function generateSchedule(){
   const retainedGames=scope==='ALL'?[]:state.games.filter(g=>!scopeMatchesGame(scope,g));
   const targetDivisions=[...new Set(targets.map(t=>t.division))];
   resetRuntimeOverflowPlan();
+  // v11.11.25 — overflow approval and schedule generation are deliberately separate actions.
+  // Approving alternate courts records permission only; it never continues into generation in the
+  // same call stack. This prevents approval -> recheck -> regenerate loops from freezing Chrome.
+  let overflowApprovalChanged=false;
+  const approvedLabels=[];
   for(const t of targets){
     const d=t.division,pool=t.pool,cfg=poolResourceConfig(d,pool),mode=cfg.courtMode||'preferred';if(mode!=='preferred'||cfg.overflowApproved)continue;
     const suggestion=overflowSuggestionForTarget(d,pool,t.ids,dates,retainedGames);
@@ -1707,16 +1712,35 @@ function generateSchedule(){
 
 The scheduler found ${suggestion.extraAvailable} compatible open slot(s) elsewhere in the facility${top?` on ${top}`:''}.
 
-Use available overflow courts for this pool?
+Approve available overflow courts for this pool?
 
-Primary courts will still be used first.`);
-      if(ok){const ov=ensurePoolResourceOverrides(d);ov[pool]=ov[pool]||{};ov[pool].overflowApproved=true;persist();showActionFeedback(`${label}: overflow courts approved. Primary courts remain first choice.`)}
+This approval will be saved. Click Generate Schedule again to build the schedule.`);
+      if(ok){
+        const ov=ensurePoolResourceOverrides(d);ov[pool]=ov[pool]||{};ov[pool].overflowApproved=true;
+        overflowApprovalChanged=true;approvedLabels.push(label);
+      }
     }
   }
+  if(overflowApprovalChanged){
+    persist();
+    $('genSummary').innerHTML=`<div class="status ok"><b>Alternate courts approved.</b><br>${approvedLabels.map(esc).join('<br>')}<br><br><b>Click Generate Schedule again to continue.</b> Approval is now saved; no schedule generation was run during this approval step.</div>`;
+    setTab('schedule');
+    return;
+  }
+
+  const stageStarted=performance.now();
+  const setGenerationStage=(label)=>{
+    const elapsed=((performance.now()-stageStarted)/1000).toFixed(1);
+    $('genSummary').innerHTML=`<div class="status"><b>Scheduling stage:</b> ${esc(label)} <span class="hint">(${elapsed}s)</span></div>`;
+  };
+  setGenerationStage('Preparing approved court capacity');
   const overflowPlanNotes=prepareBoundedOverflowPlans(targets,dates,retainedGames);
   if(overflowPlanNotes.length)feasibilityNotes.push(...overflowPlanNotes);
+  setGenerationStage('Building time-slot plan');
   const fairPlan=buildFairDivisionSlotPlan(scope,targets,dates);
   seedConflictMaps(retainedGames,used,teamTimes,coachTimes);
+
+  setGenerationStage('Checking capacity and availability');
 
   // Preflight capacity / feasibility check. A season guarantee is a hard target, so do not silently
   // generate an obviously impossible schedule when the assigned dates/courts cannot support it.
@@ -1737,6 +1761,7 @@ Primary courts will still be used first.`);
     setTab('schedule');return alert('The Schedule Feasibility Check found a hard capacity/availability problem. Review the details shown on the Schedule page before generating.');
   }
 
+  setGenerationStage('Placing games');
   targets.forEach(({division:d,pool,ids:rawIds})=>{
     const ids=[...new Set(rawIds)].filter(Boolean);if(ids.length<2)return;
     const cfg=poolResourceConfig(d,pool);
