@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.23</title>
+<title>MSS League Scheduler v11.11.24</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -35,7 +35,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.23</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.24</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -970,7 +970,7 @@ function mergeDuplicatePlayingSurfaces(){
   state.courtGroups.forEach(g=>{g.surfaceIds=[...new Set((g.surfaceIds||[]).map(id=>idMap.get(id)||id).filter(id=>state.courts.some(c=>c.id===id)))]});
 }
 function commonGroupWindows(group){
-  // v11.11.23: a court group does not require every surface to share the exact same hours.
+  // v11.11.24: a court group does not require every surface to share the exact same hours.
   // Build the group availability from the UNION of member-surface windows; actual capacity
   // is still calculated court-by-court, so a court is never used outside its own hours.
   const surfaces=groupSurfaceIds(group).map(id=>state.courts.find(c=>c.id===id)).filter(Boolean);
@@ -1308,8 +1308,14 @@ function poolSlots(d,pool,date){
   const cfg=poolResourceConfig(d,pool),base=basePoolSlots(d,pool,date),mode=cfg.courtMode||'preferred';
   if(mode==='exclusive'||(mode==='preferred'&&!cfg.overflowApproved))return base;
   const baseKeys=new Set(base.map(s=>`${s.date}|${s.time}|${s.court}`));
-  const extras=allFacilitySlotsForPool(d,pool,date).filter(s=>!baseKeys.has(`${s.date}|${s.time}|${s.court}`)).map(s=>({...s,overflow:true}));
-  return [...base,...extras].sort((a,b)=>a.stamp-b.stamp||Number(a.overflow)-Number(b.overflow)||a.court.localeCompare(b.court))
+  const planned=runtimeOverflowPlan.get(overflowPlanKey(d,pool,date));
+  // During schedule generation, use only the bounded overflow plan. Outside generation,
+  // fall back to a small capped set so audits/calendar rendering also remain responsive.
+  let extras=allFacilitySlotsForPool(d,pool,date).filter(s=>!baseKeys.has(`${s.date}|${s.time}|${s.court}`));
+  if(planned)extras=extras.filter(s=>planned.has(`${s.date}|${s.time}|${s.court}`));
+  else extras=extras.slice(0,24);
+  extras=extras.map(s=>({...s,overflow:true}));
+  return [...base,...extras].sort((a,b)=>a.stamp-b.stamp||Number(a.overflow)-Number(b.overflow)||a.court.localeCompare(b.court,undefined,{numeric:true,sensitivity:'base'}))
 }
 function baseDivisionSlots(d,date){
   const p=Object.keys(state.pools?.[d]?.lists||{})[0];return p?basePoolSlots(d,p,date):[]
@@ -1319,6 +1325,55 @@ function divisionSlots(d,date){
   const pools=Object.keys(state.pools?.[d]?.lists||{});const m=new Map();
   pools.forEach(p=>poolSlots(d,p,date).forEach(sl=>m.set(`${sl.date}|${sl.time}|${sl.court}`,sl)));
   return [...m.values()].sort((a,b)=>a.stamp-b.stamp||a.court.localeCompare(b.court))
+}
+
+// v11.11.24 — bounded overflow planning.
+// Overflow searches are intentionally limited to a small, ranked set of compatible slots.
+// This prevents a full-facility combinatorial search from freezing the browser.
+let runtimeOverflowPlan=new Map();
+const overflowPlanKey=(d,pool,date)=>`${d}||${pool}||${date}`;
+function resetRuntimeOverflowPlan(){runtimeOverflowPlan=new Map()}
+function chooseBoundedOverflowSlots(d,pool,ids,dates,retainedGames=[]){
+  const cfg=poolResourceConfig(d,pool),minimum=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3);
+  const occupied=new Set(retainedGames.map(g=>`${g.date}|${g.time}|${g.court}`));
+  const selected=[];
+  const perDateNeed=Math.ceil([...new Set(ids||[])].length*minimum/2);
+  for(const date of dates){
+    const base=basePoolSlots(d,pool,date).filter(sl=>!occupied.has(`${sl.date}|${sl.time}|${sl.court}`));
+    const baseKeys=new Set(base.map(sl=>`${sl.date}|${sl.time}|${sl.court}`));
+    const extras=allFacilitySlotsForPool(d,pool,date)
+      .filter(sl=>!occupied.has(`${sl.date}|${sl.time}|${sl.court}`)&&!baseKeys.has(`${sl.date}|${sl.time}|${sl.court}`));
+    const shortage=Math.max(0,perDateNeed-base.length);
+    // Keep enough headroom for coach/request/rest constraints, but never expose the full facility search.
+    const budget=Math.min(extras.length,Math.max(shortage,Math.min(8,Math.ceil(ids.length/2)+2)));
+    if(budget<=0)continue;
+    const courtUse={};
+    extras.sort((a,b)=>{
+      const ca=courtUse[a.court]||0,cb=courtUse[b.court]||0;
+      return ca-cb||a.stamp-b.stamp||a.court.localeCompare(b.court,undefined,{numeric:true,sensitivity:'base'});
+    });
+    const picked=[];
+    for(const sl of extras){
+      if(picked.length>=budget)break;
+      picked.push(sl);
+      courtUse[sl.court]=(courtUse[sl.court]||0)+1;
+    }
+    runtimeOverflowPlan.set(overflowPlanKey(d,pool,date),new Set(picked.map(sl=>`${sl.date}|${sl.time}|${sl.court}`)));
+    selected.push(...picked);
+  }
+  return selected;
+}
+function prepareBoundedOverflowPlans(targets,dates,retainedGames=[]){
+  resetRuntimeOverflowPlan();
+  const summary=[];
+  for(const t of targets){
+    const cfg=poolResourceConfig(t.division,t.pool),mode=cfg.courtMode||'preferred';
+    if(mode==='open'||(mode==='preferred'&&cfg.overflowApproved)){
+      const picked=chooseBoundedOverflowSlots(t.division,t.pool,t.ids,dates,retainedGames);
+      if(picked.length)summary.push(`${divisionLabel(t.division)} — ${poolDisplayName(t.division,t.pool)}: ${picked.length} bounded overflow slot(s) available`);
+    }
+  }
+  return summary;
 }
 function overflowSuggestionForTarget(d,pool,ids,dates,retainedGames=[]){
   const cfg=poolResourceConfig(d,pool),mode=cfg.courtMode||'preferred';if(mode==='exclusive')return null;
@@ -1566,7 +1621,7 @@ function autoRepairGeneratedSchedule(newGames,retainedGames,targets){
     const m={};newGames.forEach((g,i)=>{const k=`${g.division}|${g.pool}|${g.date}`;(m[k]??=[]).push(i)});return Object.values(m)
   };
   let improved=true;
-  while(improved&&iterations<240){
+  while(improved&&iterations<100){
     improved=false;
     outer: for(const idxs of groupIndexes()){
       for(let x=0;x<idxs.length;x++)for(let y=x+1;y<idxs.length;y++){
@@ -1642,6 +1697,7 @@ function generateSchedule(){
   const dates=seasonDates(),used=new Set(),teamTimes={},coachTimes={},newGames=[],warnings=[],feasibilityNotes=[];
   const retainedGames=scope==='ALL'?[]:state.games.filter(g=>!scopeMatchesGame(scope,g));
   const targetDivisions=[...new Set(targets.map(t=>t.division))];
+  resetRuntimeOverflowPlan();
   for(const t of targets){
     const d=t.division,pool=t.pool,cfg=poolResourceConfig(d,pool),mode=cfg.courtMode||'preferred';if(mode!=='preferred'||cfg.overflowApproved)continue;
     const suggestion=overflowSuggestionForTarget(d,pool,t.ids,dates,retainedGames);
@@ -1657,6 +1713,8 @@ Primary courts will still be used first.`);
       if(ok){const ov=ensurePoolResourceOverrides(d);ov[pool]=ov[pool]||{};ov[pool].overflowApproved=true;persist();showActionFeedback(`${label}: overflow courts approved. Primary courts remain first choice.`)}
     }
   }
+  const overflowPlanNotes=prepareBoundedOverflowPlans(targets,dates,retainedGames);
+  if(overflowPlanNotes.length)feasibilityNotes.push(...overflowPlanNotes);
   const fairPlan=buildFairDivisionSlotPlan(scope,targets,dates);
   seedConflictMaps(retainedGames,used,teamTimes,coachTimes);
 
@@ -1700,7 +1758,7 @@ Primary courts will still be used first.`);
         dailyTargets[id]=Math.min(maxPerDate,remaining,Math.max(Math.min(preferred,remaining),catchUp));
       });
       const dailyLast={};let guard=0;
-      while(ids.some(id=>dailyCounts[id]<dailyTargets[id]&&seasonCounts[id]<guarantee)&&guard++<2500){
+      while(ids.some(id=>dailyCounts[id]<dailyTargets[id]&&seasonCounts[id]<guarantee)&&guard++<600){
         let placed=false;const candidates=candidatePairsFlexible(ids,dailyCounts,dailyTargets,seasonCounts,guarantee,pairCounts,{...lastOpponent,...dailyLast});
         for(const cand of candidates){
           const {a,b}=cand,ta=teamById(a),tb=teamById(b);let found=null;
@@ -1742,7 +1800,7 @@ Primary courts will still be used first.`);
         });
       });
       let guard=0;
-      while(ids.some(id=>dailyCounts[id]<preferred&&available.some(sl=>allowed(teamById(id),sl)))&&guard++<2500){
+      while(ids.some(id=>dailyCounts[id]<preferred&&available.some(sl=>allowed(teamById(id),sl)))&&guard++<600){
         let placed=false;const candidates=candidatePairsDailyMinimum(ids,dailyCounts,preferred,maxPerDate,pairCounts,lastOpponent,overflowHistory);
         for(const cand of candidates){
           const {a,b}=cand,ta=teamById(a),tb=teamById(b);let found=null;
@@ -1771,14 +1829,14 @@ Primary courts will still be used first.`);
 
     // Revisit every legal open slot and prioritize teams with the largest remaining deficit, up to max/date.
     let repairProgress=true,repairLoops=0;
-    while(repairProgress&&ids.some(id=>seasonCounts[id]<guarantee)&&repairLoops++<20){
+    while(repairProgress&&ids.some(id=>seasonCounts[id]<guarantee)&&repairLoops++<8){
       repairProgress=false;
       for(let dateIndex=0;dateIndex<dates.length;dateIndex++){
         const date=dates[dateIndex],available=targetSlots(d,pool,date,scope,fairPlan);
         const dailyCounts=Object.fromEntries(ids.map(id=>[id,0]));
         newGames.filter(g=>g.division===d&&g.pool===pool&&g.date===date).forEach(g=>{dailyCounts[g.aId]=(dailyCounts[g.aId]||0)+1;dailyCounts[g.bId]=(dailyCounts[g.bId]||0)+1});
         let localGuard=0;
-        while(ids.some(id=>seasonCounts[id]<guarantee&&dailyCounts[id]<maxPerDate)&&localGuard++<2500){
+        while(ids.some(id=>seasonCounts[id]<guarantee&&dailyCounts[id]<maxPerDate)&&localGuard++<600){
           let placed=false;const candidates=candidatePairsRepair(ids,dailyCounts,maxPerDate,seasonCounts,guarantee,pairCounts,lastOpponent);
           for(const cand of candidates){
             const {a,b}=cand,ta=teamById(a),tb=teamById(b);let found=null;
@@ -1820,6 +1878,7 @@ Primary courts will still be used first.`);
   const repairText=repairSummaryText(repair);
   $('genSummary').innerHTML=`<div class="status ${warnings.some(x=>x.includes('guaranteed'))?'warn':'ok'}"><b>Schedule generated:</b> ${newGames.length} games for ${esc(scopeLabel)} across ${dates.length} playing dates.${repairText?`<br><b>${esc(repairText)}</b>`:''}</div><details><summary>Capacity & feasibility</summary><div class="hint">${feasibilityNotes.map(esc).join('<br>')}</div></details>${warnings.length?`<details><summary>Distribution / guarantee notes (${warnings.length})</summary><div class="hint">${warnings.map(esc).join('<br>')}</div></details>`:''}`;
   setTab('schedule');runScheduleAudit(scope==='ALL');
+  resetRuntimeOverflowPlan();
 }
 
 function safeRunScheduleAudit(allLeague=false){

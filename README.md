@@ -1,4 +1,4 @@
-# MSS League Scheduler v11.11.23
+# MSS League Scheduler v11.11.24
 
 Regression / reliability release.
 
@@ -107,3 +107,16 @@ QA performed for v11.11.23:
 - Court Groups may contain surfaces with different availability windows; scheduling uses each physical court only during its own available hours.
 - HS divisions prefer the later available block; elementary/middle divisions prefer the earlier block.
 - Improves overlap diagnostics so stale time defaults do not masquerade as missing assignments.
+
+
+## v11.11.24 — Bounded overflow scheduling / performance hotfix
+- Reworks approved overflow-court scheduling so the generator does not search every compatible court/time combination in the facility.
+- Builds a small, ranked overflow plan per pool/date, using primary courts first and only enough extra slots to cover the expected shortage plus a limited safety buffer.
+- Caps nightly repair loops, season-repair loops, and post-generation swap repairs so the browser returns a result instead of running indefinitely.
+- Existing overflow approval behavior remains: the Director must approve use of additional courts before they are considered.
+- Capacity, audit, Court Calendar, pool-specific court groups, and Division Week/Season exports remain available.
+
+QA performed for v11.11.24:
+- JavaScript extracted from the standalone HTML and syntax-checked with Node.
+- Static verification of bounded overflow planning and loop caps.
+- ZIP integrity verification.
