@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.21</title>
+<title>MSS League Scheduler v11.11.22</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -35,7 +35,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.21</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.22</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -478,6 +478,9 @@ function normalizeLoadedState(){
   if(!state.divisions.length&&state.teams.length&&!Object.keys(state.pools||{}).length&&!state.teams.some(t=>t.divisionId)){const seen={};state.teams.forEach(t=>{const k=legacyDivisionKey(t);if(!seen[k]){const id='div_'+Math.random().toString(36).slice(2,9);seen[k]=id;state.divisions.push({id,name:t.sourceDivision||(()=>{const [g,se,lv]=k.split('|');return `${g} ${se} • ${lv}`})(),grades:[t.grade],gender:t.gender,skill:t.skill});}t.divisionId=seen[k]})}
   repairAccidentalSingleGroupAssignments();
   recoverCourtGroupAssignments();
+  // Re-evaluate every saved division against its CURRENT court-group surfaces. This removes
+  // stale 6–8 / 7–10 defaults from older builds when they no longer overlap the assigned courts.
+  allDivisionKeys().forEach(d=>{const cfg=state.divisionConfig?.[d],g=state.courtGroups.find(x=>x.id===cfg?.courtGroupId);if(g)syncDivisionWindowToGroup(d,g,false)});
   synchronizePoolWindowsFromGroups();
   state.scheduleChanges=state.scheduleChanges||[];state.activity=state.activity||[];state.settings.allowBackToBack=!!state.settings.allowBackToBack;state.settings.playAllTeamsOnce=state.settings.playAllTeamsOnce!==false;state.settings.avoidImmediateRematches=state.settings.avoidImmediateRematches!==false;state.settings.protectSharedCoaches=state.settings.protectSharedCoaches!==false;state.settings.honorScheduleRequests=state.settings.honorScheduleRequests!==false;state.settings.keepPoolPlay=true;state.games=(state.games||[]).map(g=>({...g,status:g.status||'Scheduled',pending:!!g.pending}));if(!Array.isArray(state.publishedGames)||(!state.publishedGames.length&&state.games.length))state.publishedGames=JSON.parse(JSON.stringify(state.games));
 }
@@ -812,7 +815,7 @@ function ensurePools(force=false){
 function ensureDivisionConfig(){
   const divisions=allDivisionKeys();
   divisions.forEach(d=>{
-    if(!state.divisionConfig[d]) state.divisionConfig[d]={start:'18:00',end:'20:00',courtGroupId:'',gamesPerWeek:state.settings.gamesPerWeek||3,seasonGuarantee:state.settings.seasonGuarantee||12,maxGamesPerDate:state.settings.maxGamesPerDate||4};
+    if(!state.divisionConfig[d]) state.divisionConfig[d]={start:'',end:'',courtGroupId:'',gamesPerWeek:state.settings.gamesPerWeek||3,seasonGuarantee:state.settings.seasonGuarantee||12,maxGamesPerDate:state.settings.maxGamesPerDate||4};
     if(state.divisionConfig[d].gamesPerWeek==null)state.divisionConfig[d].gamesPerWeek=state.settings.gamesPerWeek||3;
     if(state.divisionConfig[d].seasonGuarantee==null)state.divisionConfig[d].seasonGuarantee=state.settings.seasonGuarantee||12;
     if(state.divisionConfig[d].maxGamesPerDate==null)state.divisionConfig[d].maxGamesPerDate=state.settings.maxGamesPerDate||4;
@@ -927,19 +930,23 @@ function mergeDuplicatePlayingSurfaces(){
   state.courtGroups.forEach(g=>{g.surfaceIds=[...new Set((g.surfaceIds||[]).map(id=>idMap.get(id)||id).filter(id=>state.courts.some(c=>c.id===id)))]});
 }
 function commonGroupWindows(group){
+  // v11.11.22: a court group does not require every surface to share the exact same hours.
+  // Build the group availability from the UNION of member-surface windows; actual capacity
+  // is still calculated court-by-court, so a court is never used outside its own hours.
   const surfaces=groupSurfaceIds(group).map(id=>state.courts.find(c=>c.id===id)).filter(Boolean);
   if(!surfaces.length)return[];
-  let segs=courtWindows(surfaces[0]).map(w=>({...w}));
-  for(const surface of surfaces.slice(1)){
-    const next=[];
-    for(const a of segs)for(const b of courtWindows(surface)){
-      const st=Math.max(minutes(a.start),minutes(b.start)),en=Math.min(minutes(a.end),minutes(b.end));
-      if(st<en)next.push({start:`${String(Math.floor(st/60)).padStart(2,'0')}:${String(st%60).padStart(2,'0')}`,end:`${String(Math.floor(en/60)).padStart(2,'0')}:${String(en%60).padStart(2,'0')}`});
-    }
-    segs=next;if(!segs.length)break;
+  const wins=surfaces.flatMap(surface=>courtWindows(surface).map(w=>({...w})))
+    .filter(w=>w.start&&w.end&&minutes(w.start)<minutes(w.end))
+    .sort((a,b)=>minutes(a.start)-minutes(b.start)||minutes(a.end)-minutes(b.end));
+  const out=[];
+  for(const w of wins){
+    const last=out[out.length-1];
+    // Merge true overlaps, but preserve adjacent blocks such as 4–7 and 7–10 so
+    // elementary/middle and HS can automatically select the correct block.
+    if(last&&minutes(w.start)<minutes(last.end)){
+      if(minutes(w.end)>minutes(last.end))last.end=w.end;
+    }else if(!out.some(x=>x.start===w.start&&x.end===w.end))out.push({...w});
   }
-  segs.sort((a,b)=>minutes(a.start)-minutes(b.start)||minutes(a.end)-minutes(b.end));
-  const out=[];for(const w of segs){const last=out[out.length-1];if(last&&minutes(w.start)<minutes(last.end))last.end=minutes(w.end)>minutes(last.end)?w.end:last.end;else if(!out.some(x=>x.start===w.start&&x.end===w.end))out.push(w)}
   return out;
 }
 function chooseGroupWindow(group,start='',end='',divisionId=''){
@@ -992,11 +999,14 @@ function syncDivisionWindowToGroup(divisionId,group,force=false){
   if(!divisionId||!group)return false;
   ensureDivisionConfig();
   const cfg=state.divisionConfig[divisionId]||{};
-  const range=(force||cfg.timeWindowSource!=='custom')?groupAvailabilityRange(group,'','',divisionId):groupAvailabilityRange(group,cfg.start,cfg.end,divisionId);if(!range)return false;
-  // Legacy builds created 18:00–20:00 as a default. Treat that unsourced default as safe to migrate.
-  const looksLegacyDefault=!cfg.timeWindowSource && (cfg.start||'18:00')==='18:00' && (cfg.end||'20:00')==='20:00';
-  if(force||cfg.timeWindowSource!=='custom'||looksLegacyDefault){
-    cfg.start=range.start;cfg.end=range.end;cfg.timeWindowSource='group';return true;
+  const preferred=groupAvailabilityRange(group,'','',divisionId);if(!preferred)return false;
+  const currentRange=(cfg.start&&cfg.end)?groupAvailabilityRange(group,cfg.start,cfg.end,divisionId):null;
+  const actualOverlap=groupSurfaceIds(group).some(id=>{const c=state.courts.find(x=>x.id===id);return c&&courtWindows(c).some(w=>Math.max(minutes(w.start),minutes(cfg.start||'00:00'))<Math.min(minutes(w.end),minutes(cfg.end||'00:00')))});
+  // Legacy builds commonly injected 18:00–20:00, and some saved records marked those defaults
+  // as custom. If the stored window has no usable surface overlap, repair it automatically.
+  const looksLegacyDefault=(cfg.start==='18:00'&&cfg.end==='20:00')||(cfg.start==='18:00'&&cfg.end==='20:00'&&cfg.timeWindowSource==='custom');
+  if(force||cfg.timeWindowSource!=='custom'||looksLegacyDefault||!cfg.start||!cfg.end||!actualOverlap){
+    cfg.start=preferred.start;cfg.end=preferred.end;cfg.timeWindowSource='group';return true;
   }
   return false;
 }
@@ -1015,7 +1025,7 @@ function assignCourtGroupToDivision(groupId,divisionId,showFeedback=true){
   if(previous&&previous!==divisionId&&state.divisionConfig?.[previous]?.courtGroupId===groupId)state.divisionConfig[previous].courtGroupId='';
   group.primaryDivisionId=divisionId||'';
   if(divisionId){
-    state.divisionConfig[divisionId]=state.divisionConfig[divisionId]||{start:'18:00',end:'20:00',courtGroupId:'',gamesPerWeek:state.settings.gamesPerWeek||3,seasonGuarantee:state.settings.seasonGuarantee||12,maxGamesPerDate:state.settings.maxGamesPerDate||4};
+    state.divisionConfig[divisionId]=state.divisionConfig[divisionId]||{start:'',end:'',courtGroupId:'',gamesPerWeek:state.settings.gamesPerWeek||3,seasonGuarantee:state.settings.seasonGuarantee||12,maxGamesPerDate:state.settings.maxGamesPerDate||4};
     state.divisionConfig[divisionId].courtGroupId=groupId;
     syncDivisionWindowToGroup(divisionId,group,true);
   }
@@ -1050,7 +1060,7 @@ function addCourtGroup(){
   const isAll=/^all\s+(courts|surfaces)$/i.test(name);if(!isAll&&!surfaceIds.length){showActionFeedback('Select at least one playing surface.',false,'addCourtGroupBtn');return}
   const group={id:uid('cg'),name,surfaceIds:isAll?state.courts.map(c=>c.id):surfaceIds,dynamicAll:isAll,primaryDivisionId:divisionId||''};state.courtGroups.push(group);
   ensureDivisionConfig();
-  if(divisionId){state.divisionConfig[divisionId]=state.divisionConfig[divisionId]||{start:'18:00',end:'20:00',courtGroupId:'',gamesPerWeek:state.settings.gamesPerWeek||3,seasonGuarantee:state.settings.seasonGuarantee||12,maxGamesPerDate:state.settings.maxGamesPerDate||4};state.divisionConfig[divisionId].courtGroupId=group.id;syncDivisionWindowToGroup(divisionId,group,true)}
+  if(divisionId){state.divisionConfig[divisionId]=state.divisionConfig[divisionId]||{start:'',end:'',courtGroupId:'',gamesPerWeek:state.settings.gamesPerWeek||3,seasonGuarantee:state.settings.seasonGuarantee||12,maxGamesPerDate:state.settings.maxGamesPerDate||4};state.divisionConfig[divisionId].courtGroupId=group.id;syncDivisionWindowToGroup(divisionId,group,true)}
   logActivity(`Court group ${name} created${divisionId?` and assigned to ${divisionLabel(divisionId)}`:''}.`);$('courtGroupName').value='';persist();renderAll();showActionFeedback(`${name} court group created with ${groupSurfaceIds(group).length} surface(s)${divisionId?` and assigned to ${divisionLabel(divisionId)}; time window synchronized`:''}.`,true,'addCourtGroupBtn')
 }
 function removeCourtGroup(id){
@@ -1157,7 +1167,7 @@ function divisionResourceReady(d){
   return !!(group&&groupSurfaceIds(group).length&&c.start&&c.end&&c.start<c.end&&win)
 }
 function poolAssignmentSummary(d){
-  return divisionPoolEntries(d).map(pool=>{const cfg=poolResourceConfig(d,pool),group=state.courtGroups.find(g=>g.id===cfg.courtGroupId),win=effectivePoolWindow(d,pool);return `${poolDisplayName(d,pool)}: ${group?group.name:'No court group'}${win?` • ${fmtTime(win.effectiveStart)}–${fmtTime(win.effectiveEnd)}`:' • No usable overlap'}`}).join(' | ')
+  return divisionPoolEntries(d).map(pool=>{const cfg=poolResourceConfig(d,pool),group=state.courtGroups.find(g=>g.id===cfg.courtGroupId),win=effectivePoolWindow(d,pool);return `${poolDisplayName(d,pool)}: ${group?group.name:'No court group'}${win?` • ${fmtTime(win.effectiveStart)}–${fmtTime(win.effectiveEnd)}`:' • No usable court/time overlap'}`}).join(' | ')
 }
 function setDivisionConfig(d,field,value){
   state.divisionConfig[d]=state.divisionConfig[d]||{start:'18:00',end:'20:00',courtGroupId:'',gamesPerWeek:state.settings.gamesPerWeek||3,seasonGuarantee:state.settings.seasonGuarantee||12,maxGamesPerDate:state.settings.maxGamesPerDate||4,courtMode:'preferred',overflowApproved:false};
@@ -1198,7 +1208,7 @@ function renderDivisionAssignments(){
   $('divisionAssignments').innerHTML=divisions.map(d=>{
     const c=state.divisionConfig[d]||{},pools=divisionPoolEntries(d),multi=pools.length>1,poolMode=!!(c.usePoolAssignments&&multi),group=state.courtGroups.find(g=>g.id===c.courtGroupId),win=effectiveDivisionWindow(d);
     const ready=divisionResourceReady(d);
-    const timeCheck=poolMode?`<div class="hint" style="margin:6px 0 10px"><b>Pool assignments active:</b> ${esc(poolAssignmentSummary(d))}</div>`:(group?`<div class="hint" style="margin:6px 0 10px"><b>Time check:</b> Court availability ${win?`${fmtTime(win.courtStart)}–${fmtTime(win.courtEnd)}`:'has no common window'} • Division window ${fmtTime(c.start)}–${fmtTime(c.end)}${win?` • <b>Effective ${fmtTime(win.effectiveStart)}–${fmtTime(win.effectiveEnd)}</b>`:' • <b>No usable overlap</b>'}</div>`:'');
+    const timeCheck=poolMode?`<div class="hint" style="margin:6px 0 10px"><b>Pool assignments active:</b> ${esc(poolAssignmentSummary(d))}</div>`:(group?`<div class="hint" style="margin:6px 0 10px"><b>Time check:</b> Court availability ${win?`${fmtTime(win.courtStart)}–${fmtTime(win.courtEnd)}`:'has no common window'} • Division window ${fmtTime(c.start)}–${fmtTime(c.end)}${win?` • <b>Effective ${fmtTime(win.effectiveStart)}–${fmtTime(win.effectiveEnd)}</b>`:' • <b>No usable court/time overlap</b>'}</div>`:'');
     return `<div class="item ${ready?'health-ready':'health-warn'}"><div class="row" style="justify-content:space-between;align-items:center"><b>${esc(divisionLabel(d))}</b><span class="status ${ready?'ok':'warn'}" style="display:inline-block;margin:0;padding:5px 8px">${ready?'Ready':'Needs Assignment'}</span></div>${timeCheck}<div class="row">
       <div class="field"><label>${multi?'Default Court Group':'Court Group'}</label><select data-div="${esc(d)}" data-div-field="courtGroupId">${multi?`<option value="__POOLS__" ${poolMode?'selected':''}>Use Pool Assignments</option>`:''}<option value="" ${!poolMode&&!c.courtGroupId?'selected':''}>Select court group</option>${state.courtGroups.map(g=>`<option value="${g.id}" ${!poolMode&&g.id===c.courtGroupId?'selected':''}>${esc(g.name)} (${groupSurfaceIds(g).length} surfaces)</option>`).join('')}</select></div>
       <div class="field"><label>Recurring Start</label><input type="time" value="${c.start||'18:00'}" data-div="${esc(d)}" data-div-field="start"></div>
