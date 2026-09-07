@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.19</title>
+<title>MSS League Scheduler v11.11.20</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -35,7 +35,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.19</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.20</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -477,6 +477,7 @@ function normalizeLoadedState(){
   if(!state.divisions.length&&state.teams.length&&!Object.keys(state.pools||{}).length&&!state.teams.some(t=>t.divisionId)){const seen={};state.teams.forEach(t=>{const k=legacyDivisionKey(t);if(!seen[k]){const id='div_'+Math.random().toString(36).slice(2,9);seen[k]=id;state.divisions.push({id,name:t.sourceDivision||(()=>{const [g,se,lv]=k.split('|');return `${g} ${se} • ${lv}`})(),grades:[t.grade],gender:t.gender,skill:t.skill});}t.divisionId=seen[k]})}
   repairAccidentalSingleGroupAssignments();
   recoverCourtGroupAssignments();
+  synchronizePoolWindowsFromGroups();
   state.scheduleChanges=state.scheduleChanges||[];state.activity=state.activity||[];state.settings.allowBackToBack=!!state.settings.allowBackToBack;state.settings.playAllTeamsOnce=state.settings.playAllTeamsOnce!==false;state.settings.avoidImmediateRematches=state.settings.avoidImmediateRematches!==false;state.settings.protectSharedCoaches=state.settings.protectSharedCoaches!==false;state.settings.honorScheduleRequests=state.settings.honorScheduleRequests!==false;state.settings.keepPoolPlay=true;state.games=(state.games||[]).map(g=>({...g,status:g.status||'Scheduled',pending:!!g.pending}));if(!Array.isArray(state.publishedGames)||(!state.publishedGames.length&&state.games.length))state.publishedGames=JSON.parse(JSON.stringify(state.games));
 }
 function openDatabase(){
@@ -1045,6 +1046,31 @@ function effectivePoolWindow(d,pool){
   return {courtStart:range.start,courtEnd:range.end,divisionStart:cfg.start,divisionEnd:cfg.end,effectiveStart:hhmm(start),effectiveEnd:hhmm(end)}
 }
 
+function syncPoolWindowToGroup(d,pool,force=false,showFeedback=false){
+  const overrides=ensurePoolResourceOverrides(d),ov=overrides?.[pool];if(!ov?.courtGroupId)return false;
+  const group=state.courtGroups.find(g=>g.id===ov.courtGroupId),range=groupAvailabilityRange(group);if(!group||!range)return false;
+  const hasOverlap=!!effectivePoolWindow(d,pool),looksInherited=!ov.timeWindowSource||ov.timeWindowSource==='group';
+  if(force||looksInherited||!hasOverlap){
+    ov.start=range.start;ov.end=range.end;ov.timeWindowSource='group';ov.overflowApproved=false;
+    if(showFeedback)showActionFeedback(`${divisionLabel(d)} — ${poolDisplayName(d,pool)} synchronized to ${fmtTime(range.start)}–${fmtTime(range.end)} from ${group.name}.`);
+    return true;
+  }
+  return false;
+}
+function synchronizePoolWindowsFromGroups(){
+  let changed=false;
+  Object.keys(state.pools||{}).forEach(d=>divisionPoolEntries(d).forEach(pool=>{
+    const ov=state.pools?.[d]?.resourceOverrides?.[pool];if(!ov?.courtGroupId)return;
+    // Existing pool assignments from older builds may carry stale/default hours. Repair them only
+    // when they were inherited or when they have no usable overlap with the assigned court group.
+    if(syncPoolWindowToGroup(d,pool,false,false))changed=true;
+  }));
+  return changed;
+}
+function usePoolCourtHours(d,pool){
+  if(syncPoolWindowToGroup(d,pool,true,true)){persist();renderAll()}
+}
+
 function divisionPoolEntries(d){return Object.keys(state.pools?.[d]?.lists||{})}
 function allPoolsHaveExplicitResources(d){
   const pools=divisionPoolEntries(d);if(pools.length<2)return false;
@@ -1113,7 +1139,7 @@ function renderDivisionAssignments(){
       <div class="field"><label>Minimum Games / Playing Date</label><input type="number" min="1" max="8" value="${c.gamesPerWeek||state.settings.gamesPerWeek||3}" data-div="${esc(d)}" data-div-field="gamesPerWeek"></div>
       <div class="field"><label>Maximum Games / Playing Date</label><input type="number" min="1" max="8" value="${c.maxGamesPerDate||state.settings.maxGamesPerDate||4}" data-div="${esc(d)}" data-div-field="maxGamesPerDate"></div>
       <div class="field"><label>Court Use</label><select data-div="${esc(d)}" data-div-field="courtMode"><option value="preferred" ${(c.courtMode||'preferred')==='preferred'?'selected':''}>Preferred — primary courts first; offer overflow if needed</option><option value="exclusive" ${c.courtMode==='exclusive'?'selected':''}>Exclusive — assigned group only</option><option value="open" ${c.courtMode==='open'?'selected':''}>Open — any compatible court</option></select></div>
-    </div>${poolMode?`<div class="status ok"><b>Using Pool Assignments.</b> The parent division does not need a separate Court Group. Each pool is validated and scheduled on its own assigned courts.</div>`:((c.courtMode||'preferred')==='preferred'?`<div class="hint"><b>Overflow:</b> ${c.overflowApproved?'Approved for this division. Compatible open courts may be used after primary courts fill.':'Not approved. If primary courts are short, Generate Schedule will search the facility and ask before using overflow courts.'}</div>`:'')}${multi?`<div class="item" style="margin-top:10px"><b>Pool Court Overrides</b><div class="hint">Assign separate Court Groups when pools have protected courts. When every pool has an explicit assignment, the parent Default Court Group automatically switches to “Use Pool Assignments.”</div>${pools.map(pool=>{const pc=poolResourceConfig(d,pool),ov=state.pools[d].resourceOverrides?.[pool]||{},pw=effectivePoolWindow(d,pool);return `<div class="row" style="align-items:end;margin-top:8px"><div class="field"><label>${esc(poolDisplayName(d,pool))} Court Group</label><select data-pool-resource="${esc(d)}" data-pool="${esc(pool)}" data-pool-field="courtGroupId"><option value="">Use division default</option>${state.courtGroups.map(g=>`<option value="${g.id}" ${ov.courtGroupId===g.id?'selected':''}>${esc(g.name)} (${groupSurfaceIds(g).length} surfaces)</option>`).join('')}</select></div><div class="field"><label>Start</label><input type="time" value="${pc.start||c.start||'18:00'}" data-pool-resource="${esc(d)}" data-pool="${esc(pool)}" data-pool-field="start"></div><div class="field"><label>End</label><input type="time" value="${pc.end||c.end||'20:00'}" data-pool-resource="${esc(d)}" data-pool="${esc(pool)}" data-pool-field="end"></div><div class="field"><label>Court Use</label><select data-pool-resource="${esc(d)}" data-pool="${esc(pool)}" data-pool-field="courtMode"><option value="preferred" ${(pc.courtMode||'preferred')==='preferred'?'selected':''}>Preferred</option><option value="exclusive" ${pc.courtMode==='exclusive'?'selected':''}>Exclusive</option><option value="open" ${pc.courtMode==='open'?'selected':''}>Open</option></select></div></div><div class="hint">Effective: ${pw?`${fmtTime(pw.effectiveStart)}–${fmtTime(pw.effectiveEnd)}`:'Needs valid court/time overlap'}${ov.courtGroupId?` • override active`:' • using division default'}</div>`}).join('')}</div>`:''}</div>`;
+    </div>${poolMode?`<div class="status ok"><b>Using Pool Assignments.</b> The parent division does not need a separate Court Group. Each pool is validated and scheduled on its own assigned courts.</div>`:((c.courtMode||'preferred')==='preferred'?`<div class="hint"><b>Overflow:</b> ${c.overflowApproved?'Approved for this division. Compatible open courts may be used after primary courts fill.':'Not approved. If primary courts are short, Generate Schedule will search the facility and ask before using overflow courts.'}</div>`:'')}${multi?`<div class="item" style="margin-top:10px"><b>Pool Court Overrides</b><div class="hint">Assign separate Court Groups when pools have protected courts. When every pool has an explicit assignment, the parent Default Court Group automatically switches to “Use Pool Assignments.”</div>${pools.map(pool=>{const pc=poolResourceConfig(d,pool),ov=state.pools[d].resourceOverrides?.[pool]||{},pw=effectivePoolWindow(d,pool);return `<div class="row" style="align-items:end;margin-top:8px"><div class="field"><label>${esc(poolDisplayName(d,pool))} Court Group</label><select data-pool-resource="${esc(d)}" data-pool="${esc(pool)}" data-pool-field="courtGroupId"><option value="">Use division default</option>${state.courtGroups.map(g=>`<option value="${g.id}" ${ov.courtGroupId===g.id?'selected':''}>${esc(g.name)} (${groupSurfaceIds(g).length} surfaces)</option>`).join('')}</select></div><div class="field"><label>Start</label><input type="time" value="${pc.start||c.start||'18:00'}" data-pool-resource="${esc(d)}" data-pool="${esc(pool)}" data-pool-field="start"></div><div class="field"><label>End</label><input type="time" value="${pc.end||c.end||'20:00'}" data-pool-resource="${esc(d)}" data-pool="${esc(pool)}" data-pool-field="end"></div><div class="field"><label>Court Use</label><select data-pool-resource="${esc(d)}" data-pool="${esc(pool)}" data-pool-field="courtMode"><option value="preferred" ${(pc.courtMode||'preferred')==='preferred'?'selected':''}>Preferred</option><option value="exclusive" ${pc.courtMode==='exclusive'?'selected':''}>Exclusive</option><option value="open" ${pc.courtMode==='open'?'selected':''}>Open</option></select></div></div><div class="hint">Effective: ${pw?`${fmtTime(pw.effectiveStart)}–${fmtTime(pw.effectiveEnd)}`:'Needs valid court/time overlap'}${ov.courtGroupId?` • override active`:' • using division default'}${!pw&&ov.courtGroupId?` <button type="button" class="mini-btn" onclick="usePoolCourtHours('${esc(d)}','${esc(pool)}')">Use Court Hours</button>`:''}</div>`}).join('')}</div>`:''}</div>`;
   }).join('')||'<div class="status warn">No divisions exist yet. Import or add teams on the Registrations page; division rows will appear here automatically.</div>';
   document.querySelectorAll('[data-div-field]').forEach(e=>e.addEventListener('change',()=>setDivisionConfig(e.dataset.div,e.dataset.divField,e.type==='number'?Number(e.value):e.value)));
   document.querySelectorAll('[data-pool-resource]').forEach(e=>e.addEventListener('change',()=>setPoolResourceConfig(e.dataset.poolResource,e.dataset.pool,e.dataset.poolField,e.value)));
@@ -1450,11 +1476,48 @@ function repairSummaryText(r){
   if(b.rest!==a.rest)bits.push(`rest conflicts ${b.rest}→${a.rest}`);
   return `Automatic repair: ${r.iterations} improvement(s)${bits.length?` • ${bits.join(' • ')}`:''}.`;
 }
+function readyDivisionKeys(){
+  synchronizePoolWindowsFromGroups();
+  return allDivisionKeys().filter(d=>state.pools?.[d]?.approved&&divisionResourceReady(d));
+}
+function blockedDivisionDetails(){
+  synchronizePoolWindowsFromGroups();
+  return allDivisionKeys().filter(d=>!state.pools?.[d]?.approved||!divisionResourceReady(d)).map(d=>{
+    const reasons=[];
+    if(!state.pools?.[d]?.approved)reasons.push('not approved');
+    divisionPoolEntries(d).forEach(pool=>{
+      const cfg=poolResourceConfig(d,pool),group=state.courtGroups.find(g=>g.id===cfg?.courtGroupId);
+      if(!group)reasons.push(`${poolDisplayName(d,pool)} missing Court Group`);
+      else if(!effectivePoolWindow(d,pool))reasons.push(`${poolDisplayName(d,pool)} has no court/time overlap`);
+    });
+    return `${divisionLabel(d)}: ${[...new Set(reasons)].join('; ')||'not ready'}`;
+  });
+}
+function scheduleAllReadyDivisions(){
+  syncSettings();synchronizePoolWindowsFromGroups();persist();renderAll();
+  const ready=readyDivisionKeys(),blocked=blockedDivisionDetails();
+  if(!ready.length){alert(`No divisions are ready to schedule.${blocked.length?'\n\n'+blocked.join('\n'):''}`);return}
+  const original=$('scheduleFilter').value||'ALL';let scheduled=0;
+  for(const d of ready){
+    $('scheduleFilter').value=divisionScopeKey(d);
+    try{generateSchedule();scheduled++}catch(err){console.error(err);showActionFeedback(`${divisionLabel(d)} could not be scheduled: ${err.message||err}`,false)}
+  }
+  $('scheduleFilter').value=original;renderAll();
+  $('genSummary').innerHTML=`<div class="status ok"><b>Scheduled ${scheduled} ready division(s).</b>${blocked.length?`<br><span class="hint">Skipped ${blocked.length} blocked division(s): ${blocked.map(esc).join(' • ')}</span>`:''}</div>`;
+  setTab('schedule');
+}
 function generateSchedule(){
   syncSettings();
   const {scope,targets}=selectedScheduleTargets();if(!targets.length)return alert('Select a division/pool to schedule.');const unapproved=[...new Set(targets.map(t=>t.division))].filter(d=>!state.pools[d]?.approved);if(unapproved.length)return alert('Approve these division(s) before scheduling: '+unapproved.map(divisionLabel).join(', '));
   const dupes=duplicateDisplayedNames();if(dupes.length)return alert('Duplicate team names remain within the same division. Rename or distinguish those teams before scheduling.');
-  const validation=scheduleValidation(targets);if(validation.length)return alert(validation.join('\n'));
+  const validation=scheduleValidation(targets);if(validation.length){
+    if(scope==='ALL'){
+      const blocked=blockedDivisionDetails(),ready=readyDivisionKeys();
+      $('genSummary').innerHTML=`<div class="status warn"><b>Entire League preflight found ${blocked.length} blocked division(s).</b><br>${blocked.map(esc).join('<br>')}${ready.length?`<br><br><b>${ready.length} division(s) are ready.</b> Use <i>Schedule All Ready Divisions</i> to continue without the blocked divisions.`:''}</div>`;
+      setTab('schedule');
+    }
+    return alert(validation.join('\n'));
+  }
 
   const dates=seasonDates(),used=new Set(),teamTimes={},coachTimes={},newGames=[],warnings=[],feasibilityNotes=[];
   const retainedGames=scope==='ALL'?[]:state.games.filter(g=>!scopeMatchesGame(scope,g));
@@ -1946,7 +2009,7 @@ try{
 $('resetStorageBtn')&&$('resetStorageBtn').addEventListener('click',resetSavedLeagueStorage);$('addTeamBtn').addEventListener('click',addTeam);$('loadDemoBtn').addEventListener('click',loadCompleteDemo);$('importCsvBtn').addEventListener('click',importCSV);$('csvFile').addEventListener('change',e=>previewCSVFile(e.target.files[0]));$('clearRegistrationsBtn').addEventListener('click',clearRegistrations);$('loadSampleBtn').addEventListener('click',()=>{const r=importCSVText(sampleCSV,'replace');$('importStatus').innerHTML=`<div class="status ok">${r.added} sample teams loaded into ${r.divisionCount} divisions, replacing prior registrations.</div>`;renderDuplicateNameStatus()});
 $('teamSearch').addEventListener('input',renderTeams);$('boardPrevBtn')&&$('boardPrevBtn').addEventListener('click',()=>$('bigBoard').scrollBy({left:-460,behavior:'smooth'}));$('boardNextBtn')&&$('boardNextBtn').addEventListener('click',()=>$('bigBoard').scrollBy({left:460,behavior:'smooth'}));$('rebalanceBtn').addEventListener('click',rebalancePools);$('approveBtn').addEventListener('click',approveBoard);$('unlockBtn').addEventListener('click',unlockBoard);
 safeBind('addExceptionBtn','click',addException);safeBind('addCourtBtn','click',addCourt);safeBind('addCourtGroupBtn','click',addCourtGroup);safeBind('saveBtn','click',()=>{save();showActionFeedback('League progress saved.',true,'saveBtn')});safeBind('exportSetupBtn','click',exportSetup);
-$('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',generateSchedule);/* Audit buttons use inline safeRunScheduleAudit handlers so they remain functional even if another optional control binding fails. */
+$('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',generateSchedule);safeBind('generateReadyBtn','click',scheduleAllReadyDivisions);/* Audit buttons use inline safeRunScheduleAudit handlers so they remain functional even if another optional control binding fails. */
 ['managementDivision','managementWeek','managementStatus','managementCourt'].forEach(id=>$(id).addEventListener('change',renderManagement));
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
 $('exportScheduleBtn').addEventListener('click',exportSchedule);safeBind('exportDivisionSeasonBtn','click',exportDivisionSeason);safeBind('exportDivisionWeekBtn','click',exportDivisionWeek);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});safeBind('calendarDate','change',renderCourtCalendar);safeBind('calendarScope','change',renderCourtCalendar);safeBind('calendarPrintBtn','click',()=>window.print());
