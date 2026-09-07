@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.15</title>
+<title>MSS League Scheduler v11.11.16</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -35,7 +35,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.15</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.16</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -424,7 +424,7 @@ function withTimeout(promise,ms,label='Operation'){
   });
 }
 function synchronizeDivisionState(){
-  state.teams=state.teams||[];state.divisions=state.divisions||[];state.pools=state.pools||{};state.divisionConfig=state.divisionConfig||{};
+  state.teams=state.teams||[];state.divisions=state.divisions||[];state.pools=state.pools||{};state.divisionConfig=state.divisionConfig||{};Object.values(state.pools).forEach(p=>p.names=p.names||{});
   const teamBy=new Map(state.teams.map(t=>[t.id,t]));
   const divById=new Map(state.divisions.map(d=>[d.id,d]));
   // Recover division membership from saved pools before any legacy fallback can overwrite it.
@@ -761,13 +761,27 @@ function divisionGroups(){const g={};state.teams.forEach(t=>{const k=t.divisionI
 function allDivisionKeys(){return [...new Set([...Object.keys(divisionGroups()),...Object.keys(state.pools||{})])].sort()}
 function logActivity(message){state.activity=state.activity||[];state.activity.unshift({at:new Date().toISOString(),message});state.activity=state.activity.slice(0,30)}
 function poolLetters(n){return Array.from({length:n},(_,i)=>String.fromCharCode(65+i))}
+function poolDisplayName(d,pool){
+  const custom=String(state.pools?.[d]?.names?.[pool]||'').trim();
+  return custom||`Pool ${pool}`;
+}
+function renamePool(d,pool){
+  const p=state.pools?.[d];if(!p||!p.lists?.[pool])return;
+  const current=poolDisplayName(d,pool);
+  const next=prompt(`Rename ${current}.\n\nEnter a pool name (examples: Gold, Silver, American, National).\nLeave blank to restore the default name Pool ${pool}.`,p.names?.[pool]||'');
+  if(next===null)return;
+  p.names=p.names||{};
+  const clean=String(next).trim();
+  if(clean)p.names[pool]=clean;else delete p.names[pool];
+  persist();renderAll();showActionFeedback(`${divisionLabel(d)} — ${poolDisplayName(d,pool)} saved.`);
+}
 function ensurePools(force=false){
   syncSettings();const groups=divisionGroups(),max=state.settings.defaultPoolMax||8;
   Object.keys(groups).forEach(d=>{
     const ids=groups[d].map(t=>t.id),needed=Math.max(1,Math.ceil(ids.length/max)),letters=poolLetters(needed);
     const existing=state.pools[d];
     if(force||!existing){
-      state.pools[d]={max,approved:false,lists:Object.fromEntries(letters.map(x=>[x,[]]))};
+      state.pools[d]={max,approved:false,names:{},lists:Object.fromEntries(letters.map(x=>[x,[]]))};
       ids.forEach((id,i)=>state.pools[d].lists[letters[i%letters.length]].push(id));
     }else{
       existing.max=existing.max||max;const allAssigned=new Set(Object.values(existing.lists).flat());
@@ -806,7 +820,7 @@ function rebalancePools(){
   Object.entries(groups).forEach(([d,teams])=>{
     if(state.pools[d]?.approved)return;
     const max=state.pools[d]?.max||state.settings.defaultPoolMax||8,needed=Math.max(1,Math.ceil(teams.length/max)),letters=poolLetters(needed);
-    state.pools[d]={max,approved:false,lists:Object.fromEntries(letters.map(x=>[x,[]]))};
+    state.pools[d]={max,approved:false,names:{},lists:Object.fromEntries(letters.map(x=>[x,[]]))};
     teams.sort((a,b)=>a.name.localeCompare(b.name)).forEach((t,i)=>state.pools[d].lists[letters[i%letters.length]].push(t.id));
   });persist();renderBoard();
 }
@@ -831,14 +845,14 @@ function removePool(d,p){
 function boardValidation(){
   const errors=[];const all=[];
   Object.entries(state.pools).forEach(([d,p])=>{
-    Object.entries(p.lists).forEach(([name,ids])=>{all.push(...ids);if(ids.length>p.max)errors.push(`${divisionLabel(d)} Pool ${name} exceeds ${p.max} teams.`);if(ids.length<2)errors.push(`${divisionLabel(d)} Pool ${name} has fewer than 2 teams.`)});
+    Object.entries(p.lists).forEach(([name,ids])=>{all.push(...ids);if(ids.length>p.max)errors.push(`${divisionLabel(d)} ${poolDisplayName(d,name)} exceeds ${p.max} teams.`);if(ids.length<2)errors.push(`${divisionLabel(d)} ${poolDisplayName(d,name)} has fewer than 2 teams.`)});
   });
   if(all.length!==state.teams.length||new Set(all).size!==state.teams.length)errors.push('One or more teams are unassigned or duplicated.');
   return errors;
 }
 function divisionBoardErrors(d){
   const errors=[],p=state.pools[d];if(!p)return [`${divisionLabel(d)} has no pools.`];
-  const ids=[];Object.entries(p.lists||{}).forEach(([name,list])=>{ids.push(...list);if(list.length>p.max)errors.push(`${divisionLabel(d)} Pool ${name} exceeds ${p.max} teams.`);if(list.length<2)errors.push(`${divisionLabel(d)} Pool ${name} has fewer than 2 teams.`)});
+  const ids=[];Object.entries(p.lists||{}).forEach(([name,list])=>{ids.push(...list);if(list.length>p.max)errors.push(`${divisionLabel(d)} ${poolDisplayName(d,name)} exceeds ${p.max} teams.`);if(list.length<2)errors.push(`${divisionLabel(d)} ${poolDisplayName(d,name)} has fewer than 2 teams.`)});
   const expected=state.teams.filter(t=>divisionKey(t)===d).map(t=>t.id);if(ids.length!==expected.length||new Set(ids).size!==expected.length||expected.some(id=>!ids.includes(id)))errors.push(`${divisionLabel(d)} has unassigned or duplicated teams.`);
   return errors;
 }
@@ -853,20 +867,20 @@ function renderBoard(){
   ensurePools();const errors=boardValidation(),keys=Object.keys(state.pools).sort(),approvedCount=keys.filter(d=>state.pools[d]?.approved).length;refreshOverallApproval();
   $('approveBtn').classList.toggle('hidden',approvedCount===keys.length&&keys.length>0);$('unlockBtn').classList.toggle('hidden',approvedCount===0);$('rebalanceBtn').disabled=approvedCount>0;
   const syncInfo=synchronizeDivisionState();$('boardStatus').innerHTML=keys.length?`<div class="status ${errors.length?'warn':approvedCount===keys.length?'ok':'warn'}"><b>${approvedCount}/${keys.length} divisions approved.</b> ${errors.length?errors.length+' board item(s) still need review.':'Approved divisions can be scheduled immediately; unfinished divisions may remain in Draft.'}<br><span class="hint">${syncInfo.divisions} divisions synchronized • ${syncInfo.assigned}/${syncInfo.teams} teams assigned</span></div>`:'<div class="status warn">Import or add teams first.</div>';
-  const allTargets=[];Object.entries(state.pools).forEach(([d,p])=>Object.keys(p.lists).forEach(x=>allTargets.push({d,p:x,label:`${divisionLabel(d)} — Pool ${x}`})));
+  const allTargets=[];Object.entries(state.pools).forEach(([d,p])=>Object.keys(p.lists).forEach(x=>allTargets.push({d,p:x,label:`${divisionLabel(d)} — ${poolDisplayName(d,x)}`})));
   $('bigBoard').classList.remove('locked');
   $('bigBoard').innerHTML=keys.map(d=>{
     const p=state.pools[d],locked=!!p.approved,divErrors=divisionBoardErrors(d),pools=Object.entries(p.lists).map(([name,ids])=>{
       const over=ids.length>p.max,approved=locked?' approved':'';
       return `<div class="pool${over?' over':''}${approved}" data-drop-d="${esc(d)}" data-drop-p="${name}">
-        <div class="pool-title"><span>Pool ${name} • ${ids.length}/${p.max}</span>${Object.keys(p.lists).length>1&&!locked?`<button class="danger" data-remove-pool="${name}" data-d="${esc(d)}">×</button>`:''}</div>
+        <div class="pool-title"><span>${esc(poolDisplayName(d,name))} • ${ids.length}/${p.max}</span><span class="row"><button class="secondary" type="button" data-rename-pool="${name}" data-d="${esc(d)}">Rename</button>${Object.keys(p.lists).length>1&&!locked?`<button class="danger" data-remove-pool="${name}" data-d="${esc(d)}">×</button>`:''}</span></div>
         ${ids.map(id=>{const t=teamById(id);return `<div class="team-card" draggable="${!locked}" data-team="${id}"><b>${esc(t.name)}</b><span class="hint">${esc(t.coach||'No coach')}</span>${!locked?`<select data-move="${id}">${allTargets.map(x=>`<option value="${esc(x.d)}::${x.p}" ${x.d===d&&x.p===name?'selected':''}>${esc(x.label)}</option>`).join('')}</select>`:''}</div>`}).join('')||'<div class="hint">Drop teams here</div>'}
       </div>`;
     }).join('');
     return `<div class="division-board collapsed" data-division-card="${esc(d)}"><div class="division-head"><div><h3 style="margin:0">${esc(divisionLabel(d))}</h3><span class="hint">${Object.values(p.lists).flat().length} teams • ${Object.keys(p.lists).length} pool(s) • ${locked?'Approved':'Draft'}</span></div><div class="row"><button class="secondary" type="button" data-toggle-division="${esc(d)}">Expand</button><label style="margin:0">Max / Pool <input style="width:72px" type="number" min="2" value="${p.max}" data-pool-max="${esc(d)}" ${locked?'disabled':''}></label>${!locked?`<button class="secondary" data-add-pool="${esc(d)}">Add Pool</button><button class="success" data-approve-division="${esc(d)}" ${divErrors.length?'disabled':''}>Approve Division</button>`:`<button class="secondary" data-unlock-division="${esc(d)}">Unlock Division</button>`}</div></div><div class="division-body">${divErrors.length?`<div class="status warn">${divErrors.map(esc).join('<br>')}</div>`:''}<div class="pools">${pools}</div></div></div>`;
   }).join('')||'<p class="hint">Import or add teams first.</p>';
   document.querySelectorAll('[data-move]').forEach(sel=>sel.addEventListener('change',()=>{const source=Object.keys(state.pools).find(d=>Object.values(state.pools[d].lists).some(ids=>ids.includes(sel.dataset.move)));if(source&&state.pools[source]?.approved)return alert('Unlock that division before moving its teams.');const [d,p]=sel.value.split('::');if(state.pools[d]?.approved)return alert('Unlock the destination division before moving teams into it.');moveTeam(sel.dataset.move,d,p)}));
-  document.querySelectorAll('[data-pool-max]').forEach(i=>i.addEventListener('change',()=>setPoolMax(i.dataset.poolMax,i.value)));document.querySelectorAll('[data-add-pool]').forEach(b=>b.addEventListener('click',()=>addPool(b.dataset.addPool)));document.querySelectorAll('[data-remove-pool]').forEach(b=>b.addEventListener('click',()=>removePool(b.dataset.d,b.dataset.removePool)));
+  document.querySelectorAll('[data-pool-max]').forEach(i=>i.addEventListener('change',()=>setPoolMax(i.dataset.poolMax,i.value)));document.querySelectorAll('[data-add-pool]').forEach(b=>b.addEventListener('click',()=>addPool(b.dataset.addPool)));document.querySelectorAll('[data-remove-pool]').forEach(b=>b.addEventListener('click',()=>removePool(b.dataset.d,b.dataset.removePool)));document.querySelectorAll('[data-rename-pool]').forEach(b=>b.addEventListener('click',()=>renamePool(b.dataset.d,b.dataset.renamePool)));
   document.querySelectorAll('[data-approve-division]').forEach(b=>b.onclick=()=>approveDivision(b.dataset.approveDivision));document.querySelectorAll('[data-unlock-division]').forEach(b=>b.onclick=()=>unlockDivision(b.dataset.unlockDivision));
   document.querySelectorAll('[data-toggle-division]').forEach(b=>b.onclick=()=>{const card=document.querySelector(`[data-division-card="${CSS.escape(b.dataset.toggleDivision)}"]`);if(!card)return;const collapsed=card.classList.toggle('collapsed');b.textContent=collapsed?'Expand':'Collapse'});
   let dragged=null;document.querySelectorAll('.team-card[draggable="true"]').forEach(c=>{c.addEventListener('dragstart',()=>{dragged=c.dataset.team;c.classList.add('dragging')});c.addEventListener('dragend',()=>c.classList.remove('dragging'))});document.querySelectorAll('.pool').forEach(p=>{p.addEventListener('dragover',e=>e.preventDefault());p.addEventListener('drop',e=>{e.preventDefault();if(!dragged)return;const source=Object.keys(state.pools).find(d=>Object.values(state.pools[d].lists).some(ids=>ids.includes(dragged)));if(state.pools[source]?.approved||state.pools[p.dataset.dropD]?.approved)return alert('Unlock the affected division before moving teams.');moveTeam(dragged,p.dataset.dropD,p.dataset.dropP)})});
@@ -1580,7 +1594,7 @@ function runScheduleAudit(allLeague=false){
     const pools=targetPools.filter(x=>x.d===d);if(pools.length<2)return;
     const cfg=state.divisionConfig[d]||{},start=minutes(cfg.start||'00:00'),end=minutes(cfg.end||'23:59'),span=Math.max(1,end-start);
     const avgs=pools.map(p=>{const pg=games.filter(g=>g.division===d&&g.pool===p.pool);const vals=pg.map(g=>(minutes(g.time)-start)/span);return {pool:p.pool,n:vals.length,avg:vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:0}}).filter(x=>x.n);
-    if(avgs.length>1){const lo=Math.min(...avgs.map(x=>x.avg)),hi=Math.max(...avgs.map(x=>x.avg));if(hi-lo>.18)fairnessWarn.push(`${divisionLabel(d)}: ${avgs.map(x=>`Pool ${x.pool} average slot ${Math.round(x.avg*100)}% through the time window`).join('; ')}. Schedule the Entire Division together to rebalance early and late games.`)}
+    if(avgs.length>1){const lo=Math.min(...avgs.map(x=>x.avg)),hi=Math.max(...avgs.map(x=>x.avg));if(hi-lo>.18)fairnessWarn.push(`${divisionLabel(d)}: ${avgs.map(x=>`${poolDisplayName(d,x.pool)} average slot ${Math.round(x.avg*100)}% through the time window`).join('; ')}. Schedule the Entire Division together to rebalance early and late games.`)}
   });
   const row=(label,viol,detail,soft=false)=>results.push(auditResult(label,viol.length?(soft?'WARN':'FAIL'):'PASS',viol.length?`${viol.length} issue(s)`:detail,viol));
   row('No self-matchups',self,'No self-games');row('No team double-booking',teamDouble,'No teams scheduled twice in the same slot');row('No court double-booking',courtDouble,'No courts double-booked');row('Division time windows',windowBad,'All games inside assigned division windows');row('Assigned court groups',courtBad,'All games use primary courts or Director-approved overflow courts');row('Overflow court usage',overflowCourtInfo,overflowCourtInfo.length?'Director-approved overflow courts were used':'No overflow courts used',true);row('Team schedule requests',requestBad,state.settings.honorScheduleRequests?'All requests honored':'Rule is OFF',false);row('Shared-coach conflicts',coachBad,state.settings.protectSharedCoaches?'No shared-coach conflicts':'Rule is OFF');row('Minimum games per playing date',minimumDateBad,'Every available team receives at least its minimum games on every playing date');row('Calculated season minimum',guaranteeBad,'Every team meets the calculated season minimum');row('Maximum games per playing date',maxBad,'No team exceeds its maximum');row('Immediate rematches',immediateBad,state.settings.avoidImmediateRematches?'No immediate rematches':'Rule is OFF',!state.settings.avoidImmediateRematches);row('All opponents before repeats',allBeforeRepeatBad,state.settings.playAllTeamsOnce?'Opponent rotation satisfied chronologically — future games never justify an earlier repeat':'Rule is OFF',!state.settings.playAllTeamsOnce);row('Rest / back-to-back rule',restBad,'Rest rule satisfied');row('Time-slot fairness',fairnessWarn,'Pools are reasonably balanced across early, middle, and late slots',true);
@@ -1598,7 +1612,7 @@ function runScheduleAudit(allLeague=false){
   return {fails,warns,overall,results};
 }
 
-function groupOptions(select){const current=select.value||select.dataset.lastValue||'ALL',groups=[];Object.entries(state.pools).forEach(([d,p])=>{const pools=Object.keys(p.lists);if(pools.length>1)groups.push({value:divisionScopeKey(d),label:`${divisionLabel(d)} — Entire Division (${pools.length} pools)`,division:true});pools.forEach(pool=>groups.push({value:poolKey(d,pool),label:`${divisionLabel(d)} — Pool ${pool}`}))});select.innerHTML='<option value="ALL">Entire League</option>'+groups.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('');if(current==='ALL'||groups.some(x=>x.value===current))select.value=current;select.dataset.lastValue=select.value}
+function groupOptions(select){const current=select.value||select.dataset.lastValue||'ALL',groups=[];Object.entries(state.pools).forEach(([d,p])=>{const pools=Object.keys(p.lists);if(pools.length>1)groups.push({value:divisionScopeKey(d),label:`${divisionLabel(d)} — Entire Division (${pools.length} pools)`,division:true});pools.forEach(pool=>groups.push({value:poolKey(d,pool),label:`${divisionLabel(d)} — ${poolDisplayName(d,pool)}`}))});select.innerHTML='<option value="ALL">Entire League</option>'+groups.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('');if(current==='ALL'||groups.some(x=>x.value===current))select.value=current;select.dataset.lastValue=select.value}
 function renderCourtCalendar(){
   const dateSel=$('calendarDate'),scopeSel=$('calendarScope'),table=$('calendarTable'),summary=$('calendarSummary');
   if(!dateSel||!scopeSel||!table||!summary)return;
@@ -1616,10 +1630,10 @@ function renderCourtCalendar(){
   const teamSlot={};let teamConflicts=0;games.forEach(g=>{[g.aId,g.bId].forEach(id=>{const k=`${g.time}|${id}`;teamSlot[k]=(teamSlot[k]||0)+1;if(teamSlot[k]===2)teamConflicts++})});
   summary.innerHTML=`<span class="pill">${games.length} game(s)</span><span class="pill">${courts.length} court(s)</span><span class="pill">${times.length} occupied time(s)</span><span class="pill ${duplicateSlots?'warn':'ok'}">${duplicateSlots} court/time conflict(s)</span><span class="pill ${teamConflicts?'warn':'ok'}">${teamConflicts} team double-booking(s)</span>`;
   if(!games.length){table.innerHTML='<tbody><tr><td class="calendar-empty">No scheduled games for this date and scope.</td></tr></tbody>';return}
-  table.innerHTML=`<thead><tr><th>Time</th>${courts.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${times.map(time=>`<tr><th>${fmtTime(time)}</th>${courts.map(c=>{const arr=slotMap[`${time}|${c}`]||[];return `<td class="calendar-cell ${arr.length>1?'calendar-conflict':''}">${arr.length?arr.map(g=>`<button class="calendar-game ${arr.length>1?'calendar-conflict':''}" type="button" data-calendar-game="${g.id}"><b>${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</b><br><span class="hint">${esc(divisionLabel(g.division))} • Pool ${esc(g.pool)}</span></button>`).join(''):'<span class="calendar-empty">—</span>'}</td>`}).join('')}</tr>`).join('')}</tbody>`;
+  table.innerHTML=`<thead><tr><th>Time</th>${courts.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${times.map(time=>`<tr><th>${fmtTime(time)}</th>${courts.map(c=>{const arr=slotMap[`${time}|${c}`]||[];return `<td class="calendar-cell ${arr.length>1?'calendar-conflict':''}">${arr.length?arr.map(g=>`<button class="calendar-game ${arr.length>1?'calendar-conflict':''}" type="button" data-calendar-game="${g.id}"><b>${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</b><br><span class="hint">${esc(divisionLabel(g.division))} • ${esc(poolDisplayName(g.division,g.pool))}</span></button>`).join(''):'<span class="calendar-empty">—</span>'}</td>`}).join('')}</tr>`).join('')}</tbody>`;
   document.querySelectorAll('[data-calendar-game]').forEach(b=>b.onclick=()=>openGameEditor(b.dataset.calendarGame));
 }
-function renderSchedule(){groupOptions($('scheduleFilter'));const f=$('scheduleFilter').value||'ALL',g=state.games.filter(x=>scopeMatchesGame(f,x)).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));$('scheduleTable').innerHTML='<thead><tr><th>Playing Date #</th><th>Date</th><th>Time</th><th>Court</th><th>Division / Pool</th><th>Matchup</th><th>Status</th><th>Result</th><th></th></tr></thead><tbody>'+g.map(x=>`<tr class="${x.pending?'pending-row':''}"><td>${x.week||''}</td><td>${x.date}</td><td>${fmtTime(x.time)}</td><td>${esc(x.court)}</td><td>${esc(divisionLabel(x.division))} — Pool ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td>${esc(x.status||'Scheduled')}${x.pending?' • Unpublished':''}</td><td>${x.sa==null?'—':x.sa+'–'+x.sb}</td><td><button class="edit-btn" data-edit-game="${x.id}">Edit</button></td></tr>`).join('')+'</tbody>';document.querySelectorAll('[data-edit-game]').forEach(b=>b.addEventListener('click',()=>openGameEditor(b.dataset.editGame)))}
+function renderSchedule(){groupOptions($('scheduleFilter'));const f=$('scheduleFilter').value||'ALL',g=state.games.filter(x=>scopeMatchesGame(f,x)).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));$('scheduleTable').innerHTML='<thead><tr><th>Playing Date #</th><th>Date</th><th>Time</th><th>Court</th><th>Division / Pool</th><th>Matchup</th><th>Status</th><th>Result</th><th></th></tr></thead><tbody>'+g.map(x=>`<tr class="${x.pending?'pending-row':''}"><td>${x.week||''}</td><td>${x.date}</td><td>${fmtTime(x.time)}</td><td>${esc(x.court)}</td><td>${esc(divisionLabel(x.division))} — ${esc(poolDisplayName(x.division,x.pool))}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td>${esc(x.status||'Scheduled')}${x.pending?' • Unpublished':''}</td><td>${x.sa==null?'—':x.sa+'–'+x.sb}</td><td><button class="edit-btn" data-edit-game="${x.id}">Edit</button></td></tr>`).join('')+'</tbody>';document.querySelectorAll('[data-edit-game]').forEach(b=>b.addEventListener('click',()=>openGameEditor(b.dataset.editGame)))}
 function sameSlot(g,date,time,court){return g.date===date&&g.time===time&&g.court===court}
 function gameWarnings(game,date,time,court,aId,bId){const warnings=[];if(aId===bId)warnings.push('A team cannot play itself.');const a=teamById(aId),b=teamById(bId);state.games.filter(g=>g.id!==game.id&&g.status!=='Cancelled').forEach(g=>{if(sameSlot(g,date,time,court))warnings.push(`Court conflict with ${teamById(g.aId).name} vs ${teamById(g.bId).name}.`);if(g.date===date&&g.time===time&&(g.aId===aId||g.bId===aId||g.aId===bId||g.bId===bId))warnings.push('One of the teams is already scheduled at that time.');const ga=teamById(g.aId),gb=teamById(g.bId),coaches=[a.coach,b.coach].filter(Boolean);if(g.date===date&&g.time===time&&coaches.some(c=>c===ga.coach||c===gb.coach))warnings.push('A shared coach is already scheduled at that time.')});const cfg=state.divisionConfig[game.division];if(cfg&&(time<cfg.start||time>=cfg.end))warnings.push(`Time is outside the division window (${fmtTime(cfg.start)}–${fmtTime(cfg.end)}).`);if(!state.courts.some(c=>c.name===court))warnings.push('The selected court is not an active playing surface.');return [...new Set(warnings)]}
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
@@ -1649,7 +1663,7 @@ function divisionProgressRows(){
     else if(completed.length>0) {status='In Progress';cls='warn'}
     else {status='Scheduled';cls='ok'}
     if(pending.length){status='Unpublished Changes';cls='warn'}
-    return {division,pool,key,label:`${divisionLabel(division)} — Pool ${pool}`,teams:ids.length,target,games:active.length,completed:completed.length,published:publishedGames.length,pending:pending.length,status,cls};
+    return {division,pool,key,label:`${divisionLabel(division)} — ${poolDisplayName(division,pool)}`,teams:ids.length,target,games:active.length,completed:completed.length,published:publishedGames.length,pending:pending.length,status,cls};
   })).sort((a,b)=>a.label.localeCompare(b.label));
 }
 function renderManagement(){
@@ -1666,7 +1680,7 @@ function renderManagement(){
   const selectedLabel=divisionValue==='ALL'?'All divisions and pools':($('managementDivision').selectedOptions[0]?.textContent||divisionValue);
   $('managementScopeTitle').textContent=`${selectedLabel} • ${games.length} game(s) shown`;
   $('publishStatus').innerHTML=`<div class="status ${pending?'warn':'ok'}">${pending?pending+' unpublished schedule change(s). The League Portal still shows the last published schedule.':'The working and published schedules match.'}</div>`;
-  $('managementTable').innerHTML='<thead><tr><th>Playing Date #</th><th>Date</th><th>Time</th><th>Court</th><th>Division / Pool</th><th>Game</th><th>Status</th><th>Score</th><th></th></tr></thead><tbody>'+games.map(g=>`<tr class="${g.pending?'pending-row':''}"><td>${g.week||''}</td><td>${g.date}</td><td>${fmtTime(g.time)}</td><td>${esc(g.court)}</td><td>${esc(divisionLabel(g.division))} — Pool ${esc(g.pool)}</td><td>${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</td><td>${esc(g.status||'Scheduled')}${g.pending?' • Unpublished':''}${isHistoricalGame(g)?' • Historical':''}</td><td>${g.sa==null?'—':g.sa+'–'+g.sb}</td><td><button class="edit-btn" data-manage-game="${g.id}">${isHistoricalGame(g)?'Correct Record':'Edit'}</button></td></tr>`).join('')+'</tbody>';
+  $('managementTable').innerHTML='<thead><tr><th>Playing Date #</th><th>Date</th><th>Time</th><th>Court</th><th>Division / Pool</th><th>Game</th><th>Status</th><th>Score</th><th></th></tr></thead><tbody>'+games.map(g=>`<tr class="${g.pending?'pending-row':''}"><td>${g.week||''}</td><td>${g.date}</td><td>${fmtTime(g.time)}</td><td>${esc(g.court)}</td><td>${esc(divisionLabel(g.division))} — ${esc(poolDisplayName(g.division,g.pool))}</td><td>${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</td><td>${esc(g.status||'Scheduled')}${g.pending?' • Unpublished':''}${isHistoricalGame(g)?' • Historical':''}</td><td>${g.sa==null?'—':g.sa+'–'+g.sb}</td><td><button class="edit-btn" data-manage-game="${g.id}">${isHistoricalGame(g)?'Correct Record':'Edit'}</button></td></tr>`).join('')+'</tbody>';
   if(!games.length)$('managementTable').querySelector('tbody').innerHTML='<tr><td colspan="9" class="hint">No games match the selected filters.</td></tr>';
   document.querySelectorAll('[data-manage-game]').forEach(b=>b.addEventListener('click',()=>openGameEditor(b.dataset.manageGame)));
   $('changeHistory').innerHTML=state.scheduleChanges.length?state.scheduleChanges.map(c=>{const g=state.games.find(x=>x.id===c.gameId),a=c.after||{},teamA=teamById(a.aId||g?.aId).name,teamB=teamById(a.bId||g?.bId).name;return `<div class="item"><div class="row" style="justify-content:space-between;align-items:start"><div><b>${new Date(c.changedAt).toLocaleString()} • ${esc((c.kind||'schedule').replace(/^./,m=>m.toUpperCase()))}</b><br>${esc(teamA)} vs ${esc(teamB)}<br><span class="hint">${esc(changeSummary(c))}<br>Reason: ${esc(c.reason||'No reason entered')}${c.warnings?.length?'<br>Override: '+c.warnings.map(esc).join('; '):''}</span></div><button class="secondary" data-restore-change="${c.id}">${canDirectUndo(c)?'Undo':'Restore This Version'}</button></div></div>`}).join(''):'<p class="hint">No schedule changes have been recorded.</p>';
@@ -1720,10 +1734,10 @@ function openTeamModal(teamId){
 }
 function closeTeamModal(){const m=$('teamModal');m.classList.add('hidden');m.style.display='none'}
 function standingsData(games=state.games){const by={};Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{const k=poolKey(d,pool);by[k]=Object.fromEntries(ids.map(id=>[id,{id,name:teamById(id).name,gp:0,w:0,l:0,pf:0,pa:0,pd:0}]))}));games.forEach(g=>{if(g.sa==null||g.sb==null)return;const s=by[poolKey(g.division,g.pool)],a=s?.[g.aId],b=s?.[g.bId];if(!a||!b)return;a.gp++;b.gp++;a.pf+=g.sa;a.pa+=g.sb;b.pf+=g.sb;b.pa+=g.sa;if(g.sa>g.sb){a.w++;b.l++}else if(g.sb>g.sa){b.w++;a.l++}});Object.values(by).forEach(s=>Object.values(s).forEach(x=>x.pd=x.pf-x.pa));return by}
-function standingsHTML(filter='ALL',games=state.games){const by=standingsData(games);return Object.entries(by).filter(([k])=>filter==='ALL'||k===filter).map(([k,s])=>{const[d,p]=k.split('::'),rows=Object.values(s).sort((a,b)=>b.w-a.w||b.pd-a.pd||a.pa-b.pa||a.name.localeCompare(b.name));return `<div class="card" style="margin-bottom:14px"><h3>${esc(divisionLabel(d))} — Pool ${p}</h3><div class="table-wrap"><table><thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>PD</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td><button class="team-link" data-team-detail="${x.id}">${esc(x.name)}</button></td><td>${x.gp}</td><td>${x.w}</td><td>${x.l}</td><td>${x.pf}</td><td>${x.pa}</td><td>${x.pd}</td></tr>`).join('')}</tbody></table></div></div>`}).join('')||'<p class="hint">No pools available.</p>'}
+function standingsHTML(filter='ALL',games=state.games){const by=standingsData(games);return Object.entries(by).filter(([k])=>filter==='ALL'||k===filter).map(([k,s])=>{const[d,p]=k.split('::'),rows=Object.values(s).sort((a,b)=>b.w-a.w||b.pd-a.pd||a.pa-b.pa||a.name.localeCompare(b.name));return `<div class="card" style="margin-bottom:14px"><h3>${esc(divisionLabel(d))} — ${esc(poolDisplayName(d,p))}</h3><div class="table-wrap"><table><thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>PD</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td><button class="team-link" data-team-detail="${x.id}">${esc(x.name)}</button></td><td>${x.gp}</td><td>${x.w}</td><td>${x.l}</td><td>${x.pf}</td><td>${x.pa}</td><td>${x.pd}</td></tr>`).join('')}</tbody></table></div></div>`}).join('')||'<p class="hint">No pools available.</p>'}
 function bindTeamLinks(){document.querySelectorAll('[data-team-detail]').forEach(b=>b.addEventListener('click',()=>openTeamModal(b.dataset.teamDetail)))}
 function renderStandings(){$('standingsAdmin').innerHTML=standingsHTML();bindTeamLinks()}
-function scheduleCards(g){return g.map(x=>`<div class="item"><b>${x.date} • ${fmtTime(x.time)}</b><br><span class="hint">Court: ${esc(x.court||'—')}</span><br>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}<br><span class="hint">${esc(divisionLabel(x.division))} • Pool ${x.pool}${x.sa==null?'':' • Final '+x.sa+'–'+x.sb}</span></div>`).join('')||'<p class="hint">No scheduled games.</p>'}
+function scheduleCards(g){return g.map(x=>`<div class="item"><b>${x.date} • ${fmtTime(x.time)}</b><br><span class="hint">Court: ${esc(x.court||'—')}</span><br>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}<br><span class="hint">${esc(divisionLabel(x.division))} • ${esc(poolDisplayName(x.division,x.pool))}${x.sa==null?'':' • Final '+x.sa+'–'+x.sb}</span></div>`).join('')||'<p class="hint">No scheduled games.</p>'}
 function renderCoachSelectors(){const coaches=[...new Set(state.teams.map(t=>t.coach).filter(Boolean))].sort(),prev=$('coachSelect').value;$('coachSelect').innerHTML='<option value="">All coaches</option>'+coaches.map(c=>`<option>${esc(c)}</option>`).join('');if(coaches.includes(prev))$('coachSelect').value=prev;const c=$('coachSelect').value,teams=state.teams.filter(t=>!c||t.coach===c),pt=$('coachTeamSelect').value;$('coachTeamSelect').innerHTML='<option value="">All teams</option>'+teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');if(teams.some(t=>t.id===pt))$('coachTeamSelect').value=pt}
 function renderCoach(){renderCoachSelectors();const c=$('coachSelect').value,tid=$('coachTeamSelect').value,ids=new Set(state.teams.filter(t=>(!c||t.coach===c)&&(!tid||t.id===tid)).map(t=>t.id));const g=state.games.filter(x=>ids.has(x.aId)||ids.has(x.bId)).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('coachSchedule').innerHTML='<h2>Schedule</h2>'+scheduleCards(g);const groups=new Set(g.map(x=>poolKey(x.division,x.pool)));$('coachStandings').innerHTML='<h2>Standings</h2>'+[...groups].map(k=>standingsHTML(k)).join('');bindTeamLinks()}
 function renderPublic(){groupOptions($('publicDivision'));const f=$('publicDivision').value||'ALL';$('publicHeader').innerHTML=`<div class="public-title">${esc(state.settings.leagueName||'MSS 3v3 League')}</div><div class="hint">League standings, team schedules, results, courts and game status</div>`;const publicGames=(state.publishedGames&&state.publishedGames.length?state.publishedGames:state.games);const g=publicGames.filter(x=>f==='ALL'||poolKey(x.division,x.pool)===f).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('publicSchedule').innerHTML=scheduleCards(g);$('publicStandings').innerHTML=standingsHTML(f,publicGames);bindTeamLinks()}
