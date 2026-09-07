@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.20</title>
+<title>MSS League Scheduler v11.11.21</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -35,7 +35,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.20</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.21</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -234,7 +234,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 
     <div class="card">
       <h2>Playing Surfaces</h2>
-      <p class="hint">Add each independently schedulable area, such as Court 1 West, Court 1 East, Court 2 West, and Court 2 East.</p>
+      <p class="hint">Add each physical court once. If a court is available in more than one time block, add the same court name again with the additional hours; MSS will combine those windows automatically and keep the court list sorted.</p>
       <div class="row">
         <div class="field"><label>Surface Name</label><input id="courtName" placeholder="Court 1 West"></div>
         <div class="field"><label>Available From</label><input id="courtStart" type="time" value="17:00"></div>
@@ -472,6 +472,7 @@ function repairAccidentalSingleGroupAssignments(){
 }
 function normalizeLoadedState(){
   synchronizeDivisionState();
+  mergeDuplicatePlayingSurfaces();
   state.divisions=state.divisions||[];state.courtGroups=state.courtGroups||[];state.courtGroups.forEach(g=>{if(/^all\s+(courts|surfaces)$/i.test(g.name||''))g.dynamicAll=true});state.divisionConfig=state.divisionConfig||{};state.settings=state.settings||{};state.settings.gamesPerWeek=state.settings.gamesPerWeek||3;state.settings.seasonGuarantee=state.settings.seasonGuarantee||12;state.settings.maxGamesPerDate=state.settings.maxGamesPerDate||4;state.settings.days=Array.isArray(state.settings.days)?state.settings.days:[0];state.settings.exceptions=Array.isArray(state.settings.exceptions)?state.settings.exceptions:[];state.settings.exceptionNotes=state.settings.exceptionNotes||{};Object.keys(state.divisionConfig||{}).forEach(d=>{const c=state.divisionConfig[d];if(!c.courtMode)c.courtMode='preferred';if(typeof c.overflowApproved!=='boolean')c.overflowApproved=false});
   if(!state.settings.seasonEnd){const weeks=Number(state.settings.seasonWeeks||8);state.settings.seasonEnd=addDaysISO(state.settings.seasonStart||new Date().toISOString().slice(0,10),weeks*7-1)}
   if(!state.divisions.length&&state.teams.length&&!Object.keys(state.pools||{}).length&&!state.teams.some(t=>t.divisionId)){const seen={};state.teams.forEach(t=>{const k=legacyDivisionKey(t);if(!seen[k]){const id='div_'+Math.random().toString(36).slice(2,9);seen[k]=id;state.divisions.push({id,name:t.sourceDivision||(()=>{const [g,se,lv]=k.split('|');return `${g} ${se} • ${lv}`})(),grades:[t.grade],gender:t.gender,skill:t.skill});}t.divisionId=seen[k]})}
@@ -890,6 +891,74 @@ function renderBoard(){
   let dragged=null;document.querySelectorAll('.team-card[draggable="true"]').forEach(c=>{c.addEventListener('dragstart',()=>{dragged=c.dataset.team;c.classList.add('dragging')});c.addEventListener('dragend',()=>c.classList.remove('dragging'))});document.querySelectorAll('.pool').forEach(p=>{p.addEventListener('dragover',e=>e.preventDefault());p.addEventListener('drop',e=>{e.preventDefault();if(!dragged)return;const source=Object.keys(state.pools).find(d=>Object.values(state.pools[d].lists).some(ids=>ids.includes(dragged)));if(state.pools[source]?.approved||state.pools[p.dataset.dropD]?.approved)return alert('Unlock the affected division before moving teams.');moveTeam(dragged,p.dataset.dropD,p.dataset.dropP)})});
 }
 
+function naturalCourtSort(a,b){
+  return String(a?.name||a||'').localeCompare(String(b?.name||b||''),undefined,{numeric:true,sensitivity:'base'});
+}
+function normalizeCourtWindows(c){
+  let windows=Array.isArray(c?.windows)?c.windows.filter(w=>w&&w.start&&w.end&&w.start<w.end).map(w=>({start:w.start,end:w.end})):[];
+  if(!windows.length&&c?.start&&c?.end&&c.start<c.end)windows=[{start:c.start,end:c.end}];
+  windows.sort((a,b)=>minutes(a.start)-minutes(b.start)||minutes(a.end)-minutes(b.end));
+  const out=[];
+  for(const w of windows){
+    const last=out[out.length-1];
+    // Merge overlapping windows, but preserve adjacent blocks such as 4–7 and 7–10.
+    if(last&&minutes(w.start)<minutes(last.end))last.end=minutes(w.end)>minutes(last.end)?w.end:last.end;
+    else if(!out.some(x=>x.start===w.start&&x.end===w.end))out.push({...w});
+  }
+  c.windows=out;
+  if(out.length){c.start=out[0].start;c.end=out[out.length-1].end}
+  return out;
+}
+function courtWindows(c){return normalizeCourtWindows(c||{})}
+function mergeDuplicatePlayingSurfaces(){
+  state.courts=state.courts||[];state.courtGroups=state.courtGroups||[];
+  const byName=new Map(),idMap=new Map(),merged=[];
+  [...state.courts].sort(naturalCourtSort).forEach(c=>{
+    const key=String(c.name||'').trim().toLowerCase();
+    if(!key)return;
+    const wins=courtWindows(c);
+    if(!byName.has(key)){
+      const keep={...c,windows:wins.map(w=>({...w}))};byName.set(key,keep);merged.push(keep);idMap.set(c.id,keep.id);
+    }else{
+      const keep=byName.get(key);idMap.set(c.id,keep.id);keep.windows=[...courtWindows(keep),...wins.map(w=>({...w}))];normalizeCourtWindows(keep);
+    }
+  });
+  state.courts=merged.sort(naturalCourtSort);
+  state.courtGroups.forEach(g=>{g.surfaceIds=[...new Set((g.surfaceIds||[]).map(id=>idMap.get(id)||id).filter(id=>state.courts.some(c=>c.id===id)))]});
+}
+function commonGroupWindows(group){
+  const surfaces=groupSurfaceIds(group).map(id=>state.courts.find(c=>c.id===id)).filter(Boolean);
+  if(!surfaces.length)return[];
+  let segs=courtWindows(surfaces[0]).map(w=>({...w}));
+  for(const surface of surfaces.slice(1)){
+    const next=[];
+    for(const a of segs)for(const b of courtWindows(surface)){
+      const st=Math.max(minutes(a.start),minutes(b.start)),en=Math.min(minutes(a.end),minutes(b.end));
+      if(st<en)next.push({start:`${String(Math.floor(st/60)).padStart(2,'0')}:${String(st%60).padStart(2,'0')}`,end:`${String(Math.floor(en/60)).padStart(2,'0')}:${String(en%60).padStart(2,'0')}`});
+    }
+    segs=next;if(!segs.length)break;
+  }
+  segs.sort((a,b)=>minutes(a.start)-minutes(b.start)||minutes(a.end)-minutes(b.end));
+  const out=[];for(const w of segs){const last=out[out.length-1];if(last&&minutes(w.start)<minutes(last.end))last.end=minutes(w.end)>minutes(last.end)?w.end:last.end;else if(!out.some(x=>x.start===w.start&&x.end===w.end))out.push(w)}
+  return out;
+}
+function chooseGroupWindow(group,start='',end='',divisionId=''){
+  const wins=commonGroupWindows(group);if(!wins.length)return null;
+  const s=start?minutes(start):null,e=end?minutes(end):null;
+  let best=null,bestOverlap=-1;
+  if(s!=null&&e!=null&&s<e){
+    wins.forEach(w=>{const ov=Math.max(0,Math.min(e,minutes(w.end))-Math.max(s,minutes(w.start)));if(ov>bestOverlap){best=w;bestOverlap=ov}else if(ov===bestOverlap&&ov>=0){const label=divisionLabel(divisionId||group?.primaryDivisionId||'').toLowerCase(),hs=/high school|\bhs\b/.test(label);if(hs&&minutes(w.start)>minutes(best.start))best=w;if(!hs&&minutes(w.start)<minutes(best.start))best=w}});
+    if(bestOverlap>0)return best;
+  }
+  const label=divisionLabel(divisionId||group?.primaryDivisionId||'').toLowerCase(),hs=/high school|\bhs\b/.test(label);
+  return hs?wins[wins.length-1]:wins[0];
+}
+function removeCourtWindow(id,start,end){
+  const c=state.courts.find(x=>x.id===id);if(!c)return;
+  c.windows=courtWindows(c).filter(w=>!(w.start===start&&w.end===end));
+  if(!c.windows.length){removeCourt(id);return}
+  normalizeCourtWindows(c);persist();renderAll();showActionFeedback(`${c.name} availability ${fmtTime(start)}–${fmtTime(end)} removed.`)
+}
 function showActionFeedback(message,ok=true,buttonId=''){
   const toast=$('actionToast');if(toast){toast.textContent=(ok?'✓ ':'✕ ')+message;toast.className=`action-toast show ${ok?'ok':'bad'}`;clearTimeout(showActionFeedback._t);showActionFeedback._t=setTimeout(()=>{toast.classList.remove('show')},3500)}
   if(buttonId){const b=$(buttonId);if(b){b.classList.add('button-confirmed');const old=b.dataset.normalText||b.textContent;b.dataset.normalText=old;b.textContent=ok?'✓ Complete':'✕ Failed';setTimeout(()=>{b.textContent=b.dataset.normalText||old;b.classList.remove('button-confirmed')},1700)}}
@@ -898,7 +967,12 @@ function showActionFeedback(message,ok=true,buttonId=''){
 function addCourt(){
   const name=$('courtName').value.trim(),start=$('courtStart').value,end=$('courtEnd').value;
   if(!name||!start||!end||start>=end){showActionFeedback('Enter a valid playing surface and availability.',false,'addCourtBtn');return}
-  const item={id:uid('c'),name,start,end};state.courts.push(item);$('courtName').value='';
+  const existing=state.courts.find(c=>String(c.name||'').trim().toLowerCase()===name.toLowerCase());
+  if(existing){
+    const before=JSON.stringify(courtWindows(existing));existing.windows=[...courtWindows(existing),{start,end}];normalizeCourtWindows(existing);$('courtName').value='';
+    try{syncSettings();persist();renderAll();showActionFeedback(`${existing.name} availability added (${fmtTime(start)}–${fmtTime(end)}).`,true,'addCourtBtn')}catch(e){existing.windows=JSON.parse(before);normalizeCourtWindows(existing);showActionFeedback(e.message||'Availability could not be added.',false,'addCourtBtn')}return;
+  }
+  const item={id:uid('c'),name,start,end,windows:[{start,end}]};state.courts.push(item);state.courts.sort(naturalCourtSort);$('courtName').value='';
   try{syncSettings();persist();renderAll();showActionFeedback(`${name} added (${fmtTime(start)}–${fmtTime(end)}).`,true,'addCourtBtn')}catch(e){state.courts=state.courts.filter(c=>c.id!==item.id);showActionFeedback(e.message||'Playing surface could not be added.',false,'addCourtBtn')}
 }
 function removeCourt(id){
@@ -911,22 +985,14 @@ function courtGroupPrimaryDivision(group){
   if(assigned.length===1)return assigned[0];
   return '';
 }
-function groupAvailabilityRange(group){
-  const surfaces=groupSurfaceIds(group).map(id=>state.courts.find(c=>c.id===id)).filter(Boolean);
-  if(!surfaces.length)return null;
-  // Use the common window shared by every surface in the group. Individual court slots are
-  // still checked later, but this gives the division a safe synchronized default.
-  const startMinutes=Math.max(...surfaces.map(c=>minutes(c.start)));
-  const endMinutes=Math.min(...surfaces.map(c=>minutes(c.end)));
-  if(startMinutes>=endMinutes)return null;
-  const hhmm=m=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-  return {start:hhmm(startMinutes),end:hhmm(endMinutes)};
+function groupAvailabilityRange(group,start='',end='',divisionId=''){
+  return chooseGroupWindow(group,start,end,divisionId);
 }
 function syncDivisionWindowToGroup(divisionId,group,force=false){
   if(!divisionId||!group)return false;
   ensureDivisionConfig();
   const cfg=state.divisionConfig[divisionId]||{};
-  const range=groupAvailabilityRange(group);if(!range)return false;
+  const range=(force||cfg.timeWindowSource!=='custom')?groupAvailabilityRange(group,'','',divisionId):groupAvailabilityRange(group,cfg.start,cfg.end,divisionId);if(!range)return false;
   // Legacy builds created 18:00–20:00 as a default. Treat that unsourced default as safe to migrate.
   const looksLegacyDefault=!cfg.timeWindowSource && (cfg.start||'18:00')==='18:00' && (cfg.end||'20:00')==='20:00';
   if(force||cfg.timeWindowSource!=='custom'||looksLegacyDefault){
@@ -935,7 +1001,7 @@ function syncDivisionWindowToGroup(divisionId,group,force=false){
   return false;
 }
 function effectiveDivisionWindow(d){
-  const cfg=state.divisionConfig[d]||{},group=state.courtGroups.find(g=>g.id===cfg.courtGroupId),range=groupAvailabilityRange(group);
+  const cfg=state.divisionConfig[d]||{},group=state.courtGroups.find(g=>g.id===cfg.courtGroupId),range=groupAvailabilityRange(group,cfg.start,cfg.end,d);
   if(!range||!cfg.start||!cfg.end)return null;
   const start=Math.max(minutes(range.start),minutes(cfg.start)),end=Math.min(minutes(range.end),minutes(cfg.end));
   if(start>=end)return null;
@@ -1026,7 +1092,7 @@ function setPoolResourceConfig(d,pool,field,value){
   }
   overrides[pool][field]=value;
   if(field==='courtGroupId'){
-    const group=state.courtGroups.find(g=>g.id===value),range=groupAvailabilityRange(group);
+    const group=state.courtGroups.find(g=>g.id===value),range=groupAvailabilityRange(group,'','',d);
     if(range){overrides[pool].start=range.start;overrides[pool].end=range.end;overrides[pool].timeWindowSource='group'}
     overrides[pool].overflowApproved=false;
   }
@@ -1035,11 +1101,11 @@ function setPoolResourceConfig(d,pool,field,value){
   if(allPoolsHaveExplicitResources(d))state.divisionConfig[d].usePoolAssignments=true;
   persist();renderAll();showActionFeedback(`${divisionLabel(d)} — ${poolDisplayName(d,pool)} court assignment updated and saved.`)
 }
-function groupAvailabilityRangeForConfig(cfg){
-  const group=state.courtGroups.find(g=>g.id===cfg?.courtGroupId);return groupAvailabilityRange(group)
+function groupAvailabilityRangeForConfig(cfg,d=''){
+  const group=state.courtGroups.find(g=>g.id===cfg?.courtGroupId);return groupAvailabilityRange(group,cfg?.start,cfg?.end,d)
 }
 function effectivePoolWindow(d,pool){
-  const cfg=poolResourceConfig(d,pool),range=groupAvailabilityRangeForConfig(cfg);
+  const cfg=poolResourceConfig(d,pool),range=groupAvailabilityRangeForConfig(cfg,d);
   if(!range||!cfg.start||!cfg.end)return null;
   const start=Math.max(minutes(range.start),minutes(cfg.start)),end=Math.min(minutes(range.end),minutes(cfg.end));if(start>=end)return null;
   const hhmm=m=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
@@ -1048,7 +1114,7 @@ function effectivePoolWindow(d,pool){
 
 function syncPoolWindowToGroup(d,pool,force=false,showFeedback=false){
   const overrides=ensurePoolResourceOverrides(d),ov=overrides?.[pool];if(!ov?.courtGroupId)return false;
-  const group=state.courtGroups.find(g=>g.id===ov.courtGroupId),range=groupAvailabilityRange(group);if(!group||!range)return false;
+  const group=state.courtGroups.find(g=>g.id===ov.courtGroupId),range=(force||!ov.timeWindowSource||ov.timeWindowSource==='group')?groupAvailabilityRange(group,'','',d):groupAvailabilityRange(group,ov.start||state.divisionConfig[d]?.start,ov.end||state.divisionConfig[d]?.end,d);if(!group||!range)return false;
   const hasOverlap=!!effectivePoolWindow(d,pool),looksInherited=!ov.timeWindowSource||ov.timeWindowSource==='group';
   if(force||looksInherited||!hasOverlap){
     ov.start=range.start;ov.end=range.end;ov.timeWindowSource='group';ov.overflowApproved=false;
@@ -1115,11 +1181,13 @@ function setDivisionConfig(d,field,value){
 function renderSettings(){
   $('exceptions').innerHTML=state.settings.exceptions.map(d=>`<div class="item"><b>${esc(d)}</b>${state.settings.exceptionNotes?.[d]?` <span class="hint">• ${esc(state.settings.exceptionNotes[d])}</span>`:''}<button class="danger" style="float:right;padding:4px 8px" data-remove-ex="${d}">Remove</button></div>`).join('')||'<span class="hint">No exception/off dates.</span>';
   document.querySelectorAll('[data-remove-ex]').forEach(b=>b.addEventListener('click',()=>removeException(b.dataset.removeEx)));
-  $('courtsList').innerHTML=state.courts.map(c=>`<div class="item"><b>${esc(c.name)}</b> ${fmtTime(c.start)}–${fmtTime(c.end)} <button class="danger" data-remove-court="${c.id}">Remove</button></div>`).join('')||'<p class="hint">No playing surfaces added.</p>';
+  const sortedCourts=[...state.courts].sort(naturalCourtSort);
+  $('courtsList').innerHTML=sortedCourts.map(c=>{const wins=courtWindows(c);return `<div class="item"><div class="row" style="justify-content:space-between;align-items:flex-start"><div><b>${esc(c.name)}</b><div class="hint">${wins.map(w=>`<span style="display:inline-flex;align-items:center;gap:5px;margin:4px 8px 0 0;padding:4px 7px;border:1px solid #d7dfeb;border-radius:8px;background:#fff">${fmtTime(w.start)}–${fmtTime(w.end)} <button type="button" class="danger" style="padding:1px 5px" data-remove-court-window="${c.id}" data-window-start="${w.start}" data-window-end="${w.end}">×</button></span>`).join('')}</div></div><button class="danger" data-remove-court="${c.id}">Remove Court</button></div></div>`}).join('')||'<p class="hint">No playing surfaces added.</p>';
   document.querySelectorAll('[data-remove-court]').forEach(b=>b.addEventListener('click',()=>removeCourt(b.dataset.removeCourt)));
-  $('courtGroupSurfaceChoices').innerHTML=state.courts.map(c=>`<label><input type="checkbox" data-group-surface value="${c.id}"><span>${esc(c.name)}</span></label>`).join('')||'<p class="hint">Add playing surfaces first.</p>';
+  document.querySelectorAll('[data-remove-court-window]').forEach(b=>b.addEventListener('click',()=>removeCourtWindow(b.dataset.removeCourtWindow,b.dataset.windowStart,b.dataset.windowEnd)));
+  $('courtGroupSurfaceChoices').innerHTML=sortedCourts.map(c=>`<label><input type="checkbox" data-group-surface value="${c.id}"><span>${esc(c.name)}</span></label>`).join('')||'<p class="hint">Add playing surfaces first.</p>';
   const divisionSelect=$('courtGroupDivision');if(divisionSelect){const current=divisionSelect.value;divisionSelect.innerHTML='<option value="">Select division</option>'+allDivisionKeys().map(d=>`<option value="${esc(d)}">${esc(divisionLabel(d))}</option>`).join('');if(allDivisionKeys().includes(current))divisionSelect.value=current;divisionSelect.onchange=()=>{const d=divisionSelect.value;if(d&&!$('courtGroupName').value.trim())$('courtGroupName').value=`${divisionLabel(d)} Courts`}}
-  $('courtGroupsList').innerHTML=state.courtGroups.map(g=>{const ids=groupSurfaceIds(g),assigned=allDivisionKeys().filter(d=>state.divisionConfig?.[d]?.courtGroupId===g.id),poolUses=[];allDivisionKeys().forEach(d=>Object.entries(state.pools?.[d]?.resourceOverrides||{}).forEach(([pool,ov])=>{if(ov.courtGroupId===g.id)poolUses.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}`)}));const primary=courtGroupPrimaryDivision(g);const useLabels=[...assigned.map(d=>divisionLabel(d)),...poolUses];return `<div class="item"><div class="row" style="justify-content:space-between;align-items:flex-start"><div style="flex:1"><b>${esc(g.name)} (${ids.length} surface${ids.length===1?'':'s'})</b><br><span class="hint">${ids.map(id=>esc((state.courts.find(c=>c.id===id)||{}).name||'Missing surface')).join(', ')||'No surfaces'}</span><div class="field" style="margin-top:8px;max-width:520px"><label>Assigned Division (optional default)</label><select data-group-division="${g.id}"><option value="">No parent default / pool assignment only</option>${allDivisionKeys().map(d=>`<option value="${d}" ${d===primary?'selected':''}>${esc(divisionLabel(d))}</option>`).join('')}</select></div><span class="hint"><b>Current use:</b> ${useLabels.length?useLabels.map(esc).join(', '):'No division or pool yet'}</span></div><button class="danger" data-remove-group="${g.id}">Remove</button></div></div>`}).join('')||'<p class="hint">No court groups created.</p>';
+  $('courtGroupsList').innerHTML=state.courtGroups.map(g=>{const ids=groupSurfaceIds(g),assigned=allDivisionKeys().filter(d=>state.divisionConfig?.[d]?.courtGroupId===g.id),poolUses=[];allDivisionKeys().forEach(d=>Object.entries(state.pools?.[d]?.resourceOverrides||{}).forEach(([pool,ov])=>{if(ov.courtGroupId===g.id)poolUses.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}`)}));const primary=courtGroupPrimaryDivision(g);const useLabels=[...assigned.map(d=>divisionLabel(d)),...poolUses];return `<div class="item"><div class="row" style="justify-content:space-between;align-items:flex-start"><div style="flex:1"><b>${esc(g.name)} (${ids.length} surface${ids.length===1?'':'s'})</b><br><span class="hint">${ids.map(id=>esc((state.courts.find(c=>c.id===id)||{}).name||'Missing surface')).join(', ')||'No surfaces'}${commonGroupWindows(g).length?`<br><b>Common availability:</b> ${commonGroupWindows(g).map(w=>`${fmtTime(w.start)}–${fmtTime(w.end)}`).join(', ')}`:''}</span><div class="field" style="margin-top:8px;max-width:520px"><label>Assigned Division (optional default)</label><select data-group-division="${g.id}"><option value="">No parent default / pool assignment only</option>${allDivisionKeys().map(d=>`<option value="${d}" ${d===primary?'selected':''}>${esc(divisionLabel(d))}</option>`).join('')}</select></div><span class="hint"><b>Current use:</b> ${useLabels.length?useLabels.map(esc).join(', '):'No division or pool yet'}</span></div><button class="danger" data-remove-group="${g.id}">Remove</button></div></div>`}).join('')||'<p class="hint">No court groups created.</p>';
   document.querySelectorAll('[data-remove-group]').forEach(b=>b.addEventListener('click',()=>removeCourtGroup(b.dataset.removeGroup)));
   document.querySelectorAll('[data-group-division]').forEach(sel=>sel.addEventListener('change',()=>assignCourtGroupToDivision(sel.dataset.groupDivision,sel.value)));
   renderDivisionAssignments();renderCapacity();
@@ -1167,16 +1235,18 @@ function seasonDatesRaw(){const s=new Date((state.settings.seasonStart||'')+'T00
 function seasonDates(){syncSettings();return seasonDatesRaw()}
 function slotsOnSurfacesConfig(date,surfaceIds,cfg){
   if(!cfg||!cfg.start||!cfg.end||cfg.start>=cfg.end)return[];
-  const len=Number(state.settings.gameLength||20),out=[];
+  const len=Number(state.settings.gameLength||20),out=[],seen=new Set();
   surfaceIds.forEach(id=>{
     const surface=state.courts.find(c=>c.id===id);if(!surface)return;
-    const start=Math.max(minutes(surface.start),minutes(cfg.start)),end=Math.min(minutes(surface.end),minutes(cfg.end));
-    for(let m=start;m+len<=end;m+=len){
-      const time=`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
-      out.push({date,time,court:surface.name,stamp:new Date(`${date}T${time}:00`).getTime(),surfaceId:id})
-    }
+    courtWindows(surface).forEach(w=>{
+      const start=Math.max(minutes(w.start),minutes(cfg.start)),end=Math.min(minutes(w.end),minutes(cfg.end));
+      for(let m=start;m+len<=end;m+=len){
+        const time=`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`,key=`${id}|${time}`;if(seen.has(key))continue;seen.add(key);
+        out.push({date,time,court:surface.name,stamp:new Date(`${date}T${time}:00`).getTime(),surfaceId:id})
+      }
+    })
   });
-  return out.sort((a,b)=>a.stamp-b.stamp||a.court.localeCompare(b.court))
+  return out.sort((a,b)=>a.stamp-b.stamp||a.court.localeCompare(b.court,undefined,{numeric:true,sensitivity:'base'}))
 }
 function slotsOnSurfaces(d,date,surfaceIds){return slotsOnSurfacesConfig(date,surfaceIds,state.divisionConfig[d]||{})}
 function basePoolSlots(d,pool,date){
