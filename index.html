@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.25</title>
+<title>MSS League Scheduler v11.11.26</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -35,7 +35,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.25</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.26</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -970,7 +970,7 @@ function mergeDuplicatePlayingSurfaces(){
   state.courtGroups.forEach(g=>{g.surfaceIds=[...new Set((g.surfaceIds||[]).map(id=>idMap.get(id)||id).filter(id=>state.courts.some(c=>c.id===id)))]});
 }
 function commonGroupWindows(group){
-  // v11.11.25: a court group does not require every surface to share the exact same hours.
+  // v11.11.26: a court group does not require every surface to share the exact same hours.
   // Build the group availability from the UNION of member-surface windows; actual capacity
   // is still calculated court-by-court, so a court is never used outside its own hours.
   const surfaces=groupSurfaceIds(group).map(id=>state.courts.find(c=>c.id===id)).filter(Boolean);
@@ -1327,7 +1327,7 @@ function divisionSlots(d,date){
   return [...m.values()].sort((a,b)=>a.stamp-b.stamp||a.court.localeCompare(b.court))
 }
 
-// v11.11.25 — bounded overflow planning.
+// v11.11.26 — bounded overflow planning.
 // Overflow searches are intentionally limited to a small, ranked set of compatible slots.
 // This prevents a full-facility combinatorial search from freezing the browser.
 let runtimeOverflowPlan=new Map();
@@ -1363,15 +1363,54 @@ function chooseBoundedOverflowSlots(d,pool,ids,dates,retainedGames=[]){
   }
   return selected;
 }
-function prepareBoundedOverflowPlans(targets,dates,retainedGames=[]){
+async function yieldToBrowser(){
+  await new Promise(resolve=>setTimeout(resolve,0));
+}
+function prepareGlobalOverflowPlan(targets,dates,retainedGames=[]){
+  // v11.11.26 — global resource plan. Alternate courts are reserved across the whole
+  // scheduling scope before matchup generation starts, so two divisions never assume
+  // the same overflow slot is available. The actual game placement still runs in chunks.
   resetRuntimeOverflowPlan();
+  const occupied=new Set(retainedGames.map(g=>`${g.date}|${g.time}|${g.court}`));
+  const reserved=new Set();
   const summary=[];
+  const ranked=[];
   for(const t of targets){
     const cfg=poolResourceConfig(t.division,t.pool),mode=cfg.courtMode||'preferred';
-    if(mode==='open'||(mode==='preferred'&&cfg.overflowApproved)){
-      const picked=chooseBoundedOverflowSlots(t.division,t.pool,t.ids,dates,retainedGames);
-      if(picked.length)summary.push(`${divisionLabel(t.division)} — ${poolDisplayName(t.division,t.pool)}: ${picked.length} bounded overflow slot(s) available`);
+    if(!(mode==='open'||(mode==='preferred'&&cfg.overflowApproved)))continue;
+    const minimum=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3);
+    const perDateNeed=Math.ceil([...new Set(t.ids||[])].length*minimum/2);
+    let totalShort=0;
+    for(const date of dates){
+      const base=basePoolSlots(t.division,t.pool,date).filter(sl=>!occupied.has(`${sl.date}|${sl.time}|${sl.court}`));
+      totalShort+=Math.max(0,perDateNeed-base.length);
     }
+    ranked.push({...t,totalShort});
+  }
+  // Give the most constrained targets first access to truly unused facility slots.
+  ranked.sort((a,b)=>b.totalShort-a.totalShort||divisionLabel(a.division).localeCompare(divisionLabel(b.division)));
+  for(const t of ranked){
+    const cfg=poolResourceConfig(t.division,t.pool),minimum=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3);
+    const perDateNeed=Math.ceil([...new Set(t.ids||[])].length*minimum/2);
+    let pickedCount=0;
+    for(const date of dates){
+      const base=basePoolSlots(t.division,t.pool,date).filter(sl=>!occupied.has(`${sl.date}|${sl.time}|${sl.court}`));
+      const baseKeys=new Set(base.map(sl=>`${sl.date}|${sl.time}|${sl.court}`));
+      const shortage=Math.max(0,perDateNeed-base.length);
+      if(shortage<=0)continue;
+      const extras=allFacilitySlotsForPool(t.division,t.pool,date)
+        .filter(sl=>{
+          const k=`${sl.date}|${sl.time}|${sl.court}`;
+          return !occupied.has(k)&&!reserved.has(k)&&!baseKeys.has(k);
+        })
+        .sort((a,b)=>a.stamp-b.stamp||a.court.localeCompare(b.court,undefined,{numeric:true,sensitivity:'base'}));
+      // Reserve only what this target needs plus modest headroom for request/rest constraints.
+      const budget=Math.min(extras.length,shortage+Math.min(4,Math.ceil((t.ids||[]).length/4)));
+      const picked=extras.slice(0,budget),keys=new Set();
+      for(const sl of picked){const k=`${sl.date}|${sl.time}|${sl.court}`;reserved.add(k);keys.add(k);pickedCount++}
+      if(keys.size)runtimeOverflowPlan.set(overflowPlanKey(t.division,t.pool,date),keys);
+    }
+    if(pickedCount)summary.push(`${divisionLabel(t.division)} — ${poolDisplayName(t.division,t.pool)}: ${pickedCount} globally reserved alternate slot(s)`);
   }
   return summary;
 }
@@ -1668,20 +1707,20 @@ function blockedDivisionDetails(){
     return `${divisionLabel(d)}: ${[...new Set(reasons)].join('; ')||'not ready'}`;
   });
 }
-function scheduleAllReadyDivisions(){
+async function scheduleAllReadyDivisions(){
   syncSettings();synchronizePoolWindowsFromGroups();persist();renderAll();
   const ready=readyDivisionKeys(),blocked=blockedDivisionDetails();
   if(!ready.length){alert(`No divisions are ready to schedule.${blocked.length?'\n\n'+blocked.join('\n'):''}`);return}
   const original=$('scheduleFilter').value||'ALL';let scheduled=0;
   for(const d of ready){
     $('scheduleFilter').value=divisionScopeKey(d);
-    try{generateSchedule();scheduled++}catch(err){console.error(err);showActionFeedback(`${divisionLabel(d)} could not be scheduled: ${err.message||err}`,false)}
+    try{await generateSchedule();scheduled++;await yieldToBrowser()}catch(err){console.error(err);showActionFeedback(`${divisionLabel(d)} could not be scheduled: ${err.message||err}`,false)}
   }
   $('scheduleFilter').value=original;renderAll();
   $('genSummary').innerHTML=`<div class="status ok"><b>Scheduled ${scheduled} ready division(s).</b>${blocked.length?`<br><span class="hint">Skipped ${blocked.length} blocked division(s): ${blocked.map(esc).join(' • ')}</span>`:''}</div>`;
   setTab('schedule');
 }
-function generateSchedule(){
+async function generateSchedule(){
   syncSettings();
   const {scope,targets}=selectedScheduleTargets();if(!targets.length)return alert('Select a division/pool to schedule.');const unapproved=[...new Set(targets.map(t=>t.division))].filter(d=>!state.pools[d]?.approved);if(unapproved.length)return alert('Approve these division(s) before scheduling: '+unapproved.map(divisionLabel).join(', '));
   const dupes=duplicateDisplayedNames();if(dupes.length)return alert('Duplicate team names remain within the same division. Rename or distinguish those teams before scheduling.');
@@ -1698,7 +1737,7 @@ function generateSchedule(){
   const retainedGames=scope==='ALL'?[]:state.games.filter(g=>!scopeMatchesGame(scope,g));
   const targetDivisions=[...new Set(targets.map(t=>t.division))];
   resetRuntimeOverflowPlan();
-  // v11.11.25 — overflow approval and schedule generation are deliberately separate actions.
+  // v11.11.26 — overflow approval and schedule generation are deliberately separate actions.
   // Approving alternate courts records permission only; it never continues into generation in the
   // same call stack. This prevents approval -> recheck -> regenerate loops from freezing Chrome.
   let overflowApprovalChanged=false;
@@ -1734,10 +1773,12 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     $('genSummary').innerHTML=`<div class="status"><b>Scheduling stage:</b> ${esc(label)} <span class="hint">(${elapsed}s)</span></div>`;
   };
   setGenerationStage('Preparing approved court capacity');
-  const overflowPlanNotes=prepareBoundedOverflowPlans(targets,dates,retainedGames);
+  const overflowPlanNotes=prepareGlobalOverflowPlan(targets,dates,retainedGames);
+  await yieldToBrowser();
   if(overflowPlanNotes.length)feasibilityNotes.push(...overflowPlanNotes);
   setGenerationStage('Building time-slot plan');
   const fairPlan=buildFairDivisionSlotPlan(scope,targets,dates);
+  await yieldToBrowser();
   seedConflictMaps(retainedGames,used,teamTimes,coachTimes);
 
   setGenerationStage('Checking capacity and availability');
@@ -1762,7 +1803,11 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   }
 
   setGenerationStage('Placing games');
-  targets.forEach(({division:d,pool,ids:rawIds})=>{
+  let targetNumber=0;
+  for(const {division:d,pool,ids:rawIds} of targets){
+    targetNumber++;
+    setGenerationStage(`Placing games — ${divisionLabel(d)} / ${poolDisplayName(d,pool)} (${targetNumber} of ${targets.length})`);
+    await yieldToBrowser();
     const ids=[...new Set(rawIds)].filter(Boolean);if(ids.length<2)return;
     const cfg=poolResourceConfig(d,pool);
     const preferred=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3);
@@ -1895,8 +1940,11 @@ This approval will be saved. Click Generate Schedule again to build the schedule
       })
     });
     ids.filter(id=>seasonCounts[id]<guarantee).forEach(id=>warnings.push(`${teamById(id).name} received ${seasonCounts[id]} of ${guarantee} guaranteed season games.`));
-  });
+    await yieldToBrowser();
+  }
 
+  setGenerationStage('Running bounded cleanup');
+  await yieldToBrowser();
   const repair=autoRepairGeneratedSchedule(newGames,retainedGames,targets);
   state.games=[...retainedGames,...newGames].map(g=>({...g,status:g.status||'Scheduled',pending:true}));persist();renderAll();
   const scopeLabel=scope==='ALL'?'all divisions and pools':$('scheduleFilter').selectedOptions[0]?.textContent||scope;
