@@ -1,4 +1,13 @@
-# MSS League Scheduler v11.11.27
+# MSS League Scheduler v11.11.28
+
+## v11.11.28 — Court Group assignment consistency
+
+- Court Group assignment now uses the actual Division Scheduling / Pool Court Override records as the single source of truth.
+- Old `primaryDivisionId` metadata can no longer silently overwrite or contradict the current assignment.
+- The Court Group assignment control now supports both a Division Default and individual pool assignments (for example HS Varsity Boys — Gold / Blue).
+- `Current use` is calculated from the same live assignment records as scheduling, so the dropdown and Current use cannot disagree.
+- Moving a division or pool to a different Court Group updates the previous group immediately on re-render.
+- Startup migration clears stale legacy assignment metadata without guessing assignments from Court Group names.
 
 Regression / reliability release.
 
