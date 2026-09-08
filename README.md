@@ -1,4 +1,4 @@
-# MSS League Scheduler v11.11.26
+# MSS League Scheduler v11.11.27
 
 Regression / reliability release.
 
@@ -109,26 +109,30 @@ QA performed for v11.11.23:
 - Improves overlap diagnostics so stale time defaults do not masquerade as missing assignments.
 
 
-## v11.11.26 — Bounded overflow scheduling / performance hotfix
+## v11.11.27 — Bounded overflow scheduling / performance hotfix
 - Reworks approved overflow-court scheduling so the generator does not search every compatible court/time combination in the facility.
 - Builds a small, ranked overflow plan per pool/date, using primary courts first and only enough extra slots to cover the expected shortage plus a limited safety buffer.
 - Caps nightly repair loops, season-repair loops, and post-generation swap repairs so the browser returns a result instead of running indefinitely.
 - Existing overflow approval behavior remains: the Director must approve use of additional courts before they are considered.
 - Capacity, audit, Court Calendar, pool-specific court groups, and Division Week/Season exports remain available.
 
-QA performed for v11.11.26:
+QA performed for v11.11.27:
 - JavaScript extracted from the standalone HTML and syntax-checked with Node.
 - Static verification of bounded overflow planning and loop caps.
 - ZIP integrity verification.
 
 
-## v11.11.26 stability change
+## v11.11.27 stability change
 Alternate/overflow-court approval is now a separate saved step. Approving alternate courts does not continue into schedule generation. Click Generate Schedule again after approval. A visible scheduling-stage indicator was also added to help isolate any future long-running stage.
 
 
-## v11.11.26 scheduling-engine stability
+## v11.11.27 scheduling-engine stability
 - Builds one league-wide overflow reservation plan before matchup generation.
 - Prevents multiple divisions from assuming the same alternate court/time slot is available.
 - Generates divisions/pools in browser-friendly chunks and yields between targets so Chrome remains responsive.
 - Keeps alternate-court approval separate from generation.
 - Displays the active division/pool during generation and performs cleanup only after initial placement.
+
+
+## v11.11.27 stability change
+Game placement now yields to the browser inside each date, matchup, court-search, nightly-repair, and season-repair loop. Each division/pool has a 45-second safe ceiling, cleanup is bounded/cooperative, and the full audit is deferred until the generated schedule has rendered.
