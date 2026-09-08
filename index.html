@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.32</title>
+<title>MSS League Scheduler v11.11.33</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -35,7 +35,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.32</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.33</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -1825,7 +1825,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   // useful failure rather than a Page Unresponsive dialog.
   const maxAttempts=24;
   const started=performance.now();
-  let bestPlaced=0,bestAttempt=0;
+  let bestPlaced=0,bestAttempt=0,bestPlacements=[];
 
   function canUse(game,sl,localUsed,localTeamTimes,localCoachTimes){
     const {a,b}=game,ta=teamById(a),tb=teamById(b),sk=`${sl.date}|${sl.time}|${sl.court}`;
@@ -1863,7 +1863,11 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     for(let i=0;i<ordered.length;i++){
       const game=ordered[i],ta=teamById(game.a),tb=teamById(game.b);
       const candidates=slots.filter(sl=>canUse(game,sl,localUsed,localTeamTimes,localCoachTimes));
-      if(!candidates.length){failed=true;bestPlaced=Math.max(bestPlaced,placements.length);bestAttempt=attempt+1;break;}
+      if(!candidates.length){
+        failed=true;
+        if(placements.length>bestPlaced){bestPlaced=placements.length;bestPlacements=placements.map(x=>({game:x.game,sl:x.sl}));}
+        bestAttempt=attempt+1;break;
+      }
       // Prefer a slot that leaves the most compatible slots for the next few games.
       let best=candidates[0],bestScore=-Infinity;
       for(let ci=0;ci<Math.min(candidates.length,18);ci++){
@@ -1888,7 +1892,8 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
         await placementYield(`Playing Date ${dateIndex+1} • ${i+1}/${ordered.length} guaranteed games placed • attempt ${attempt+1}/${maxAttempts}`,true);
       }
       if(performance.now()-started>12000){
-        return {ok:false,placed:Math.max(bestPlaced,placements.length),total:ordered.length,attempts:attempt+1,reason:'safe time limit reached'};
+        if(placements.length>bestPlaced){bestPlaced=placements.length;bestPlacements=placements.map(x=>({game:x.game,sl:x.sl}));}
+        return {ok:false,placed:bestPlaced,total:ordered.length,attempts:attempt+1,reason:'safe time limit reached',placements:bestPlacements};
       }
     }
 
@@ -1901,9 +1906,10 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
       }
       return {ok:true,placed:ordered.length,total:ordered.length,attempts:attempt+1};
     }
+    if(placements.length>bestPlaced){bestPlaced=placements.length;bestPlacements=placements.map(x=>({game:x.game,sl:x.sl}));}
     await placementYield(`Playing Date ${dateIndex+1} • retrying safely (${attempt+1}/${maxAttempts}); best ${bestPlaced}/${ordered.length}`,true);
   }
-  return {ok:false,placed:bestPlaced,total:ordered.length,attempts:maxAttempts,reason:`bounded greedy placement exhausted ${maxAttempts} attempts`};
+  return {ok:false,placed:bestPlaced,total:ordered.length,attempts:maxAttempts,reason:`bounded greedy placement exhausted ${maxAttempts} attempts`,placements:bestPlacements};
 }
 
 async function generateSchedule(){
@@ -2022,8 +2028,20 @@ This approval will be saved. Click Generate Schedule again to build the schedule
       try{result=await placeGuaranteeDatePlan({division:d,pool,date,dateIndex,plannedGames:entry.games,available,used,teamTimes,coachTimes,newGames,placementYield})}
       catch(err){hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, ${date}: ${err.message||err}`);break}
       if(!result.ok){
-        hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, ${date}: could not place all ${result.total} guaranteed games into the available court/time slots without breaking team requests, team/court conflicts, shared-coach protection, or the rest rule. No partial games for this date were committed.`);
-        break;
+        // v11.11.33: retain the best valid partial placement for this date and continue.
+        // The Audit is responsible for flagging any unmet league guarantees, matching the
+        // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
+        const partial=result.placements||[];
+        for(const {game,sl} of partial){
+          const {a,b}=game,ta=teamById(a),tb=teamById(b),sk=`${sl.date}|${sl.time}|${sl.court}`;
+          if(used.has(sk))continue;
+          used.add(sk);(teamTimes[a]??=new Set()).add(sl.stamp);(teamTimes[b]??=new Set()).add(sl.stamp);
+          if(ta?.coach)(coachTimes[ta.coach]??=new Set()).add(sl.stamp);if(tb?.coach)(coachTimes[tb.coach]??=new Set()).add(sl.stamp);
+          newGames.push({id:uid('g'),division:d,pool,aId:a,bId:b,date:sl.date,time:sl.time,court:sl.court,sa:null,sb:null,week:dateIndex+1,plannedRound:game.rotationRound});
+        }
+        const missing=Math.max(0,result.total-result.placed);
+        hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): placed ${result.placed}/${result.total} planned games; ${missing} game(s) remain unplaced. Reason: ${result.reason||'no legal slot found under current constraints'}. The partial schedule was kept and the Audit will identify teams below the guaranteed minimum.`);
+        await placementYield(`Playing Date ${dateIndex+1}: kept ${result.placed}/${result.total}; continuing`,true);
       }
     }
 
@@ -2037,12 +2055,9 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  if(hardPlacementFailures.length){
-    // Do not save a knowingly incomplete league schedule. The league's weekly guarantee is a hard contract.
-    resetRuntimeOverflowPlan();
-    $('genSummary').innerHTML=`<div class="status warn"><b>Schedule not saved — guaranteed-game placement failed.</b><br>The scheduler will not publish a partial schedule that violates the ${esc(String(state.settings.gamesPerWeek||3))}-games-per-playing-date guarantee.<br><br>${hardPlacementFailures.map(esc).join('<br>')}</div>`;
-    setGenerationStage('Stopped safely — guarantee not met');setTab('schedule');return;
-  }
+  // v11.11.33: save the best valid schedule even when a guaranteed matchup could not be placed.
+  // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
+  // preventing the director from reviewing the rest of the generated league schedule.
 
   // v11.11.32: generation ends as soon as the initial schedule is placed. Cleanup is
   // intentionally separate so a difficult optimization pass can never block schedule creation.
@@ -2050,8 +2065,9 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   await yieldToBrowser();
   state.games=[...retainedGames,...newGames].map(g=>({...g,status:g.status||'Scheduled',pending:true}));persist();renderAll();
   const scopeLabel=scope==='ALL'?'all divisions and pools':$('scheduleFilter').selectedOptions[0]?.textContent||scope;
-  $('genSummary').innerHTML=`<div class="status ${warnings.some(x=>x.includes('guaranteed'))?'warn':'ok'}"><b>Initial schedule generated:</b> ${newGames.length} games for ${esc(scopeLabel)} across ${dates.length} playing dates.<br><span class="hint">The schedule is saved and displayed now. The guaranteed matchup plan is complete and saved. Use <b>Audit</b> to review coach conflicts and other secondary quality checks. <b>Optimize Schedule</b> is optional and cannot reduce guaranteed game counts.</span></div><details><summary>Capacity & feasibility</summary><div class="hint">${feasibilityNotes.map(esc).join('<br>')}</div></details>${warnings.length?`<details><summary>Distribution / guarantee notes (${warnings.length})</summary><div class="hint">${warnings.map(esc).join('<br>')}</div></details>`:''}`;
-  setGenerationStage('Initial schedule complete');
+  const generationIssues=[...hardPlacementFailures,...warnings];
+  $('genSummary').innerHTML=`<div class="status ${generationIssues.length?'warn':'ok'}"><b>Initial schedule generated:</b> ${newGames.length} games for ${esc(scopeLabel)} across ${dates.length} playing dates.${hardPlacementFailures.length?`<br><b>${hardPlacementFailures.length} placement warning(s):</b> the best valid partial schedule was retained. Run <b>Audit Entire League</b> to see exactly which teams missed the 3-games-per-date / season guarantee.`:''}<br><span class="hint">The schedule is saved and displayed now. Generation no longer discards the entire schedule when one pool/date cannot meet every guarantee. The Audit remains the authoritative check for minimum games, season minimum, rematches, coaches, rest, and other rules.</span></div><details><summary>Capacity & feasibility</summary><div class="hint">${feasibilityNotes.map(esc).join('<br>')}</div></details>${generationIssues.length?`<details open><summary>Generation warnings (${generationIssues.length})</summary><div class="hint">${generationIssues.map(esc).join('<br>')}</div></details>`:''}`;
+  setGenerationStage(hardPlacementFailures.length?'Initial schedule complete — review Audit warnings':'Initial schedule complete');
   setTab('schedule');resetRuntimeOverflowPlan();
 }
 
