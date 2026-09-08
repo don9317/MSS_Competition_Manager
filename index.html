@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.33</title>
+<title>MSS League Scheduler v11.11.34</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -35,7 +35,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.33</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.34</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -1806,112 +1806,151 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   const gameLength=Number(state.settings.gameLength||15);
   const effectiveRestSlots=state.settings.allowBackToBack?Number(state.settings.minRest||0):Math.max(1,Number(state.settings.minRest||0));
   const restMs=(effectiveRestSlots+1)*gameLength*60000;
-  const baseSlots=[...available].sort((a,b)=>a.stamp-b.stamp||String(a.court).localeCompare(String(b.court)));
-  const ordered=[];
-  const roundIds=[...new Set(plannedGames.map(g=>g.roundOrder))].sort((a,b)=>a-b);
-  for(const r of roundIds){
-    const rg=plannedGames.filter(g=>g.roundOrder===r);
-    rg.sort((x,y)=>{
-      const cx=baseSlots.filter(sl=>allowed(teamById(x.a),sl)&&allowed(teamById(x.b),sl)).length;
-      const cy=baseSlots.filter(sl=>allowed(teamById(y.a),sl)&&allowed(teamById(y.b),sl)).length;
-      return cx-cy;
-    });
-    ordered.push(...rg);
-  }
+  const baseSlots=[...available]
+    .filter(sl=>!used.has(`${sl.date}|${sl.time}|${sl.court}`))
+    .sort((a,b)=>a.stamp-b.stamp||String(a.court).localeCompare(String(b.court)));
+  const games=plannedGames.map((g,i)=>({...g,_idx:i}));
+  if(!games.length)return {ok:true,placed:0,total:0,attempts:0};
 
-  // v11.11.32: never recurse through a date's full placement search.  The previous DFS could
-  // monopolize Chrome before its next await.  Instead, use short greedy passes with bounded
-  // restarts.  Every game attempt yields frequently, so even an impossible date returns a
-  // useful failure rather than a Page Unresponsive dialog.
-  const maxAttempts=24;
-  const started=performance.now();
-  let bestPlaced=0,bestAttempt=0,bestPlacements=[];
+  // v11.11.34 — bounded asynchronous constraint solver.
+  // The earlier greedy placer could finish quickly but strand guaranteed games.
+  // This solver uses "most constrained game first" backtracking, yields frequently
+  // to Chrome, and falls back through controlled rule tiers only when necessary.
+  const tiers=[
+    {name:'strict',relaxCoach:false,relaxRest:false,timeMs:7000,nodeLimit:22000},
+    {name:'coach-relaxed',relaxCoach:true,relaxRest:false,timeMs:4500,nodeLimit:16000},
+    {name:'rest-relaxed',relaxCoach:true,relaxRest:true,timeMs:3500,nodeLimit:12000}
+  ];
+  let overallBest=[],overallBestTier='strict',totalNodes=0;
 
-  function canUse(game,sl,localUsed,localTeamTimes,localCoachTimes){
+  function hardCandidate(game,sl,localUsed,localTeamTimes,localCoachTimes,tier){
     const {a,b}=game,ta=teamById(a),tb=teamById(b),sk=`${sl.date}|${sl.time}|${sl.court}`;
     if(used.has(sk)||localUsed.has(sk)||!allowed(ta,sl)||!allowed(tb,sl))return false;
-    const ats=localTeamTimes[a]||[],bts=localTeamTimes[b]||[];
-    if((teamTimes[a]||new Set()).has(sl.stamp)||(teamTimes[b]||new Set()).has(sl.stamp))return false;
-    if(ats.includes(sl.stamp)||bts.includes(sl.stamp))return false;
-    if(state.settings.protectSharedCoaches&&ta.coach){
-      if((coachTimes[ta.coach]||new Set()).has(sl.stamp)||(localCoachTimes[ta.coach]||[]).includes(sl.stamp))return false;
+
+    const extA=teamTimes[a]||new Set(),extB=teamTimes[b]||new Set();
+    const locA=localTeamTimes[a]||[],locB=localTeamTimes[b]||[];
+    if(extA.has(sl.stamp)||extB.has(sl.stamp)||locA.includes(sl.stamp)||locB.includes(sl.stamp))return false;
+
+    if(!tier.relaxCoach&&state.settings.protectSharedCoaches){
+      if(ta?.coach&&((coachTimes[ta.coach]||new Set()).has(sl.stamp)||(localCoachTimes[ta.coach]||[]).includes(sl.stamp)))return false;
+      if(tb?.coach&&((coachTimes[tb.coach]||new Set()).has(sl.stamp)||(localCoachTimes[tb.coach]||[]).includes(sl.stamp)))return false;
     }
-    if(state.settings.protectSharedCoaches&&tb.coach){
-      if((coachTimes[tb.coach]||new Set()).has(sl.stamp)||(localCoachTimes[tb.coach]||[]).includes(sl.stamp))return false;
-    }
-    if(effectiveRestSlots>0){
-      if([...(teamTimes[a]||[])].some(x=>Math.abs(sl.stamp-x)<restMs))return false;
-      if([...(teamTimes[b]||[])].some(x=>Math.abs(sl.stamp-x)<restMs))return false;
-      if(ats.some(x=>Math.abs(sl.stamp-x)<restMs)||bts.some(x=>Math.abs(sl.stamp-x)<restMs))return false;
+
+    if(!tier.relaxRest&&effectiveRestSlots>0){
+      if([...extA].some(x=>Math.abs(sl.stamp-x)<restMs)||[...extB].some(x=>Math.abs(sl.stamp-x)<restMs))return false;
+      if(locA.some(x=>Math.abs(sl.stamp-x)<restMs)||locB.some(x=>Math.abs(sl.stamp-x)<restMs))return false;
     }
     return true;
   }
 
-  for(let attempt=0;attempt<maxAttempts;attempt++){
+  function slotPreference(game,sl,localTeamTimes){
+    // Prefer spreading a team's games through the window rather than bunching them.
+    const stamps=[...(localTeamTimes[game.a]||[]),...(localTeamTimes[game.b]||[])];
+    const gap=stamps.length?Math.min(...stamps.map(x=>Math.abs(sl.stamp-x))):999999999;
+    return gap/60000 - sl.stamp/1e14;
+  }
+
+  for(let tierIndex=0;tierIndex<tiers.length;tierIndex++){
+    const tier=tiers[tierIndex],started=performance.now();
+    let nodes=0,lastYield=performance.now(),best=[];
     const localUsed=new Set(),localTeamTimes={},localCoachTimes={},placements=[];
-    let failed=false;
-    // Rotate court priority and alternate early/late preference across attempts. This provides
-    // useful variety without combinatorial backtracking.
-    const slots=[...baseSlots];
-    if(attempt%2===1)slots.reverse();
-    const courtShift=attempt%Math.max(1,new Set(slots.map(s=>s.court)).size);
-    if(courtShift){
-      slots.sort((a,b)=>a.stamp-b.stamp||((String(a.court).localeCompare(String(b.court))+courtShift)%7));
-      if(attempt%2===1)slots.reverse();
+
+    async function maybeYield(force=false){
+      const now=performance.now();
+      if(force||nodes%180===0||now-lastYield>18){
+        await placementYield(
+          `Playing Date ${dateIndex+1} • solving ${placements.length}/${games.length} guaranteed games • ${tier.name} • ${nodes} checks`,
+          true
+        );
+        lastYield=performance.now();
+      }
     }
 
-    for(let i=0;i<ordered.length;i++){
-      const game=ordered[i],ta=teamById(game.a),tb=teamById(game.b);
-      const candidates=slots.filter(sl=>canUse(game,sl,localUsed,localTeamTimes,localCoachTimes));
-      if(!candidates.length){
-        failed=true;
-        if(placements.length>bestPlaced){bestPlaced=placements.length;bestPlacements=placements.map(x=>({game:x.game,sl:x.sl}));}
-        bestAttempt=attempt+1;break;
+    function candidatesFor(game){
+      const out=[];
+      for(const sl of baseSlots){
+        if(hardCandidate(game,sl,localUsed,localTeamTimes,localCoachTimes,tier))out.push(sl);
       }
-      // Prefer a slot that leaves the most compatible slots for the next few games.
-      let best=candidates[0],bestScore=-Infinity;
-      for(let ci=0;ci<Math.min(candidates.length,18);ci++){
-        const sl=candidates[ci];
-        let score=0;
-        for(let j=i+1;j<Math.min(ordered.length,i+5);j++){
-          const g2=ordered[j];
-          if(g2.a===game.a||g2.b===game.a||g2.a===game.b||g2.b===game.b)continue;
-          if(allowed(teamById(g2.a),sl)&&allowed(teamById(g2.b),sl))score++;
+      out.sort((a,b)=>slotPreference(game,b,localTeamTimes)-slotPreference(game,a,localTeamTimes));
+      return out;
+    }
+
+    async function search(remaining){
+      nodes++;totalNodes++;
+      if(placements.length>best.length)best=placements.map(x=>({game:x.game,sl:x.sl}));
+      if(placements.length>overallBest.length){
+        overallBest=placements.map(x=>({game:x.game,sl:x.sl}));
+        overallBestTier=tier.name;
+      }
+      if(!remaining.length)return true;
+      if(nodes>tier.nodeLimit||performance.now()-started>tier.timeMs)return false;
+      await maybeYield(false);
+
+      // MRV: choose the game with the fewest legal slots under the current partial schedule.
+      let pickIndex=0,pickCandidates=null;
+      for(let i=0;i<remaining.length;i++){
+        const c=candidatesFor(remaining[i]);
+        if(!c.length)return false;
+        if(pickCandidates===null||c.length<pickCandidates.length){
+          pickIndex=i;pickCandidates=c;
+          if(c.length===1)break;
         }
-        // Earlier candidates win ties on even attempts, later candidates on odd attempts.
-        score-=ci*0.001;
-        if(score>bestScore){bestScore=score;best=sl;}
       }
-      const sk=`${best.date}|${best.time}|${best.court}`;
-      localUsed.add(sk);
-      (localTeamTimes[game.a]??=[]).push(best.stamp);(localTeamTimes[game.b]??=[]).push(best.stamp);
-      if(ta.coach)(localCoachTimes[ta.coach]??=[]).push(best.stamp);
-      if(tb.coach)(localCoachTimes[tb.coach]??=[]).push(best.stamp);
-      placements.push({game,sl:best});
-      if(i%2===1||i===ordered.length-1){
-        await placementYield(`Playing Date ${dateIndex+1} • ${i+1}/${ordered.length} guaranteed games placed • attempt ${attempt+1}/${maxAttempts}`,true);
+
+      const game=remaining[pickIndex],ta=teamById(game.a),tb=teamById(game.b);
+      const next=remaining.slice(0,pickIndex).concat(remaining.slice(pickIndex+1));
+
+      // Keep branching bounded. Candidate ordering is already heuristic.
+      const branchLimit=Math.min(pickCandidates.length,24);
+      for(let ci=0;ci<branchLimit;ci++){
+        const sl=pickCandidates[ci],sk=`${sl.date}|${sl.time}|${sl.court}`;
+        localUsed.add(sk);
+        (localTeamTimes[game.a]??=[]).push(sl.stamp);
+        (localTeamTimes[game.b]??=[]).push(sl.stamp);
+        if(ta?.coach)(localCoachTimes[ta.coach]??=[]).push(sl.stamp);
+        if(tb?.coach)(localCoachTimes[tb.coach]??=[]).push(sl.stamp);
+        placements.push({game,sl});
+
+        if(await search(next))return true;
+
+        placements.pop();
+        localUsed.delete(sk);
+        localTeamTimes[game.a].pop();localTeamTimes[game.b].pop();
+        if(ta?.coach)localCoachTimes[ta.coach].pop();
+        if(tb?.coach)localCoachTimes[tb.coach].pop();
+
+        if(nodes>tier.nodeLimit||performance.now()-started>tier.timeMs)break;
       }
-      if(performance.now()-started>12000){
-        if(placements.length>bestPlaced){bestPlaced=placements.length;bestPlacements=placements.map(x=>({game:x.game,sl:x.sl}));}
-        return {ok:false,placed:bestPlaced,total:ordered.length,attempts:attempt+1,reason:'safe time limit reached',placements:bestPlacements};
-      }
+      return false;
     }
 
-    if(!failed&&placements.length===ordered.length){
+    await maybeYield(true);
+    const solved=await search(games);
+    if(solved){
       for(const {game,sl} of placements){
         const {a,b}=game,ta=teamById(a),tb=teamById(b),sk=`${sl.date}|${sl.time}|${sl.court}`;
         used.add(sk);(teamTimes[a]??=new Set()).add(sl.stamp);(teamTimes[b]??=new Set()).add(sl.stamp);
-        if(ta.coach)(coachTimes[ta.coach]??=new Set()).add(sl.stamp);if(tb.coach)(coachTimes[tb.coach]??=new Set()).add(sl.stamp);
+        if(ta?.coach)(coachTimes[ta.coach]??=new Set()).add(sl.stamp);
+        if(tb?.coach)(coachTimes[tb.coach]??=new Set()).add(sl.stamp);
         newGames.push({id:uid('g'),division,pool,aId:a,bId:b,date:sl.date,time:sl.time,court:sl.court,sa:null,sb:null,week:dateIndex+1,plannedRound:game.rotationRound});
       }
-      return {ok:true,placed:ordered.length,total:ordered.length,attempts:attempt+1};
+      return {
+        ok:true,placed:placements.length,total:games.length,attempts:totalNodes,
+        relaxedRules:tier.name==='strict'?'':tier.name
+      };
     }
-    if(placements.length>bestPlaced){bestPlaced=placements.length;bestPlacements=placements.map(x=>({game:x.game,sl:x.sl}));}
-    await placementYield(`Playing Date ${dateIndex+1} • retrying safely (${attempt+1}/${maxAttempts}); best ${bestPlaced}/${ordered.length}`,true);
+    await placementYield(
+      `Playing Date ${dateIndex+1} • ${tier.name} solver reached its safe bound; best ${best.length}/${games.length}`,
+      true
+    );
   }
-  return {ok:false,placed:bestPlaced,total:ordered.length,attempts:maxAttempts,reason:`bounded greedy placement exhausted ${maxAttempts} attempts`,placements:bestPlacements};
-}
 
+  return {
+    ok:false,placed:overallBest.length,total:games.length,attempts:totalNodes,
+    reason:`bounded solver exhausted safe search limits (best ${overallBest.length}/${games.length}, ${overallBestTier})`,
+    placements:overallBest
+  };
+}
 async function generateSchedule(){
   syncSettings();
   const {scope,targets}=selectedScheduleTargets();if(!targets.length)return alert('Select a division/pool to schedule.');const unapproved=[...new Set(targets.map(t=>t.division))].filter(d=>!state.pools[d]?.approved);if(unapproved.length)return alert('Approve these division(s) before scheduling: '+unapproved.map(divisionLabel).join(', '));
@@ -2028,7 +2067,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
       try{result=await placeGuaranteeDatePlan({division:d,pool,date,dateIndex,plannedGames:entry.games,available,used,teamTimes,coachTimes,newGames,placementYield})}
       catch(err){hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, ${date}: ${err.message||err}`);break}
       if(!result.ok){
-        // v11.11.33: retain the best valid partial placement for this date and continue.
+        // v11.11.34: retain the best valid partial placement for this date and continue.
         // The Audit is responsible for flagging any unmet league guarantees, matching the
         // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
         const partial=result.placements||[];
@@ -2055,7 +2094,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.33: save the best valid schedule even when a guaranteed matchup could not be placed.
+  // v11.11.34: save the best valid schedule even when a guaranteed matchup could not be placed.
   // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
   // preventing the director from reviewing the rest of the generated league schedule.
 

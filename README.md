@@ -1,12 +1,12 @@
-# MSS League Scheduler v11.11.33
+# MSS League Scheduler v11.11.34
 
-## v11.11.33 — retain partial schedules and audit unmet guarantees
+## v11.11.34 — retain partial schedules and audit unmet guarantees
 
 This build keeps the bounded, browser-responsive guaranteed-game placer from v11.11.32, but restores the earlier league-director workflow: if one pool/date cannot place every guaranteed game, the best valid partial schedule is retained and generation continues through the remaining dates/divisions. The schedule is saved and displayed, and Audit Entire League identifies every team/date that falls below the 3-games-per-date or calculated season minimum.
 
 Generation warnings now identify the exact division/pool/date, games placed vs. planned, and the bounded-placement reason. A failure in one pool/date no longer discards the entire league schedule.
 
-## v11.11.33 — responsive guaranteed-game placement
+## v11.11.34 — responsive guaranteed-game placement
 - Replaces the recursive guaranteed-game DFS with bounded, one-game-at-a-time greedy placement.
 - Yields to the browser every couple of game placements so Chrome stays responsive.
 - Uses up to 24 short placement attempts with varied slot ordering instead of combinatorial backtracking.
@@ -14,7 +14,7 @@ Generation warnings now identify the exact division/pool/date, games placed vs. 
 - Commits a pool/date only when all guaranteed games fit, preserving the 3-games-per-playing-date contract.
 
 
-## v11.11.33 stability changes
+## v11.11.34 stability changes
 - Generate Schedule now stops after the initial schedule is placed, saved, and rendered.
 - Post-generation cleanup is no longer automatic; use the new **Optimize Schedule** button only when desired.
 - Optimization is bounded and optional so it cannot prevent a generated schedule from appearing.
@@ -23,7 +23,7 @@ Generation warnings now identify the exact division/pool/date, games placed vs. 
 - Pool override time fields no longer fall back to a hidden 6:00 PM–8:00 PM default.
 
 
-## v11.11.33 — Court Group assignment consistency
+## v11.11.34 — Court Group assignment consistency
 
 - Court Group assignment now uses the actual Division Scheduling / Pool Court Override records as the single source of truth.
 - Old `primaryDivisionId` metadata can no longer silently overwrite or contradict the current assignment.
@@ -170,10 +170,17 @@ Alternate/overflow-court approval is now a separate saved step. Approving altern
 Game placement now yields to the browser inside each date, matchup, court-search, nightly-repair, and season-repair loop. Each division/pool has a 45-second safe ceiling, cleanup is bounded/cooperative, and the full audit is deferred until the generated schedule has rendered.
 
 
-## v11.11.33 guarantee-first scheduling
+## v11.11.34 guarantee-first scheduling
 - Rebuilt from the stable v11.11.29 generation flow.
 - Matchups are planned before courts/times using round-robin rotation.
 - Minimum games per playing date and calculated season minimum are hard guarantees.
 - Immediate rematches are structurally avoided by round order, while every opponent is completed before the rotation repeats.
 - Court/time placement commits a playing date only if every guaranteed matchup for that date can be placed.
 - A failed placement stops safely and does not save a partial schedule.
+
+## v11.11.34
+- Replaces the date-level greedy placer with a bounded asynchronous constraint solver.
+- Uses most-constrained-game-first search to protect the 3-games-per-playing-date guarantee.
+- Yields frequently to the browser to preserve the anti-freeze behavior from v11.11.32/33.
+- Tries strict rules first, then controlled fallback tiers only if needed; any relaxation is reported for Audit review.
+- Keeps the best partial schedule only if all bounded solver tiers fail.
