@@ -1,7 +1,15 @@
-# MSS League Scheduler v11.11.31
+# MSS League Scheduler v11.11.32
 
 
-## v11.11.31 stability changes
+## v11.11.32 — responsive guaranteed-game placement
+- Replaces the recursive guaranteed-game DFS with bounded, one-game-at-a-time greedy placement.
+- Yields to the browser every couple of game placements so Chrome stays responsive.
+- Uses up to 24 short placement attempts with varied slot ordering instead of combinatorial backtracking.
+- Stops a difficult pool/date after a 12-second safe limit and reports how many guaranteed games were placeable.
+- Commits a pool/date only when all guaranteed games fit, preserving the 3-games-per-playing-date contract.
+
+
+## v11.11.32 stability changes
 - Generate Schedule now stops after the initial schedule is placed, saved, and rendered.
 - Post-generation cleanup is no longer automatic; use the new **Optimize Schedule** button only when desired.
 - Optimization is bounded and optional so it cannot prevent a generated schedule from appearing.
@@ -10,7 +18,7 @@
 - Pool override time fields no longer fall back to a hidden 6:00 PM–8:00 PM default.
 
 
-## v11.11.31 — Court Group assignment consistency
+## v11.11.32 — Court Group assignment consistency
 
 - Court Group assignment now uses the actual Division Scheduling / Pool Court Override records as the single source of truth.
 - Old `primaryDivisionId` metadata can no longer silently overwrite or contradict the current assignment.
@@ -157,7 +165,7 @@ Alternate/overflow-court approval is now a separate saved step. Approving altern
 Game placement now yields to the browser inside each date, matchup, court-search, nightly-repair, and season-repair loop. Each division/pool has a 45-second safe ceiling, cleanup is bounded/cooperative, and the full audit is deferred until the generated schedule has rendered.
 
 
-## v11.11.31 guarantee-first scheduling
+## v11.11.32 guarantee-first scheduling
 - Rebuilt from the stable v11.11.29 generation flow.
 - Matchups are planned before courts/times using round-robin rotation.
 - Minimum games per playing date and calculated season minimum are hard guarantees.

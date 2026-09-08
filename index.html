@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.31</title>
+<title>MSS League Scheduler v11.11.32</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -35,7 +35,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.31</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.32</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -492,7 +492,7 @@ function runDeferredCourtMigration(){
       divisionConfig:state.divisionConfig||{},
       pools:Object.fromEntries(Object.entries(state.pools||{}).map(([d,p])=>[d,{resourceOverrides:p.resourceOverrides||{}}]))
     });
-    // v11.11.31 assignment repair deliberately avoids legacy name/primary-id guessing.
+    // v11.11.32 assignment repair deliberately avoids legacy name/primary-id guessing.
     recoverCourtGroupAssignments();
     for(const d of allDivisionKeys()){
       const cfg=state.divisionConfig?.[d],g=state.courtGroups.find(x=>x.id===cfg?.courtGroupId);
@@ -971,7 +971,7 @@ function mergeDuplicatePlayingSurfaces(){
   state.courtGroups.forEach(g=>{g.surfaceIds=[...new Set((g.surfaceIds||[]).map(id=>idMap.get(id)||id).filter(id=>state.courts.some(c=>c.id===id)))]});
 }
 function commonGroupWindows(group){
-  // v11.11.31: a court group does not require every surface to share the exact same hours.
+  // v11.11.32: a court group does not require every surface to share the exact same hours.
   // Build the group availability from the UNION of member-surface windows; actual capacity
   // is still calculated court-by-court, so a court is never used outside its own hours.
   const surfaces=groupSurfaceIds(group).map(id=>state.courts.find(c=>c.id===id)).filter(Boolean);
@@ -1104,7 +1104,7 @@ function assignCourtGroupToDivision(groupId,assignment,showFeedback=true){
 }
 function recoverCourtGroupAssignments(){
   ensureDivisionConfig();
-  // v11.11.31: divisionConfig / pool resourceOverrides are the only assignment sources of truth.
+  // v11.11.32: divisionConfig / pool resourceOverrides are the only assignment sources of truth.
   // Old primaryDivisionId/name guesses are never allowed to overwrite a director's current assignments.
   const divisions=allDivisionKeys();
   state.courtGroups.forEach(group=>{
@@ -1749,7 +1749,7 @@ async function scheduleAllReadyDivisions(){
   setTab('schedule');
 }
 
-// v11.11.31 — GUARANTEE-FIRST MATCHUP PLANNER.
+// v11.11.32 — GUARANTEE-FIRST MATCHUP PLANNER.
 // Build opponent pairings before assigning courts/times.  A standard round-robin rotation
 // guarantees variety: every opponent is encountered once before the rotation repeats, and
 // consecutive rounds never repeat the same opponent for a team (except mathematically
@@ -1806,70 +1806,104 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   const gameLength=Number(state.settings.gameLength||15);
   const effectiveRestSlots=state.settings.allowBackToBack?Number(state.settings.minRest||0):Math.max(1,Number(state.settings.minRest||0));
   const restMs=(effectiveRestSlots+1)*gameLength*60000;
-  const sortedSlots=[...available].sort((a,b)=>a.stamp-b.stamp||String(a.court).localeCompare(String(b.court)));
-  const localTeamLast={}, placements=[], localUsed=new Set();
-  let nodes=0,started=performance.now();
-  const maxNodes=30000,maxMs=5000;
-
-  const slotOK=(game,sl)=>{
-    const {a,b}=game,ta=teamById(a),tb=teamById(b),sk=`${sl.date}|${sl.time}|${sl.court}`;
-    if(used.has(sk)||localUsed.has(sk)||!allowed(ta,sl)||!allowed(tb,sl))return false;
-    if((teamTimes[a]||new Set()).has(sl.stamp)||(teamTimes[b]||new Set()).has(sl.stamp))return false;
-    if(localTeamLast[a]!=null&&sl.stamp<=localTeamLast[a])return false;
-    if(localTeamLast[b]!=null&&sl.stamp<=localTeamLast[b])return false;
-    if(state.settings.protectSharedCoaches&&ta.coach&&(coachTimes[ta.coach]||new Set()).has(sl.stamp))return false;
-    if(state.settings.protectSharedCoaches&&tb.coach&&(coachTimes[tb.coach]||new Set()).has(sl.stamp))return false;
-    if(effectiveRestSlots>0){
-      if([...(teamTimes[a]||[])].some(x=>Math.abs(sl.stamp-x)<restMs))return false;
-      if([...(teamTimes[b]||[])].some(x=>Math.abs(sl.stamp-x)<restMs))return false;
-      if(localTeamLast[a]!=null&&Math.abs(sl.stamp-localTeamLast[a])<restMs)return false;
-      if(localTeamLast[b]!=null&&Math.abs(sl.stamp-localTeamLast[b])<restMs)return false;
-    }
-    return true;
-  };
-
-  // Process games in round order. Within a round, constrained games go first.
+  const baseSlots=[...available].sort((a,b)=>a.stamp-b.stamp||String(a.court).localeCompare(String(b.court)));
   const ordered=[];
   const roundIds=[...new Set(plannedGames.map(g=>g.roundOrder))].sort((a,b)=>a-b);
   for(const r of roundIds){
     const rg=plannedGames.filter(g=>g.roundOrder===r);
     rg.sort((x,y)=>{
-      const cx=sortedSlots.filter(sl=>allowed(teamById(x.a),sl)&&allowed(teamById(x.b),sl)).length;
-      const cy=sortedSlots.filter(sl=>allowed(teamById(y.a),sl)&&allowed(teamById(y.b),sl)).length;
+      const cx=baseSlots.filter(sl=>allowed(teamById(x.a),sl)&&allowed(teamById(x.b),sl)).length;
+      const cy=baseSlots.filter(sl=>allowed(teamById(y.a),sl)&&allowed(teamById(y.b),sl)).length;
       return cx-cy;
     });
     ordered.push(...rg);
   }
 
-  async function dfs(i){
-    nodes++;
-    if(nodes%250===0){
-      if(performance.now()-started>maxMs||nodes>maxNodes)return false;
-      await placementYield(`Playing Date ${dateIndex+1} • fitting guaranteed matchups (${i}/${ordered.length})`,true);
-    }
-    if(i>=ordered.length)return true;
-    const game=ordered[i],a=game.a,b=game.b;
-    const oldA=localTeamLast[a],oldB=localTeamLast[b];
-    for(const sl of sortedSlots){
-      if(!slotOK(game,sl))continue;
-      const sk=`${sl.date}|${sl.time}|${sl.court}`;
-      localUsed.add(sk);localTeamLast[a]=sl.stamp;localTeamLast[b]=sl.stamp;placements[i]={game,sl};
-      if(await dfs(i+1))return true;
-      localUsed.delete(sk);if(oldA==null)delete localTeamLast[a];else localTeamLast[a]=oldA;if(oldB==null)delete localTeamLast[b];else localTeamLast[b]=oldB;placements[i]=null;
-    }
-    return false;
-  }
-  const ok=await dfs(0);
-  if(!ok)return {ok:false,nodes,placed:placements.filter(Boolean).length,total:ordered.length};
+  // v11.11.32: never recurse through a date's full placement search.  The previous DFS could
+  // monopolize Chrome before its next await.  Instead, use short greedy passes with bounded
+  // restarts.  Every game attempt yields frequently, so even an impossible date returns a
+  // useful failure rather than a Page Unresponsive dialog.
+  const maxAttempts=24;
+  const started=performance.now();
+  let bestPlaced=0,bestAttempt=0;
 
-  // Commit only after the entire date succeeds. No partial schedule can violate the league guarantee.
-  for(const {game,sl} of placements){
+  function canUse(game,sl,localUsed,localTeamTimes,localCoachTimes){
     const {a,b}=game,ta=teamById(a),tb=teamById(b),sk=`${sl.date}|${sl.time}|${sl.court}`;
-    used.add(sk);(teamTimes[a]??=new Set()).add(sl.stamp);(teamTimes[b]??=new Set()).add(sl.stamp);
-    if(ta.coach)(coachTimes[ta.coach]??=new Set()).add(sl.stamp);if(tb.coach)(coachTimes[tb.coach]??=new Set()).add(sl.stamp);
-    newGames.push({id:uid('g'),division,pool,aId:a,bId:b,date:sl.date,time:sl.time,court:sl.court,sa:null,sb:null,week:dateIndex+1,plannedRound:game.rotationRound});
+    if(used.has(sk)||localUsed.has(sk)||!allowed(ta,sl)||!allowed(tb,sl))return false;
+    const ats=localTeamTimes[a]||[],bts=localTeamTimes[b]||[];
+    if((teamTimes[a]||new Set()).has(sl.stamp)||(teamTimes[b]||new Set()).has(sl.stamp))return false;
+    if(ats.includes(sl.stamp)||bts.includes(sl.stamp))return false;
+    if(state.settings.protectSharedCoaches&&ta.coach){
+      if((coachTimes[ta.coach]||new Set()).has(sl.stamp)||(localCoachTimes[ta.coach]||[]).includes(sl.stamp))return false;
+    }
+    if(state.settings.protectSharedCoaches&&tb.coach){
+      if((coachTimes[tb.coach]||new Set()).has(sl.stamp)||(localCoachTimes[tb.coach]||[]).includes(sl.stamp))return false;
+    }
+    if(effectiveRestSlots>0){
+      if([...(teamTimes[a]||[])].some(x=>Math.abs(sl.stamp-x)<restMs))return false;
+      if([...(teamTimes[b]||[])].some(x=>Math.abs(sl.stamp-x)<restMs))return false;
+      if(ats.some(x=>Math.abs(sl.stamp-x)<restMs)||bts.some(x=>Math.abs(sl.stamp-x)<restMs))return false;
+    }
+    return true;
   }
-  return {ok:true,nodes,placed:ordered.length,total:ordered.length};
+
+  for(let attempt=0;attempt<maxAttempts;attempt++){
+    const localUsed=new Set(),localTeamTimes={},localCoachTimes={},placements=[];
+    let failed=false;
+    // Rotate court priority and alternate early/late preference across attempts. This provides
+    // useful variety without combinatorial backtracking.
+    const slots=[...baseSlots];
+    if(attempt%2===1)slots.reverse();
+    const courtShift=attempt%Math.max(1,new Set(slots.map(s=>s.court)).size);
+    if(courtShift){
+      slots.sort((a,b)=>a.stamp-b.stamp||((String(a.court).localeCompare(String(b.court))+courtShift)%7));
+      if(attempt%2===1)slots.reverse();
+    }
+
+    for(let i=0;i<ordered.length;i++){
+      const game=ordered[i],ta=teamById(game.a),tb=teamById(game.b);
+      const candidates=slots.filter(sl=>canUse(game,sl,localUsed,localTeamTimes,localCoachTimes));
+      if(!candidates.length){failed=true;bestPlaced=Math.max(bestPlaced,placements.length);bestAttempt=attempt+1;break;}
+      // Prefer a slot that leaves the most compatible slots for the next few games.
+      let best=candidates[0],bestScore=-Infinity;
+      for(let ci=0;ci<Math.min(candidates.length,18);ci++){
+        const sl=candidates[ci];
+        let score=0;
+        for(let j=i+1;j<Math.min(ordered.length,i+5);j++){
+          const g2=ordered[j];
+          if(g2.a===game.a||g2.b===game.a||g2.a===game.b||g2.b===game.b)continue;
+          if(allowed(teamById(g2.a),sl)&&allowed(teamById(g2.b),sl))score++;
+        }
+        // Earlier candidates win ties on even attempts, later candidates on odd attempts.
+        score-=ci*0.001;
+        if(score>bestScore){bestScore=score;best=sl;}
+      }
+      const sk=`${best.date}|${best.time}|${best.court}`;
+      localUsed.add(sk);
+      (localTeamTimes[game.a]??=[]).push(best.stamp);(localTeamTimes[game.b]??=[]).push(best.stamp);
+      if(ta.coach)(localCoachTimes[ta.coach]??=[]).push(best.stamp);
+      if(tb.coach)(localCoachTimes[tb.coach]??=[]).push(best.stamp);
+      placements.push({game,sl:best});
+      if(i%2===1||i===ordered.length-1){
+        await placementYield(`Playing Date ${dateIndex+1} • ${i+1}/${ordered.length} guaranteed games placed • attempt ${attempt+1}/${maxAttempts}`,true);
+      }
+      if(performance.now()-started>12000){
+        return {ok:false,placed:Math.max(bestPlaced,placements.length),total:ordered.length,attempts:attempt+1,reason:'safe time limit reached'};
+      }
+    }
+
+    if(!failed&&placements.length===ordered.length){
+      for(const {game,sl} of placements){
+        const {a,b}=game,ta=teamById(a),tb=teamById(b),sk=`${sl.date}|${sl.time}|${sl.court}`;
+        used.add(sk);(teamTimes[a]??=new Set()).add(sl.stamp);(teamTimes[b]??=new Set()).add(sl.stamp);
+        if(ta.coach)(coachTimes[ta.coach]??=new Set()).add(sl.stamp);if(tb.coach)(coachTimes[tb.coach]??=new Set()).add(sl.stamp);
+        newGames.push({id:uid('g'),division,pool,aId:a,bId:b,date:sl.date,time:sl.time,court:sl.court,sa:null,sb:null,week:dateIndex+1,plannedRound:game.rotationRound});
+      }
+      return {ok:true,placed:ordered.length,total:ordered.length,attempts:attempt+1};
+    }
+    await placementYield(`Playing Date ${dateIndex+1} • retrying safely (${attempt+1}/${maxAttempts}); best ${bestPlaced}/${ordered.length}`,true);
+  }
+  return {ok:false,placed:bestPlaced,total:ordered.length,attempts:maxAttempts,reason:`bounded greedy placement exhausted ${maxAttempts} attempts`};
 }
 
 async function generateSchedule(){
@@ -2010,7 +2044,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     setGenerationStage('Stopped safely — guarantee not met');setTab('schedule');return;
   }
 
-  // v11.11.31: generation ends as soon as the initial schedule is placed. Cleanup is
+  // v11.11.32: generation ends as soon as the initial schedule is placed. Cleanup is
   // intentionally separate so a difficult optimization pass can never block schedule creation.
   setGenerationStage('Saving initial schedule');
   await yieldToBrowser();
