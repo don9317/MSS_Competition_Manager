@@ -1,6 +1,16 @@
-# MSS League Scheduler v11.11.28
+# MSS League Scheduler v11.11.29
 
-## v11.11.28 — Court Group assignment consistency
+
+## v11.11.29 stability changes
+- Generate Schedule now stops after the initial schedule is placed, saved, and rendered.
+- Post-generation cleanup is no longer automatic; use the new **Optimize Schedule** button only when desired.
+- Optimization is bounded and optional so it cannot prevent a generated schedule from appearing.
+- Divisions using **Use Pool Assignments** no longer display or use parent recurring times. The parent time is shown as **Controlled by Pool Assignments**.
+- Legacy parent 6:00 PM–8:00 PM values are cleared when pool-assignment mode is active.
+- Pool override time fields no longer fall back to a hidden 6:00 PM–8:00 PM default.
+
+
+## v11.11.29 — Court Group assignment consistency
 
 - Court Group assignment now uses the actual Division Scheduling / Pool Court Override records as the single source of truth.
 - Old `primaryDivisionId` metadata can no longer silently overwrite or contradict the current assignment.
