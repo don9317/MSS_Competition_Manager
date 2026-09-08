@@ -1,7 +1,7 @@
-# MSS League Scheduler v11.11.29
+# MSS League Scheduler v11.11.30
 
 
-## v11.11.29 stability changes
+## v11.11.30 stability changes
 - Generate Schedule now stops after the initial schedule is placed, saved, and rendered.
 - Post-generation cleanup is no longer automatic; use the new **Optimize Schedule** button only when desired.
 - Optimization is bounded and optional so it cannot prevent a generated schedule from appearing.
@@ -10,7 +10,7 @@
 - Pool override time fields no longer fall back to a hidden 6:00 PM–8:00 PM default.
 
 
-## v11.11.29 — Court Group assignment consistency
+## v11.11.30 — Court Group assignment consistency
 
 - Court Group assignment now uses the actual Division Scheduling / Pool Court Override records as the single source of truth.
 - Old `primaryDivisionId` metadata can no longer silently overwrite or contradict the current assignment.
@@ -155,3 +155,10 @@ Alternate/overflow-court approval is now a separate saved step. Approving altern
 
 ## v11.11.27 stability change
 Game placement now yields to the browser inside each date, matchup, court-search, nightly-repair, and season-repair loop. Each division/pool has a 45-second safe ceiling, cleanup is bounded/cooperative, and the full audit is deferred until the generated schedule has rendered.
+
+
+## v11.11.30 matchup-quality hotfix
+- Immediate rematches are rejected during placement using the actual chronological schedule.
+- Play-every-opponent-before-repeats remains a structural placement rule.
+- Shared-coach protection also rejects two teams with the same coach from being paired against each other.
+- Optimize Schedule now shows a visible running/completed result beside the button and reports when no safe changes were found.

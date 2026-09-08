@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.29</title>
+<title>MSS League Scheduler v11.11.30</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -35,7 +35,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.29</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.30</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -297,7 +297,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <div class="card">
     <div class="toolbar">
       <button class="primary" id="generateBtn">Generate Schedule</button>
-      <button id="optimizeBtn">Optimize Schedule</button>
+      <button id="optimizeBtn">Optimize Schedule</button><span id="optimizeStatus" class="hint" style="align-self:center;font-weight:700"></span>
       <button class="secondary" id="auditScopeBtn" type="button" onclick="safeRunScheduleAudit(false)">Audit Selected Scope</button>
       <button class="secondary" id="auditAllBtn" type="button" onclick="safeRunScheduleAudit(true)">Audit Entire League</button>
       <button class="secondary" id="exportScheduleBtn">Export CSV</button>
@@ -1481,6 +1481,24 @@ function rotationAllowsAtSlot(a,b,ids,division,pool,slot,games){
   if(!state.settings.playAllTeamsOnce)return true;
   return opponentRotationAllows(a,b,ids,chronologicalPairCounts(games,division,pool,slot.date,slot.time))
 }
+// v11.11.30 — opponent quality is structural, not merely a scoring preference.
+function priorOpponentAtSlot(teamId,division,pool,slot,games){
+  const cutoff=`${slot.date}|${slot.time}`;
+  const prior=games.filter(g=>g.division===division&&g.pool===pool&&(g.aId===teamId||g.bId===teamId)&&`${g.date}|${g.time}`<cutoff)
+    .sort((x,y)=>(x.date+x.time).localeCompare(y.date+y.time));
+  if(!prior.length)return null;
+  const g=prior[prior.length-1];
+  return g.aId===teamId?g.bId:g.aId;
+}
+function immediateRematchAllowsAtSlot(a,b,division,pool,slot,games){
+  if(!state.settings.avoidImmediateRematches)return true;
+  return priorOpponentAtSlot(a,division,pool,slot,games)!==b&&priorOpponentAtSlot(b,division,pool,slot,games)!==a;
+}
+function sharedCoachMatchupAllows(a,b){
+  if(!state.settings.protectSharedCoaches)return true;
+  const ca=(teamById(a)?.coach||'').trim(),cb=(teamById(b)?.coach||'').trim();
+  return !(ca&&cb&&ca===cb);
+}
 function candidatePairs(ids,scheduledCounts,target,pairCounts,lastOpponent){
   const candidates=[];
   for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
@@ -1884,6 +1902,8 @@ This approval will be saved. Click Generate Schedule again to build the schedule
             if(++slotIndex%20===0)await placementYield(`Date ${dateIndex+1}/${dates.length} • checking courts`);
             const sk=`${s.date}|${s.time}|${s.court}`;if(used.has(sk)||!allowed(ta,s)||!allowed(tb,s))continue;
             if(!rotationAllowsAtSlot(a,b,ids,d,pool,s,newGames))continue;
+            if(!immediateRematchAllowsAtSlot(a,b,d,pool,s,newGames))continue;
+            if(!sharedCoachMatchupAllows(a,b))continue;
             if((teamTimes[a]||new Set()).has(s.stamp)||(teamTimes[b]||new Set()).has(s.stamp))continue;
             if(state.settings.protectSharedCoaches&&ta.coach&&(coachTimes[ta.coach]||new Set()).has(s.stamp))continue;
             if(state.settings.protectSharedCoaches&&tb.coach&&(coachTimes[tb.coach]||new Set()).has(s.stamp))continue;
@@ -1920,6 +1940,8 @@ This approval will be saved. Click Generate Schedule again to build the schedule
             if(++slotIndex%20===0)await placementYield(`Date ${dateIndex+1}/${dates.length} • repairing courts`);
             const sk=`${sl.date}|${sl.time}|${sl.court}`;if(used.has(sk)||!allowed(ta,sl)||!allowed(tb,sl))continue;
             if(!rotationAllowsAtSlot(a,b,ids,d,pool,sl,newGames))continue;
+            if(!immediateRematchAllowsAtSlot(a,b,d,pool,sl,newGames))continue;
+            if(!sharedCoachMatchupAllows(a,b))continue;
             if((teamTimes[a]||new Set()).has(sl.stamp)||(teamTimes[b]||new Set()).has(sl.stamp))continue;
             if(state.settings.protectSharedCoaches&&ta.coach&&(coachTimes[ta.coach]||new Set()).has(sl.stamp))continue;
             if(state.settings.protectSharedCoaches&&tb.coach&&(coachTimes[tb.coach]||new Set()).has(sl.stamp))continue;
@@ -1959,6 +1981,8 @@ This approval will be saved. Click Generate Schedule again to build the schedule
               if(++slotIndex%20===0)await placementYield(`Season repair • checking courts`);
               const sk=`${sl.date}|${sl.time}|${sl.court}`;if(used.has(sk)||!allowed(ta,sl)||!allowed(tb,sl))continue;
               if(!rotationAllowsAtSlot(a,b,ids,d,pool,sl,newGames))continue;
+            if(!immediateRematchAllowsAtSlot(a,b,d,pool,sl,newGames))continue;
+            if(!sharedCoachMatchupAllows(a,b))continue;
               if((teamTimes[a]||new Set()).has(sl.stamp)||(teamTimes[b]||new Set()).has(sl.stamp))continue;
               if(state.settings.protectSharedCoaches&&ta.coach&&(coachTimes[ta.coach]||new Set()).has(sl.stamp))continue;
               if(state.settings.protectSharedCoaches&&tb.coach&&(coachTimes[tb.coach]||new Set()).has(sl.stamp))continue;
@@ -1989,7 +2013,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.29: generation ends as soon as the initial schedule is placed. Cleanup is
+  // v11.11.30: generation ends as soon as the initial schedule is placed. Cleanup is
   // intentionally separate so a difficult optimization pass can never block schedule creation.
   setGenerationStage('Saving initial schedule');
   await yieldToBrowser();
@@ -2008,17 +2032,25 @@ async function optimizeSchedule(){
   const retainedGames=state.games.filter(g=>!scopeMatchesGame(scope,g));
   const working=gamesInScope.map(g=>({...g}));
   const touched=[...new Map(working.map(g=>[JSON.stringify([g.division,g.pool]),{division:g.division,pool:g.pool}])).values()];
+  const btn=$('optimizeBtn'),status=$('optimizeStatus');
+  if(btn){btn.disabled=true;btn.textContent='Optimizing…'}
+  if(status)status.textContent='Running safe optimization…';
   setGenerationStage('Optimizing saved schedule');
   await yieldToBrowser();
-  // Keep optimization deliberately small. It is an optional polish pass, not a prerequisite.
-  const priorLimit=window.__mssOptimizeLimit;window.__mssOptimizeLimit=3;
+  const priorLimit=window.__mssOptimizeLimit;window.__mssOptimizeLimit=5;
   let repair;
   try{repair=await autoRepairGeneratedSchedule(working,retainedGames,touched)}
-  catch(err){console.error(err);setGenerationStage('Optimization stopped');showActionFeedback(`Optimization stopped safely: ${err.message||err}`,false);return}
-  finally{window.__mssOptimizeLimit=priorLimit}
+  catch(err){
+    console.error(err);setGenerationStage('Optimization stopped');
+    if(status)status.textContent='⚠ Optimization stopped safely';
+    showActionFeedback(`Optimization stopped safely: ${err.message||err}`,false);return
+  }
+  finally{window.__mssOptimizeLimit=priorLimit;if(btn){btn.disabled=false;btn.textContent='Optimize Schedule'}}
   state.games=[...retainedGames,...working].map(g=>({...g,status:g.status||'Scheduled'}));persist();renderAll();
-  const txt=repairSummaryText(repair)||'No safe improvement was found.';
-  $('genSummary').innerHTML=`<div class="status ok"><b>Optimization complete.</b> ${esc(txt)}<br><span class="hint">Your schedule remained saved throughout this optional pass.</span></div>`;
+  const txt=repairSummaryText(repair)||'No safe improvement was found; the saved schedule was left unchanged.';
+  const improvements=Number(repair?.iterations||0);
+  if(status)status.textContent=improvements?`✓ Optimized — ${improvements} improvement${improvements===1?'':'s'}`:'✓ Optimization checked — no safe changes';
+  $('genSummary').innerHTML=`<div class="status ${improvements?'ok':'warn'}"><b>Optimization complete.</b> ${esc(txt)}<br><span class="hint">The schedule was saved. Run Audit to review the current results.</span></div>`;
   setGenerationStage('Optimization complete');setTab('schedule');
 }
 
