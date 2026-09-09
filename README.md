@@ -1,12 +1,12 @@
-# MSS League Scheduler v11.11.35
+# MSS League Scheduler v11.11.36
 
-## v11.11.35 — retain partial schedules and audit unmet guarantees
+## v11.11.36 — retain partial schedules and audit unmet guarantees
 
 This build keeps the bounded, browser-responsive guaranteed-game placer from v11.11.32, but restores the earlier league-director workflow: if one pool/date cannot place every guaranteed game, the best valid partial schedule is retained and generation continues through the remaining dates/divisions. The schedule is saved and displayed, and Audit Entire League identifies every team/date that falls below the 3-games-per-date or calculated season minimum.
 
 Generation warnings now identify the exact division/pool/date, games placed vs. planned, and the bounded-placement reason. A failure in one pool/date no longer discards the entire league schedule.
 
-## v11.11.35 — responsive guaranteed-game placement
+## v11.11.36 — responsive guaranteed-game placement
 - Replaces the recursive guaranteed-game DFS with bounded, one-game-at-a-time greedy placement.
 - Yields to the browser every couple of game placements so Chrome stays responsive.
 - Uses up to 24 short placement attempts with varied slot ordering instead of combinatorial backtracking.
@@ -14,7 +14,7 @@ Generation warnings now identify the exact division/pool/date, games placed vs. 
 - Commits a pool/date only when all guaranteed games fit, preserving the 3-games-per-playing-date contract.
 
 
-## v11.11.35 stability changes
+## v11.11.36 stability changes
 - Generate Schedule now stops after the initial schedule is placed, saved, and rendered.
 - Post-generation cleanup is no longer automatic; use the new **Optimize Schedule** button only when desired.
 - Optimization is bounded and optional so it cannot prevent a generated schedule from appearing.
@@ -23,7 +23,7 @@ Generation warnings now identify the exact division/pool/date, games placed vs. 
 - Pool override time fields no longer fall back to a hidden 6:00 PM–8:00 PM default.
 
 
-## v11.11.35 — Court Group assignment consistency
+## v11.11.36 — Court Group assignment consistency
 
 - Court Group assignment now uses the actual Division Scheduling / Pool Court Override records as the single source of truth.
 - Old `primaryDivisionId` metadata can no longer silently overwrite or contradict the current assignment.
@@ -170,7 +170,7 @@ Alternate/overflow-court approval is now a separate saved step. Approving altern
 Game placement now yields to the browser inside each date, matchup, court-search, nightly-repair, and season-repair loop. Each division/pool has a 45-second safe ceiling, cleanup is bounded/cooperative, and the full audit is deferred until the generated schedule has rendered.
 
 
-## v11.11.35 guarantee-first scheduling
+## v11.11.36 guarantee-first scheduling
 - Rebuilt from the stable v11.11.29 generation flow.
 - Matchups are planned before courts/times using round-robin rotation.
 - Minimum games per playing date and calculated season minimum are hard guarantees.
@@ -178,7 +178,7 @@ Game placement now yields to the browser inside each date, matchup, court-search
 - Court/time placement commits a playing date only if every guaranteed matchup for that date can be placed.
 - A failed placement stops safely and does not save a partial schedule.
 
-## v11.11.35
+## v11.11.36
 - Replaces the date-level greedy placer with a bounded asynchronous constraint solver.
 - Uses most-constrained-game-first search to protect the 3-games-per-playing-date guarantee.
 - Yields frequently to the browser to preserve the anti-freeze behavior from v11.11.32/33.
@@ -186,9 +186,16 @@ Game placement now yields to the browser inside each date, matchup, court-search
 - Keeps the best partial schedule only if all bounded solver tiers fail.
 
 
-## v11.11.35
+## v11.11.36
 - Plans exactly the nightly minimum game count, adding only the single parity game mathematically required for an odd team-game total.
 - Rotates the odd-pool extra game across teams and dates.
 - Prefers least-played opponents while building the matchup plan, reducing repeats before all opponents are faced.
 - Removes the whole-round overscheduling behavior from v11.11.34.
 - Director Dashboard now shows Games Scheduled, Minimum Required, and Extra Games as separate metrics.
+
+## v11.11.36
+- Keeps the successful exact 3-games-per-playing-date planner from v11.11.35.
+- Makes opponent rotation structural: a team cannot repeat an opponent until it has faced every other pool opponent, except when mathematically unavoidable in very small pools.
+- Adds hard chronological immediate-rematch protection during court/time placement.
+- Leaves the stable bounded/asynchronous court solver and capacity logic intact.
+- No changes to the weekly minimum, season minimum, or overflow approval architecture.

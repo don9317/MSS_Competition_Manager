@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.35</title>
+<title>MSS League Scheduler v11.11.36</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -35,7 +35,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.35</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.36</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -1782,11 +1782,10 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
   const pairKey=(a,b)=>[a,b].sort().join('|');
   const teamOrder=new Map(ids.map((id,i)=>[id,i]));
 
-  // v11.11.35 — exact nightly degree planner.
-  // Plan exactly the games needed for the nightly guarantee: n*minimum/2,
-  // rounded up only when an odd number of team-games makes one extra game unavoidable.
-  // The unavoidable extra game rotates across dates. Pair choices prefer opponents with
-  // the fewest prior meetings, which protects opponent variety before repeats.
+  // v11.11.36 — opponent-rotation-first nightly planner.
+  // The 3-game nightly guarantee remains exact, but a repeat pair is forbidden
+  // until that team has faced every other pool opponent at least once whenever
+  // the pool size makes that mathematically possible.
   dates.forEach((date,dateIndex)=>{
     const target=Object.fromEntries(ids.map(id=>[id,minimum]));
     if((ids.length*minimum)%2===1){
@@ -1799,8 +1798,22 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
     const totalNeeded=Object.values(target).reduce((a,b)=>a+b,0)/2;
     let nodes=0;
 
+    function unseenOpponents(a){
+      return ids.filter(b=>b!==a&&(pairCounts.get(pairKey(a,b))||0)===0);
+    }
     function candidatesFor(a){
-      return ids.filter(b=>b!==a&&remaining[b]>0).sort((b,c)=>{
+      const unseen=unseenOpponents(a);
+      let candidates;
+      if(unseen.length){
+        // If an unseen opponent still exists, do not allow a repeat for this team.
+        // If all unseen opponents have already exhausted their nightly degree, force
+        // backtracking so an earlier choice can be reconsidered instead of accepting
+        // a premature repeat.
+        candidates=unseen.filter(b=>remaining[b]>0);
+      }else{
+        candidates=ids.filter(b=>b!==a&&remaining[b]>0);
+      }
+      return candidates.sort((b,c)=>{
         const pb=pairCounts.get(pairKey(a,b))||0, pc=pairCounts.get(pairKey(a,c))||0;
         if(pb!==pc)return pb-pc;
         if(remaining[b]!==remaining[c])return remaining[c]-remaining[b];
@@ -1808,28 +1821,71 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
       });
     }
     function feasible(){
-      const sum=Object.values(remaining).reduce((a,b)=>a+b,0);
+      const vals=Object.values(remaining);
+      const sum=vals.reduce((a,b)=>a+b,0);
       if(sum%2)return false;
-      const max=Math.max(...Object.values(remaining));
+      const max=Math.max(...vals);
       return max<=sum-max;
     }
     function solve(){
-      nodes++; if(nodes>120000)return false;
+      nodes++;
+      if(nodes>220000)return false;
       if(games.length===totalNeeded)return true;
       if(!feasible())return false;
+
       const active=ids.filter(id=>remaining[id]>0);
-      active.sort((a,b)=>remaining[b]-remaining[a]||(teamOrder.get(a)||0)-(teamOrder.get(b)||0));
+      // Most constrained first: teams with unseen opponents get priority, then
+      // highest remaining nightly degree.
+      active.sort((a,b)=>{
+        const ua=unseenOpponents(a).length, ub=unseenOpponents(b).length;
+        const ca=unseenOpponents(a).filter(x=>remaining[x]>0).length;
+        const cb=unseenOpponents(b).filter(x=>remaining[x]>0).length;
+        if(ua&&ub&&ca!==cb)return ca-cb;
+        if(ua!==ub)return ub-ua;
+        if(remaining[a]!==remaining[b])return remaining[b]-remaining[a];
+        return (teamOrder.get(a)||0)-(teamOrder.get(b)||0);
+      });
+
       const a=active[0];
-      for(const b of candidatesFor(a)){
+      const candidates=candidatesFor(a);
+      if(!candidates.length)return false;
+
+      for(const b of candidates){
         const k=pairKey(a,b),old=pairCounts.get(k)||0;
         remaining[a]--;remaining[b]--;pairCounts.set(k,old+1);
         games.push({a,b,roundOrder:games.length,rotationRound:old,date,dateIndex});
         if(solve())return true;
-        games.pop();remaining[a]++;remaining[b]++;if(old)pairCounts.set(k,old);else pairCounts.delete(k);
+        games.pop();remaining[a]++;remaining[b]++;
+        if(old)pairCounts.set(k,old);else pairCounts.delete(k);
       }
       return false;
     }
-    if(!solve())throw new Error(`Could not construct the exact ${minimum}-game matchup guarantee for ${date} within the safe matchup-planning bound.`);
+
+    if(!solve()){
+      // Small pools (especially 2-team and some 3-team cases) can make a strict
+      // "all opponents first" sequence mathematically impossible at a given nightly
+      // degree. Fall back only for that special case, while still minimizing repeats.
+      if(ids.length<=3){
+        const rem={...target}; games.length=0;
+        let safety=0;
+        while(games.length<totalNeeded && safety++<5000){
+          const active=ids.filter(id=>rem[id]>0).sort((a,b)=>rem[b]-rem[a]);
+          const a=active[0];
+          const choices=ids.filter(b=>b!==a&&rem[b]>0).sort((b,c)=>{
+            const pb=pairCounts.get(pairKey(a,b))||0,pc=pairCounts.get(pairKey(a,c))||0;
+            return pb-pc||rem[c]-rem[b];
+          });
+          if(!choices.length)break;
+          const b=choices[0],k=pairKey(a,b),old=pairCounts.get(k)||0;
+          rem[a]--;rem[b]--;pairCounts.set(k,old+1);
+          games.push({a,b,roundOrder:games.length,rotationRound:old,date,dateIndex});
+        }
+        if(games.length!==totalNeeded)throw new Error(`Could not construct the exact ${minimum}-game matchup guarantee for ${date}.`);
+      }else{
+        throw new Error(`Could not construct the exact ${minimum}-game opponent-rotation plan for ${date} within the safe planning bound.`);
+      }
+    }
+
     games.forEach(g=>{counts[g.a]++;counts[g.b]++});
     byDate.set(date,{games,daily:{...target},requiredGames:totalNeeded});
   });
@@ -1845,7 +1901,42 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   const games=plannedGames.map((g,i)=>({...g,_idx:i}));
   if(!games.length)return {ok:true,placed:0,total:0,attempts:0};
 
-  // v11.11.35 — bounded asynchronous constraint solver.
+  const poolTeamCount=state.teams.filter(t=>divisionKey(t)===division&&String(t.pool||'A')===String(pool||'A')).length;
+  function gameStamp(g){
+    const tm=String(g.time||'00:00');
+    return new Date(`${g.date}T${tm.length===5?tm:tm.slice(0,5)}:00`).getTime();
+  }
+  function createsImmediateRematch(game,sl,placements){
+    // In a 2-team pool, immediate rematches are unavoidable.
+    if(poolTeamCount<=2)return false;
+    for(const teamId of [game.a,game.b]){
+      const rows=[];
+      for(const g of newGames){
+        if(g.aId===teamId||g.bId===teamId){
+          rows.push({
+            stamp:gameStamp(g),
+            opp:g.aId===teamId?g.bId:g.aId
+          });
+        }
+      }
+      for(const p of placements){
+        if(p.game.a===teamId||p.game.b===teamId){
+          rows.push({
+            stamp:p.sl.stamp,
+            opp:p.game.a===teamId?p.game.b:p.game.a
+          });
+        }
+      }
+      rows.push({stamp:sl.stamp,opp:game.a===teamId?game.b:game.a});
+      rows.sort((x,y)=>x.stamp-y.stamp);
+      for(let i=1;i<rows.length;i++){
+        if(rows[i-1].opp===rows[i].opp)return true;
+      }
+    }
+    return false;
+  }
+
+  // v11.11.36 — bounded asynchronous constraint solver.
   // The earlier greedy placer could finish quickly but strand guaranteed games.
   // This solver uses "most constrained game first" backtracking, yields frequently
   // to Chrome, and falls back through controlled rule tiers only when necessary.
@@ -1856,9 +1947,10 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   ];
   let overallBest=[],overallBestTier='strict',totalNodes=0;
 
-  function hardCandidate(game,sl,localUsed,localTeamTimes,localCoachTimes,tier){
+  function hardCandidate(game,sl,localUsed,localTeamTimes,localCoachTimes,tier,placements){
     const {a,b}=game,ta=teamById(a),tb=teamById(b),sk=`${sl.date}|${sl.time}|${sl.court}`;
     if(used.has(sk)||localUsed.has(sk)||!allowed(ta,sl)||!allowed(tb,sl))return false;
+    if(state.settings.avoidImmediateRematches&&createsImmediateRematch(game,sl,placements))return false;
 
     const extA=teamTimes[a]||new Set(),extB=teamTimes[b]||new Set();
     const locA=localTeamTimes[a]||[],locB=localTeamTimes[b]||[];
@@ -1902,7 +1994,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     function candidatesFor(game){
       const out=[];
       for(const sl of baseSlots){
-        if(hardCandidate(game,sl,localUsed,localTeamTimes,localCoachTimes,tier))out.push(sl);
+        if(hardCandidate(game,sl,localUsed,localTeamTimes,localCoachTimes,tier,placements))out.push(sl);
       }
       out.sort((a,b)=>slotPreference(game,b,localTeamTimes)-slotPreference(game,a,localTeamTimes));
       return out;
@@ -2100,7 +2192,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
       try{result=await placeGuaranteeDatePlan({division:d,pool,date,dateIndex,plannedGames:entry.games,available,used,teamTimes,coachTimes,newGames,placementYield})}
       catch(err){hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, ${date}: ${err.message||err}`);break}
       if(!result.ok){
-        // v11.11.35: retain the best valid partial placement for this date and continue.
+        // v11.11.36: retain the best valid partial placement for this date and continue.
         // The Audit is responsible for flagging any unmet league guarantees, matching the
         // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
         const partial=result.placements||[];
@@ -2127,7 +2219,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.35: save the best valid schedule even when a guaranteed matchup could not be placed.
+  // v11.11.36: save the best valid schedule even when a guaranteed matchup could not be placed.
   // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
   // preventing the director from reviewing the rest of the generated league schedule.
 
