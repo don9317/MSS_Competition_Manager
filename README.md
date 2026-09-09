@@ -217,6 +217,7 @@ Game placement now yields to the browser inside each date, matchup, court-search
 - Generation summary reports before/after audit improvements and the final audit status.
 - Immediate-rematch and opponent-rotation audit details include Division and Pool.
 
-## IMPORTANT — how to launch this build
-Use **START_MSS_v11.11.39.html**. It explicitly opens **MSS_League_Scheduler_v11.11.39.html**.
-This packaging avoids accidentally opening an older generic `index.html` from a previous extracted folder.
+## GitHub Pages deployment
+Upload these files to the repository root and REPLACE the existing files.
+GitHub Pages will launch **index.html**, which is this v11.11.39 application.
+For local use, open **START_HERE.html**.
