@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.34</title>
+<title>MSS League Scheduler v11.11.35</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -35,7 +35,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.34</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.35</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -1772,35 +1772,68 @@ function roundRobinRounds(teamIds){
   }
   return rounds;
 }
-function nightlyRoundCount(teamCount,minimum){
-  if(teamCount<2)return 0;
-  if(teamCount%2===0)return minimum;
-  // Each odd-team round supplies (n-1) team-games. Use the fewest complete rounds that
-  // guarantee at least minimum games to every team. The rotating bye naturally makes one
-  // or more teams take the necessary 4th game fairly when 3*n is odd.
-  return Math.ceil(teamCount*minimum/(teamCount-1));
+function exactGamesRequiredForDate(teamCount,minimum){
+  return Math.ceil(teamCount*minimum/2);
 }
 function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
-  const rounds=roundRobinRounds(ids);if(!rounds.length)return {byDate:new Map(),counts:{},roundsPerDate:0};
-  const roundsPerDate=nightlyRoundCount(ids.length,minimum),byDate=new Map(),counts=Object.fromEntries(ids.map(id=>[id,0]));
-  let cursor=0;
+  if(ids.length<2)return {byDate:new Map(),counts:{},roundsPerDate:0};
+  const byDate=new Map(),counts=Object.fromEntries(ids.map(id=>[id,0]));
+  const pairCounts=new Map();
+  const pairKey=(a,b)=>[a,b].sort().join('|');
+  const teamOrder=new Map(ids.map((id,i)=>[id,i]));
+
+  // v11.11.35 — exact nightly degree planner.
+  // Plan exactly the games needed for the nightly guarantee: n*minimum/2,
+  // rounded up only when an odd number of team-games makes one extra game unavoidable.
+  // The unavoidable extra game rotates across dates. Pair choices prefer opponents with
+  // the fewest prior meetings, which protects opponent variety before repeats.
   dates.forEach((date,dateIndex)=>{
-    const games=[],daily=Object.fromEntries(ids.map(id=>[id,0]));
-    for(let k=0;k<roundsPerDate;k++){
-      const ri=(cursor+k)%rounds.length;
-      for(const pair of rounds[ri]){
-        games.push({...pair,roundOrder:k,rotationRound:ri,date,dateIndex});
-        daily[pair.a]++;daily[pair.b]++;counts[pair.a]++;counts[pair.b]++;
-      }
+    const target=Object.fromEntries(ids.map(id=>[id,minimum]));
+    if((ids.length*minimum)%2===1){
+      const extra=ids[dateIndex%ids.length];
+      target[extra]++;
     }
-    const over=ids.filter(id=>daily[id]>maxPerDate);
-    if(over.length)throw new Error(`The matchup planner would require more than ${maxPerDate} games on ${date} for ${over.map(id=>teamById(id)?.name||id).join(', ')}. Increase Maximum Games / Playing Date or change the pool size.`);
-    const under=ids.filter(id=>daily[id]<minimum);
-    if(under.length)throw new Error(`The matchup planner could not guarantee ${minimum} games on ${date} for ${under.map(id=>teamById(id)?.name||id).join(', ')}.`);
-    byDate.set(date,{games,daily});
-    cursor=(cursor+roundsPerDate)%rounds.length;
+    const over=ids.filter(id=>target[id]>maxPerDate);
+    if(over.length)throw new Error(`The exact guarantee requires more than ${maxPerDate} games on ${date} for ${over.map(id=>teamById(id)?.name||id).join(', ')}.`);
+    const remaining={...target},games=[];
+    const totalNeeded=Object.values(target).reduce((a,b)=>a+b,0)/2;
+    let nodes=0;
+
+    function candidatesFor(a){
+      return ids.filter(b=>b!==a&&remaining[b]>0).sort((b,c)=>{
+        const pb=pairCounts.get(pairKey(a,b))||0, pc=pairCounts.get(pairKey(a,c))||0;
+        if(pb!==pc)return pb-pc;
+        if(remaining[b]!==remaining[c])return remaining[c]-remaining[b];
+        return (teamOrder.get(b)||0)-(teamOrder.get(c)||0);
+      });
+    }
+    function feasible(){
+      const sum=Object.values(remaining).reduce((a,b)=>a+b,0);
+      if(sum%2)return false;
+      const max=Math.max(...Object.values(remaining));
+      return max<=sum-max;
+    }
+    function solve(){
+      nodes++; if(nodes>120000)return false;
+      if(games.length===totalNeeded)return true;
+      if(!feasible())return false;
+      const active=ids.filter(id=>remaining[id]>0);
+      active.sort((a,b)=>remaining[b]-remaining[a]||(teamOrder.get(a)||0)-(teamOrder.get(b)||0));
+      const a=active[0];
+      for(const b of candidatesFor(a)){
+        const k=pairKey(a,b),old=pairCounts.get(k)||0;
+        remaining[a]--;remaining[b]--;pairCounts.set(k,old+1);
+        games.push({a,b,roundOrder:games.length,rotationRound:old,date,dateIndex});
+        if(solve())return true;
+        games.pop();remaining[a]++;remaining[b]++;if(old)pairCounts.set(k,old);else pairCounts.delete(k);
+      }
+      return false;
+    }
+    if(!solve())throw new Error(`Could not construct the exact ${minimum}-game matchup guarantee for ${date} within the safe matchup-planning bound.`);
+    games.forEach(g=>{counts[g.a]++;counts[g.b]++});
+    byDate.set(date,{games,daily:{...target},requiredGames:totalNeeded});
   });
-  return {byDate,counts,roundsPerDate};
+  return {byDate,counts,roundsPerDate:null};
 }
 async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames,available,used,teamTimes,coachTimes,newGames,placementYield}){
   const gameLength=Number(state.settings.gameLength||15);
@@ -1812,7 +1845,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   const games=plannedGames.map((g,i)=>({...g,_idx:i}));
   if(!games.length)return {ok:true,placed:0,total:0,attempts:0};
 
-  // v11.11.34 — bounded asynchronous constraint solver.
+  // v11.11.35 — bounded asynchronous constraint solver.
   // The earlier greedy placer could finish quickly but strand guaranteed games.
   // This solver uses "most constrained game first" backtracking, yields frequently
   // to Chrome, and falls back through controlled rule tiers only when necessary.
@@ -2067,7 +2100,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
       try{result=await placeGuaranteeDatePlan({division:d,pool,date,dateIndex,plannedGames:entry.games,available,used,teamTimes,coachTimes,newGames,placementYield})}
       catch(err){hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, ${date}: ${err.message||err}`);break}
       if(!result.ok){
-        // v11.11.34: retain the best valid partial placement for this date and continue.
+        // v11.11.35: retain the best valid partial placement for this date and continue.
         // The Audit is responsible for flagging any unmet league guarantees, matching the
         // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
         const partial=result.placements||[];
@@ -2094,7 +2127,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.34: save the best valid schedule even when a guaranteed matchup could not be placed.
+  // v11.11.35: save the best valid schedule even when a guaranteed matchup could not be placed.
   // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
   // preventing the director from reviewing the rest of the generated league schedule.
 
@@ -2240,7 +2273,7 @@ function divisionProgressRows(){
   const weeks=seasonDatesRaw().length;
   return Object.entries(state.pools||{}).flatMap(([division,poolData])=>Object.entries(poolData.lists||{}).map(([pool,ids])=>{
     const key=poolKey(division,pool),games=state.games.filter(g=>poolKey(g.division,g.pool)===key),publishedGames=(state.publishedGames||[]).filter(g=>poolKey(g.division,g.pool)===key);
-    const guarantee=Number(state.divisionConfig?.[division]?.seasonGuarantee||state.settings.seasonGuarantee||12),active=games.filter(g=>g.status!=='Cancelled'),completed=active.filter(g=>g.sa!=null&&g.sb!=null),pending=games.filter(g=>g.pending),target=Math.ceil(ids.length*guarantee/2);
+    const guarantee=Number(state.divisionConfig?.[division]?.seasonGuarantee||state.settings.seasonGuarantee||12),active=games.filter(g=>g.status!=='Cancelled'),completed=active.filter(g=>g.sa!=null&&g.sb!=null),pending=games.filter(g=>g.pending),target=weeks*exactGamesRequiredForDate(ids.length,Number(state.divisionConfig?.[division]?.gamesPerWeek||state.settings.gamesPerWeek||3));
     const cfg=state.divisionConfig?.[division]||{};const configured=divisionResourceReady(division);const approved=!!state.pools?.[division]?.approved;
     let status='Not Started',cls='bad';
     if(!approved) status='Needs Division Approval';
@@ -2385,13 +2418,16 @@ function renderDashboard(){
   const rows=divisionProgressRows(),divisions=rows.length;
   const completed=state.games.filter(g=>g.sa!=null&&g.sb!=null).length,pending=state.games.filter(g=>g.pending).length,cancelled=state.games.filter(g=>g.status==='Cancelled').length,activeGames=state.games.length-cancelled,published=(state.publishedGames||[]).length;
   const configuredDivisions=Object.keys(state.divisionConfig||{}).filter(d=>{const c=state.divisionConfig[d];return c&&c.start&&c.end&&c.courtGroupId}).length;
-  const scheduledDivisions=rows.filter(r=>r.games>0).length,completeDivisions=rows.filter(r=>r.status==='Complete').length,publishedDivisions=rows.filter(r=>r.published>0).length,totalTarget=rows.reduce((n,r)=>n+r.target,0);
+  const scheduledDivisions=rows.filter(r=>r.games>0).length,completeDivisions=rows.filter(r=>r.status==='Complete').length,publishedDivisions=rows.filter(r=>r.published>0).length;
+  const playingDates=Math.max(0,seasonDatesRaw().length),nightlyMinimum=Number(state.settings.gamesPerWeek||3);
+  const totalTarget=Object.values(state.pools||{}).reduce((sum,pd)=>sum+Object.values(pd.lists||{}).reduce((s,ids)=>s+playingDates*exactGamesRequiredForDate(ids.length,nightlyMinimum),0),0);
+  const extraGames=Math.max(0,activeGames-totalTarget);
   const setupItems=[['Registrations imported',state.teams.length>0,`${state.teams.length} team(s)`,'registrations'],['Teams assigned to divisions',state.teams.length>0&&state.teams.every(t=>t.divisionId),`${state.teams.filter(t=>t.divisionId).length}/${state.teams.length} assigned`,'divisions'],['Divisions and pools approved',allDivisionKeys().length>0&&allDivisionKeys().every(d=>state.pools[d]?.approved),`${allDivisionKeys().filter(d=>state.pools[d]?.approved).length}/${allDivisionKeys().length} divisions approved`,'board'],['Playing surfaces configured',state.courts.length>0,`${state.courts.length} surface(s)`,'settings'],['Court groups configured',state.courtGroups.length>0,`${state.courtGroups.length} group(s)`,'settings'],['Season dates & playing days configured',!!state.settings.seasonStart&&!!state.settings.seasonEnd&&(state.settings.days||[]).length>0,`${seasonDatesRaw().length} playable date(s)`,'settings'],['Division scheduling assigned',divisions>0&&configuredDivisions===Object.keys(state.pools||{}).length,`${configuredDivisions}/${Object.keys(state.pools||{}).length} assigned`,'settings']];
   $('dashboardLeagueStatus').innerHTML=`<span class="pill">${esc(state.settings.leagueName||'MSS 3v3 League')}</span><span class="pill">${esc(state.settings.seasonStart||'Start?')} → ${esc(state.settings.seasonEnd||'End?')}</span><span class="pill">${seasonDatesRaw().length} playing dates</span>`;
-  $('dashboardMetrics').innerHTML=[['Teams',state.teams.length,'registrations'],['Divisions / Pools',divisions,'board'],['Divisions Scheduled',`${scheduledDivisions}/${divisions}`,'management'],['Games Scheduled',`${activeGames}/${totalTarget||0}`,'schedule'],['Games Completed',completed,'results'],['Unpublished Changes',pending,'management']].map(([label,value,tab])=>`<div class="card"><div class="hint">${label}</div><div class="kpi">${value}</div><button class="team-link" data-dashboard-tab="${tab}">Open</button></div>`).join('');
+  $('dashboardMetrics').innerHTML=[['Teams',state.teams.length,'registrations'],['Divisions / Pools',divisions,'board'],['Divisions Scheduled',`${scheduledDivisions}/${divisions}`,'management'],['Games Scheduled',activeGames,'schedule'],['Minimum Required',totalTarget||0,'schedule'],['Extra Games',extraGames,'schedule'],['Games Completed',completed,'results'],['Unpublished Changes',pending,'management']].map(([label,value,tab])=>`<div class="card"><div class="hint">${label}</div><div class="kpi">${value}</div><button class="team-link" data-dashboard-tab="${tab}">Open</button></div>`).join('');
   $('dashboardSetup').innerHTML=setupItems.map(([label,ok,detail,tab])=>`<div class="item"><b>${ok?'✓':'○'} ${label}</b><br><span class="hint">${esc(detail)}</span> <button class="team-link" data-dashboard-tab="${tab}">${ok?'Review':'Complete'}</button></div>`).join('');
   $('dashboardDivisionStatus').innerHTML='<thead><tr><th>Division / Pool</th><th>Teams</th><th>Games</th><th>Completed</th><th>Published</th><th>Status</th><th>Actions</th></tr></thead><tbody>'+rows.map(r=>`<tr><td><b>${esc(r.label)}</b></td><td>${r.teams}</td><td>${r.games}/${r.target}</td><td>${r.completed}/${r.games}</td><td>${r.published}</td><td><span class="status ${r.cls}" style="display:inline-block;margin:0;padding:5px 8px">${esc(r.status)}</span></td><td><button class="team-link" data-open-division="${esc(r.key)}" data-target-tab="management">Manage</button> · <button class="team-link" data-open-division="${esc(r.key)}" data-target-tab="schedule">Schedule</button> · <button class="team-link" data-open-division="${esc(r.key)}" data-target-tab="standings">Standings</button></td></tr>`).join('')+'</tbody>';
-  $('dashboardScheduleStatus').innerHTML=`<div class="item"><b>Divisions scheduled</b><br>${scheduledDivisions}/${divisions}</div><div class="item"><b>Games scheduled</b><br>${activeGames}/${totalTarget||0}</div><div class="item"><b>Games completed</b><br>${completed}/${activeGames}</div><div class="item"><b>Divisions complete</b><br>${completeDivisions}/${divisions}</div><div class="item"><b>Divisions published</b><br>${publishedDivisions}/${divisions}</div>`;
+  $('dashboardScheduleStatus').innerHTML=`<div class="item"><b>Divisions scheduled</b><br>${scheduledDivisions}/${divisions}</div><div class="item"><b>Games scheduled</b><br>${activeGames}</div><div class="item"><b>Minimum required</b><br>${totalTarget||0}</div><div class="item"><b>Extra games</b><br>${extraGames}</div><div class="item"><b>Games completed</b><br>${completed}/${activeGames}</div><div class="item"><b>Divisions complete</b><br>${completeDivisions}/${divisions}</div><div class="item"><b>Divisions published</b><br>${publishedDivisions}/${divisions}</div>`;
   $('dashboardPublishStatus').innerHTML=pending?`<div class="status warn"><b>${pending} change(s) are not yet public.</b><br>The League Portal still displays the last published schedule.</div><button class="primary" data-dashboard-tab="management">Review & Publish</button>`:`<div class="status ok"><b>Working and published schedules match.</b><br>${published} game(s) are available in the League Portal.</div><button class="secondary" data-dashboard-tab="management">Schedule Management</button>`;
   const wizard=[['Define season dates & playing days',!!state.settings.seasonStart&&!!state.settings.seasonEnd&&(state.settings.days||[]).length>0,'settings'],['Import registrations',state.teams.length>0,'registrations'],['Set up divisions & assign teams',state.teams.length>0&&state.teams.every(t=>t.divisionId),'divisions'],['Approve divisions & pools',allDivisionKeys().length>0&&allDivisionKeys().every(d=>state.pools[d]?.approved),'board'],['Configure surfaces and court groups',state.courts.length>0&&state.courtGroups.length>0,'settings'],['Complete division scheduling',divisions>0&&configuredDivisions===allDivisionKeys().length,'settings'],['Generate schedules',divisions>0&&scheduledDivisions===divisions,'schedule'],['Publish league schedule',state.games.length>0&&pending===0&&published>0,'management']];
   const firstOpen=Math.max(0,wizard.findIndex(x=>!x[1]));
