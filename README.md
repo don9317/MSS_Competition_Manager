@@ -216,3 +216,7 @@ Game placement now yields to the browser inside each date, matchup, court-search
 - The old Optimize Schedule button is renamed Re-Optimize Schedule and is intended mainly after manual edits or for another bounded repair attempt.
 - Generation summary reports before/after audit improvements and the final audit status.
 - Immediate-rematch and opponent-rotation audit details include Division and Pool.
+
+## IMPORTANT — how to launch this build
+Use **START_MSS_v11.11.39.html**. It explicitly opens **MSS_League_Scheduler_v11.11.39.html**.
+This packaging avoids accidentally opening an older generic `index.html` from a previous extracted folder.
