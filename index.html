@@ -297,7 +297,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <div class="card">
     <div class="toolbar">
       <button class="primary" id="generateBtn">Generate Schedule</button>
-      <button id="optimizeBtn">Optimize Schedule</button>
+      <button id="optimizeBtn">Re-Optimize Schedule</button>
       <button class="secondary" id="auditScopeBtn" type="button" onclick="safeRunScheduleAudit(false)">Audit Selected Scope</button>
       <button class="secondary" id="auditAllBtn" type="button" onclick="safeRunScheduleAudit(true)">Audit Entire League</button>
       <button class="secondary" id="exportScheduleBtn">Export CSV</button>
@@ -1670,7 +1670,7 @@ function repairScoreForSchedule(allGames,touchedPools){
       seen.add(opp);priorByPool[k]=opp;
     });
   });
-  out.score=out.self*100000+out.teamDouble*100000+out.coachDouble*50000+out.requests*50000+out.rest*30000+out.immediate*2500+out.rotation*3000;
+  out.score=out.self*1000000+out.teamDouble*1000000+out.coachDouble*150000+out.requests*150000+out.rest*100000+out.immediate*25000+out.rotation*5000;
   out.hard=out.self+out.teamDouble+out.coachDouble+out.requests+out.rest+out.immediate+out.rotation;
   return out;
 }
@@ -1678,35 +1678,88 @@ async function autoRepairGeneratedSchedule(newGames,retainedGames,targets){
   if(!newGames.length)return {iterations:0,before:null,after:null};
   const touchedPools=targets.map(t=>({division:t.division,pool:t.pool}));
   let before=repairScoreForSchedule([...retainedGames,...newGames],touchedPools),current=before,iterations=0;
-  // Swapping one team between two games on the SAME pool/date preserves every team's
-  // nightly and season game count. It can repair coach-time conflicts and opponent order
-  // without undoing the 3-games-per-night guarantee.
+
+  // v11.11.39: every candidate move swaps endpoints between two games in the
+  // SAME pool on the SAME playing date. Therefore each team's nightly and
+  // season game count is preserved exactly. The 3-games-per-night guarantee
+  // cannot be damaged by optimization.
   const groupIndexes=()=>{
-    const m={};newGames.forEach((g,i)=>{const k=`${g.division}|${g.pool}|${g.date}`;(m[k]??=[]).push(i)});return Object.values(m)
+    const m={};
+    newGames.forEach((g,i)=>{
+      const k=`${g.division}|${g.pool}|${g.date}`;
+      (m[k]??=[]).push(i);
+    });
+    return Object.values(m);
   };
-  let improved=true;
-  const maxIterations=Math.max(1,Number(window.__mssOptimizeLimit||20));let pairChecks=0;
-  while(improved&&iterations<maxIterations&&pairChecks<600){
+
+  const maxIterations=Math.max(1,Number(window.__mssOptimizeLimit||36));
+  const pairCheckLimit=Math.max(600,Number(window.__mssPairCheckLimit||5000));
+  let pairChecks=0,improved=true;
+
+  while(improved&&iterations<maxIterations&&pairChecks<pairCheckLimit){
     improved=false;
-    outer: for(const idxs of groupIndexes()){
-      for(let x=0;x<idxs.length;x++)for(let y=x+1;y<idxs.length;y++){
-        if(++pairChecks>600)break outer;
-        const i=idxs[x],j=idxs[y],g1=newGames[i],g2=newGames[j];
-        const variants=[['aId','aId'],['aId','bId'],['bId','aId'],['bId','bId']];
-        for(const [e1,e2] of variants){
-          await yieldToBrowser();
-          const v1=g1[e1],v2=g2[e2];if(!v1||!v2||v1===v2)continue;
-          g1[e1]=v2;g2[e2]=v1;
-          const next=repairScoreForSchedule([...retainedGames,...newGames],touchedPools);
-          const preservesRotation=!state.settings.playAllTeamsOnce||next.rotation<=current.rotation;
-          const preservesImmediate=!state.settings.avoidImmediateRematches||next.immediate<=current.immediate;
-          if(next.score<current.score&&preservesRotation&&preservesImmediate){current=next;iterations++;improved=true;break outer}
-          g1[e1]=v1;g2[e2]=v2;
+
+    outer:
+    for(const idxs of groupIndexes()){
+      for(let x=0;x<idxs.length;x++){
+        for(let y=x+1;y<idxs.length;y++){
+          if(++pairChecks>pairCheckLimit)break outer;
+
+          const i=idxs[x],j=idxs[y],g1=newGames[i],g2=newGames[j];
+          const variants=[['aId','aId'],['aId','bId'],['bId','aId'],['bId','bId']];
+
+          for(const [e1,e2] of variants){
+            if(pairChecks%50===0)await yieldToBrowser();
+
+            const v1=g1[e1],v2=g2[e2];
+            if(!v1||!v2||v1===v2)continue;
+
+            g1[e1]=v2; g2[e2]=v1;
+
+            const next=repairScoreForSchedule([...retainedGames,...newGames],touchedPools);
+
+            // Never trade away structural validity or create a new immediate
+            // rematch / early-repeat problem just to improve a lower priority.
+            const structuralSafe=
+              next.self<=current.self &&
+              next.teamDouble<=current.teamDouble &&
+              next.requests<=current.requests &&
+              next.rest<=current.rest;
+
+            const immediateSafe=!state.settings.avoidImmediateRematches||next.immediate<=current.immediate;
+            const rotationSafe=!state.settings.playAllTeamsOnce||next.rotation<=current.rotation;
+
+            // Priority: immediate rematches -> opponent rotation -> shared coach
+            // and other score improvements. A later priority may only improve
+            // when earlier priorities are unchanged.
+            const improvesImmediate=
+              state.settings.avoidImmediateRematches && next.immediate<current.immediate;
+
+            const improvesRotation=
+              state.settings.playAllTeamsOnce &&
+              next.immediate===current.immediate &&
+              next.rotation<current.rotation;
+
+            const improvesOther=
+              next.immediate===current.immediate &&
+              next.rotation===current.rotation &&
+              next.score<current.score;
+
+            if(structuralSafe&&immediateSafe&&rotationSafe&&(improvesImmediate||improvesRotation||improvesOther)){
+              current=next;
+              iterations++;
+              improved=true;
+              break outer;
+            }
+
+            g1[e1]=v1; g2[e2]=v2;
+          }
         }
       }
     }
   }
-  return {iterations,before,after:current};
+
+  return {iterations,before,after:current,pairChecks};
 }
 function repairSummaryText(r){
   if(!r||!r.before||!r.after)return '';
@@ -2236,40 +2289,146 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
   // preventing the director from reviewing the rest of the generated league schedule.
 
-  // v11.11.32: generation ends as soon as the initial schedule is placed. Cleanup is
-  // intentionally separate so a difficult optimization pass can never block schedule creation.
-  setGenerationStage('Saving initial schedule');
+  // v11.11.39 workflow:
+  // Generate -> Save -> Audit -> Auto-Optimize fixable failures -> Audit again.
+  // Optimization only uses same-date swaps, so the nightly game guarantee is
+  // preserved exactly.
+
+  setGenerationStage('Saving generated schedule');
   await yieldToBrowser();
-  state.games=[...retainedGames,...newGames].map(g=>({...g,status:g.status||'Scheduled',pending:true}));persist();renderAll();
+  state.games=[...retainedGames,...newGames].map(g=>({...g,status:g.status||'Scheduled',pending:true}));
+  persist();
+  renderAll();
+
   const scopeLabel=scope==='ALL'?'all divisions and pools':$('scheduleFilter').selectedOptions[0]?.textContent||scope;
   const generationIssues=[...hardPlacementFailures,...warnings];
-  $('genSummary').innerHTML=`<div class="status ${generationIssues.length?'warn':'ok'}"><b>Initial schedule generated:</b> ${newGames.length} games for ${esc(scopeLabel)} across ${dates.length} playing dates.${hardPlacementFailures.length?`<br><b>${hardPlacementFailures.length} placement warning(s):</b> the best valid partial schedule was retained. Run <b>Audit Entire League</b> to see exactly which teams missed the 3-games-per-date / season guarantee.`:''}<br><span class="hint">The schedule is saved and displayed now. Generation no longer discards the entire schedule when one pool/date cannot meet every guarantee. The Audit remains the authoritative check for minimum games, season minimum, rematches, coaches, rest, and other rules.</span></div><details><summary>Capacity & feasibility</summary><div class="hint">${feasibilityNotes.map(esc).join('<br>')}</div></details>${generationIssues.length?`<details open><summary>Generation warnings (${generationIssues.length})</summary><div class="hint">${generationIssues.map(esc).join('<br>')}</div></details>`:''}`;
-  setGenerationStage(hardPlacementFailures.length?'Initial schedule complete — review Audit warnings':'Initial schedule complete');
-  setTab('schedule');resetRuntimeOverflowPlan();
-}
 
+  setGenerationStage('Running initial Rules Audit');
+  await yieldToBrowser();
+  const initialAudit=runScheduleAudit(scope==='ALL');
+
+  const fixableLabels=new Set([
+    'Immediate rematches',
+    'All opponents before repeats',
+    'Shared-coach conflicts',
+    'Rest / back-to-back rule'
+  ]);
+  const fixableFails=(initialAudit?.results||[]).filter(r=>r.status==='FAIL'&&fixableLabels.has(r.label));
+
+  let repair=null;
+  if(fixableFails.length){
+    setGenerationStage(`Auto-optimizing ${fixableFails.length} fixable audit rule(s)`);
+    await yieldToBrowser();
+
+    const working=state.games.filter(g=>scopeMatchesGame(scope,g)).map(g=>({...g}));
+    const retained=state.games.filter(g=>!scopeMatchesGame(scope,g));
+    const touched=[...new Map(working.map(g=>[
+      JSON.stringify([g.division,g.pool]),
+      {division:g.division,pool:g.pool}
+    ])).values()];
+
+    const priorLimit=window.__mssOptimizeLimit;
+    const priorPair=window.__mssPairCheckLimit;
+    window.__mssOptimizeLimit=36;
+    window.__mssPairCheckLimit=5000;
+
+    try{
+      repair=await autoRepairGeneratedSchedule(working,retained,touched);
+      state.games=[...retained,...working].map(g=>({...g,status:g.status||'Scheduled',pending:true}));
+      persist();
+      renderAll();
+    }catch(err){
+      console.error('Automatic optimization stopped safely',err);
+      generationIssues.push(`Automatic optimization stopped safely: ${err.message||err}`);
+    }finally{
+      window.__mssOptimizeLimit=priorLimit;
+      window.__mssPairCheckLimit=priorPair;
+    }
+  }
+
+  setGenerationStage('Running final Rules Audit');
+  await yieldToBrowser();
+  const finalAudit=runScheduleAudit(scope==='ALL');
+
+  const beforeMap=Object.fromEntries((initialAudit?.results||[]).map(r=>[r.label,r.violations?.length||0]));
+  const afterMap=Object.fromEntries((finalAudit?.results||[]).map(r=>[r.label,r.violations?.length||0]));
+  const autoBits=[];
+  for(const label of ['Immediate rematches','All opponents before repeats','Shared-coach conflicts','Rest / back-to-back rule']){
+    if((beforeMap[label]??0)!==(afterMap[label]??0)){
+      autoBits.push(`${label}: ${beforeMap[label]??0}→${afterMap[label]??0}`);
+    }
+  }
+
+  const overall=finalAudit?.overall||'PASS';
+  const finalFails=finalAudit?.fails||0;
+  const finalWarns=finalAudit?.warns||0;
+  const repairText=repairSummaryText(repair);
+
+  $('genSummary').innerHTML=
+    `<div class="status ${finalFails?'warn':'ok'}">`+
+    `<b>Schedule generation complete.</b> ${state.games.filter(g=>scopeMatchesGame(scope,g)).length} games for ${esc(scopeLabel)} across ${dates.length} playing dates.`+
+    `<br><b>Automatic workflow:</b> Generate → Audit${fixableFails.length?' → Auto-Optimize → Audit':' → no fixable optimization needed'}.`+
+    `${repairText?`<br>${esc(repairText)}`:''}`+
+    `${autoBits.length?`<br><b>Audit improvements:</b> ${autoBits.map(esc).join(' • ')}`:''}`+
+    `<br><b>Final Audit:</b> ${esc(overall)}${finalFails?` • ${finalFails} failed rule(s)`:''}${finalWarns?` • ${finalWarns} warning(s)`:''}.`+
+    `${hardPlacementFailures.length?`<br><b>${hardPlacementFailures.length} placement warning(s)</b> remain for director review.`:''}`+
+    `<br><span class="hint">The 3-games-per-playing-date counts are protected during Auto-Optimize. Use <b>Re-Optimize Schedule</b> only after manual schedule edits or if you want MSS to make another bounded repair attempt.</span>`+
+    `</div>`+
+    `<details><summary>Capacity & feasibility</summary><div class="hint">${feasibilityNotes.map(esc).join('<br>')}</div></details>`+
+    `${generationIssues.length?`<details><summary>Generation warnings (${generationIssues.length})</summary><div class="hint">${generationIssues.map(esc).join('<br>')}</div></details>`:''}`;
+
+  setGenerationStage(finalFails?'Complete — final Audit has items for review':'Complete — final Audit passed');
+  setTab('schedule');
+  resetRuntimeOverflowPlan();
+}
 async function optimizeSchedule(){
   syncSettings();
   const scope=$('scheduleFilter').value||'ALL';
   const gamesInScope=state.games.filter(g=>g.status!=='Cancelled'&&scopeMatchesGame(scope,g));
-  if(!gamesInScope.length){alert('Generate a schedule first, then Optimize Schedule.');return}
+  if(!gamesInScope.length)return alert('Generate a schedule first, then use Re-Optimize Schedule.');
+
   const retainedGames=state.games.filter(g=>!scopeMatchesGame(scope,g));
   const working=gamesInScope.map(g=>({...g}));
-  const touched=[...new Map(working.map(g=>[JSON.stringify([g.division,g.pool]),{division:g.division,pool:g.pool}])).values()];
-  setGenerationStage('Optimizing saved schedule');
-  await yieldToBrowser();
-  // Keep optimization deliberately small. It is an optional polish pass, not a prerequisite.
-  const priorLimit=window.__mssOptimizeLimit;window.__mssOptimizeLimit=3;
-  let repair;
-  try{repair=await autoRepairGeneratedSchedule(working,retainedGames,touched)}
-  catch(err){console.error(err);setGenerationStage('Optimization stopped');showActionFeedback(`Optimization stopped safely: ${err.message||err}`,false);return}
-  finally{window.__mssOptimizeLimit=priorLimit}
-  state.games=[...retainedGames,...working].map(g=>({...g,status:g.status||'Scheduled'}));persist();renderAll();
-  const txt=repairSummaryText(repair)||'No safe improvement was found.';
-  $('genSummary').innerHTML=`<div class="status ok"><b>Optimization complete.</b> ${esc(txt)}<br><span class="hint">Your schedule remained saved throughout this optional pass.</span></div>`;
-  setGenerationStage('Optimization complete');setTab('schedule');
-}
+  const touched=[...new Map(working.map(g=>[
+    JSON.stringify([g.division,g.pool]),
+    {division:g.division,pool:g.pool}
+  ])).values()];
 
+  setGenerationStage('Re-optimizing saved schedule');
+  await yieldToBrowser();
+
+  const beforeAudit=runScheduleAudit(scope==='ALL');
+  const priorLimit=window.__mssOptimizeLimit,priorPair=window.__mssPairCheckLimit;
+  window.__mssOptimizeLimit=40;
+  window.__mssPairCheckLimit=6000;
+
+  let repair;
+  try{
+    repair=await autoRepairGeneratedSchedule(working,retainedGames,touched);
+  }catch(err){
+    console.error(err);
+    setGenerationStage('Re-optimization stopped safely');
+    showActionFeedback(`Re-optimization stopped safely: ${err.message||err}`,false);
+    return;
+  }finally{
+    window.__mssOptimizeLimit=priorLimit;
+    window.__mssPairCheckLimit=priorPair;
+  }
+
+  state.games=[...retainedGames,...working].map(g=>({...g,status:g.status||'Scheduled',pending:true}));
+  persist();
+  renderAll();
+
+  const afterAudit=runScheduleAudit(scope==='ALL');
+  const txt=repairSummaryText(repair)||'No safe improvement was found.';
+  $('genSummary').innerHTML=
+    `<div class="status ${afterAudit?.fails?'warn':'ok'}"><b>Re-optimization complete.</b> ${esc(txt)}`+
+    `<br><b>Final Audit:</b> ${esc(afterAudit?.overall||'PASS')}${afterAudit?.fails?` • ${afterAudit.fails} failed rule(s)`:''}${afterAudit?.warns?` • ${afterAudit.warns} warning(s)`:''}.`+
+    `<br><span class="hint">Only same-pool, same-date swaps were used, so each team's nightly game count was preserved.</span></div>`;
+
+  setGenerationStage('Re-optimization complete');
+  setTab('schedule');
+}
 function safeRunScheduleAudit(allLeague=false){
   const out=$('scheduleAudit');
   try{
@@ -2310,7 +2469,7 @@ function runScheduleAudit(allLeague=false){
     ids.forEach(id=>{
       const tg=pg.filter(g=>g.aId===id||g.bId===id),name=teamById(id).name;if(tg.length<guarantee)guaranteeBad.push(`${name}: ${tg.length}/${guarantee}`);
       const byDate={};tg.forEach(g=>(byDate[g.date]??=[]).push(g));dates.forEach(date=>{const arr=byDate[date]||[];const hasAvailability=divisionSlots(d,date).some(sl=>allowed(teamById(id),sl));if(hasAvailability&&arr.length<minimum)minimumDateBad.push(`${name}: ${arr.length} games on ${date} (minimum ${minimum})`);if(arr.length>max)maxBad.push(`${name}: ${arr.length} games on ${date} (max ${max})`);else if(arr.length>minimum)overflowWarn.push(`${name}: ${arr.length} games on ${date} (minimum ${minimum}; max ${max})`)});
-      const seq=[...tg].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));let seen=new Set();for(let i=0;i<seq.length;i++){const g=seq[i],opp=g.aId===id?g.bId:g.aId;if(i&&opp===(seq[i-1].aId===id?seq[i-1].bId:seq[i-1].aId)&&state.settings.avoidImmediateRematches)immediateBad.push(`${name}: consecutive games vs ${teamById(opp).name}`);if(state.settings.playAllTeamsOnce&&seen.has(opp)){const possible=ids.filter(x=>x!==id);if(possible.some(x=>!seen.has(x)))allBeforeRepeatBad.push(`${name}: repeated ${teamById(opp).name} before facing all pool opponents`)}seen.add(opp)}
+      const seq=[...tg].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));let seen=new Set();const auditPrefix=`${divisionLabel(d)} — ${poolDisplayName(d,pool)} — `;for(let i=0;i<seq.length;i++){const g=seq[i],opp=g.aId===id?g.bId:g.aId;if(i&&opp===(seq[i-1].aId===id?seq[i-1].bId:seq[i-1].aId)&&state.settings.avoidImmediateRematches)immediateBad.push(`${auditPrefix}${name}: consecutive games vs ${teamById(opp).name}`);if(state.settings.playAllTeamsOnce&&seen.has(opp)){const possible=ids.filter(x=>x!==id);if(possible.some(x=>!seen.has(x)))allBeforeRepeatBad.push(`${auditPrefix}${name}: repeated ${teamById(opp).name} before facing all pool opponents`)}seen.add(opp)}
       for(let i=1;i<seq.length;i++){if(seq[i].date!==seq[i-1].date)continue;const t1=new Date(`${seq[i-1].date}T${seq[i-1].time}:00`).getTime(),t2=new Date(`${seq[i].date}T${seq[i].time}:00`).getTime(),diff=(t2-t1)/60000;const minGap=(state.settings.allowBackToBack?Number(state.settings.minRest||0)+1:Math.max(2,Number(state.settings.minRest||0)+1))*gameLen;if(diff<minGap)restBad.push(`${name}: ${diff} min between games on ${seq[i].date}; requires ${minGap} min`)}
     })
   });
