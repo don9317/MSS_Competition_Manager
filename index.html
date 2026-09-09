@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.39</title>
+<title>MSS League Scheduler v11.11.40</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -30,12 +30,17 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 .locked .team-card{cursor:default}.approval-banner{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
 @media(max-width:700px){header img{height:43px}header h1{font-size:19px}.viewbar,.tabs{overflow:auto;flex-wrap:nowrap}.division-board{min-width:560px}}
 @media print{.viewbar,.tabs,.toolbar,.admin-only{display:none!important}body{background:#fff}.card{box-shadow:none;border:0}}
+
+.diagnostic-card{border:1px solid #d7e0eb;border-radius:10px;padding:10px 12px;margin:8px 0;background:#f8fbff;font-size:13px;line-height:1.45}
+.diagnostic-title{font-weight:700;font-size:14px;margin-bottom:4px}
+.section-title{font-weight:700;font-size:18px;margin:8px 0 4px}
+
 </style>
 </head>
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.39</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.40</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -91,7 +96,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     <div class="card"><h2>League Validation Center</h2><div class="hint" style="margin-bottom:8px">Resolve red items before generating the full league schedule.</div><div id="dashboardValidation"></div></div>
   </div>
   <div class="grid" style="margin-top:14px">
-    <div class="card"><h2>League Scheduling Rules</h2><div id="dashboardRules"></div><button class="secondary" data-dashboard-tab="settings" style="margin-top:8px">Edit League Rules</button></div>
+    <div class="card" id="schedulingDiagnostics"></div>
+<div class="card"><h2>League Scheduling Rules</h2><div id="dashboardRules"></div><button class="secondary" data-dashboard-tab="settings" style="margin-top:8px">Edit League Rules</button></div>
     <div class="card"><h2>Recent Activity</h2><div id="dashboardActivity"></div></div>
   </div>
   <div class="card" style="margin-top:14px">
@@ -1268,6 +1274,86 @@ function renderSettings(){
   document.querySelectorAll('[data-group-division]').forEach(sel=>sel.addEventListener('change',()=>assignCourtGroupToDivision(sel.dataset.groupDivision,sel.value)));
   renderDivisionAssignments();renderCapacity();
 }
+
+function diagnosticDivisionWindowSource(d){
+  const cfg=state.divisionConfig?.[d]||{};
+  if(cfg.usePoolAssignments)return 'Pool assignments';
+  if(cfg.timeWindowSource)return cfg.timeWindowSource;
+  if(cfg.start||cfg.end)return 'Saved division window';
+  return 'Court Group availability';
+}
+function diagnosticPoolWindowSource(d,p){
+  const pc=state.pools?.[d]?.resourceConfig?.[p]||{};
+  if(pc.timeWindowSource)return pc.timeWindowSource;
+  if(pc.start||pc.end)return 'Saved pool override';
+  return 'Court Group availability';
+}
+function diagnosticSharedCoachCount(ids){
+  const by={};
+  ids.forEach(id=>{
+    const t=teamById(id);
+    const c=String(t?.coach||'').trim();
+    if(c)(by[c]??=[]).push(t?.name||id);
+  });
+  return Object.entries(by).filter(([,teams])=>teams.length>1);
+}
+function effectiveSchedulingDiagnostic(d,pool=null){
+  const ids=state.teams.filter(t=>divisionKey(t)===d && (pool==null || String(t.pool||'A')===String(pool))).map(t=>t.id);
+  const cfg=state.divisionConfig?.[d]||{};
+  const pc=pool!=null ? (state.pools?.[d]?.resourceConfig?.[pool]||{}) : null;
+  const groupId=pool!=null && pc?.courtGroupId ? pc.courtGroupId : cfg.courtGroupId;
+  const group=state.courtGroups.find(g=>g.id===groupId);
+  const win=pool!=null ? effectivePoolWindow(d,pool) : effectiveDivisionWindow(d);
+  const source=pool!=null ? diagnosticPoolWindowSource(d,pool) : diagnosticDivisionWindowSource(d);
+  const shared=diagnosticSharedCoachCount(ids);
+  const reqs=ids.filter(id=>{
+    const t=teamById(id);
+    return !!(t?.scheduleRequest||t?.scheduleRequests||t?.restriction||t?.restrictions);
+  }).length;
+  const min=Number(cfg.minGamesPerDate||state.settings.gamesPerWeek||state.settings.minimumGamesPerDate||3);
+  const max=Number(cfg.maxGamesPerDate||state.settings.maxGamesPerDate||4);
+  const teamGames=ids.length*min;
+  const requiredGames=Math.ceil(teamGames/2);
+  const oddExtra=(teamGames%2)===1;
+  const common=group?commonGroupWindows(group):[];
+  return {
+    ids,group,win,source,shared,reqs,min,max,requiredGames,oddExtra,common,
+    legacySixEight: String(cfg.start||'')==='18:00'&&String(cfg.end||'')==='20:00',
+    poolLegacySixEight: !!pc && String(pc.start||'')==='18:00'&&String(pc.end||'')==='20:00'
+  };
+}
+function diagnosticLineHtml(d,pool=null){
+  const x=effectiveSchedulingDiagnostic(d,pool);
+  const label=pool==null ? divisionLabel(d) : `${divisionLabel(d)} — ${poolDisplayName(d,pool)}`;
+  const winTxt=x.win?.start&&x.win?.end ? `${fmtTime(x.win.start)}–${fmtTime(x.win.end)}` : 'None';
+  const commonTxt=x.common?.length ? x.common.map(w=>`${fmtTime(w.start)}–${fmtTime(w.end)}`).join(', ') : 'No common window';
+  const sharedTxt=x.shared.length ? x.shared.map(([c,ts])=>`${c} (${ts.length})`).join('; ') : 'None';
+  const stale=(x.legacySixEight||x.poolLegacySixEight) ? `<span class="status warn">LEGACY 6–8 VALUE PRESENT</span>` : '';
+  return `<div class="diagnostic-card">
+    <div class="diagnostic-title">${esc(label)} ${stale}</div>
+    <div><b>Teams:</b> ${x.ids.length} &nbsp; <b>Required games/date:</b> ${x.requiredGames} &nbsp; <b>Minimum/team:</b> ${x.min} &nbsp; <b>Maximum/team:</b> ${x.max} ${x.oddExtra?'&nbsp; <b>Odd-pool extra game required:</b> Yes':'&nbsp; <b>Odd-pool extra game required:</b> No'}</div>
+    <div><b>Court Group:</b> ${esc(x.group?.name||'None')} &nbsp; <b>Effective window:</b> ${esc(winTxt)} &nbsp; <b>Window source:</b> ${esc(x.source)}</div>
+    <div><b>Court Group common availability:</b> ${esc(commonTxt)}</div>
+    <div><b>Shared coaches:</b> ${esc(sharedTxt)} &nbsp; <b>Teams with schedule restrictions:</b> ${x.reqs}</div>
+  </div>`;
+}
+function renderSchedulingDiagnostics(){
+  const host=$('schedulingDiagnostics');
+  if(!host)return;
+  const divisions=[...new Set(state.teams.map(divisionKey))].filter(Boolean).sort((a,b)=>divisionLabel(a).localeCompare(divisionLabel(b)));
+  let html=`<div class="section-title">Effective Scheduling Inputs</div>
+  <div class="hint">This panel shows the values the scheduler is actually using. It is diagnostic only and does not change the schedule.</div>`;
+  for(const d of divisions){
+    const pools=[...new Set(state.teams.filter(t=>divisionKey(t)===d).map(t=>String(t.pool||'A')))].sort();
+    if(pools.length>1 || state.divisionConfig?.[d]?.usePoolAssignments){
+      for(const p of pools)html+=diagnosticLineHtml(d,p);
+    }else{
+      html+=diagnosticLineHtml(d,null);
+    }
+  }
+  host.innerHTML=html;
+}
+
 function renderDivisionAssignments(){
   ensureDivisionConfig();
   const divisions=allDivisionKeys();let migrated=false;divisions.forEach(d=>{if(syncPoolAssignmentMode(d))migrated=true});if(migrated)persist();
@@ -1679,7 +1765,7 @@ async function autoRepairGeneratedSchedule(newGames,retainedGames,targets){
   const touchedPools=targets.map(t=>({division:t.division,pool:t.pool}));
   let before=repairScoreForSchedule([...retainedGames,...newGames],touchedPools),current=before,iterations=0;
 
-  // v11.11.39: every candidate move swaps endpoints between two games in the
+  // v11.11.40: every candidate move swaps endpoints between two games in the
   // SAME pool on the SAME playing date. Therefore each team's nightly and
   // season game count is preserved exactly. The 3-games-per-night guarantee
   // cannot be damaged by optimization.
@@ -1835,7 +1921,7 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
   const pairKey=(a,b)=>[a,b].sort().join('|');
   const teamOrder=new Map(ids.map((id,i)=>[id,i]));
 
-  // v11.11.39 — GUARANTEE-FIRST, VARIETY-SECOND.
+  // v11.11.40 — GUARANTEE-FIRST, VARIETY-SECOND.
   // This intentionally preserves the v11.11.35 exact nightly degree planner:
   // every team receives the configured minimum on every playing date, with only
   // the mathematically required extra game for odd team-game totals.
@@ -1981,7 +2067,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   const games=plannedGames.map((g,i)=>({...g,_idx:i}));
   if(!games.length)return {ok:true,placed:0,total:0,attempts:0};
 
-  // v11.11.39 — bounded asynchronous constraint solver.
+  // v11.11.40 — bounded asynchronous constraint solver.
   // The earlier greedy placer could finish quickly but strand guaranteed games.
   // This solver uses "most constrained game first" backtracking, yields frequently
   // to Chrome, and falls back through controlled rule tiers only when necessary.
@@ -2258,7 +2344,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
       try{result=await placeGuaranteeDatePlan({division:d,pool,date,dateIndex,plannedGames:entry.games,available,used,teamTimes,coachTimes,newGames,placementYield})}
       catch(err){hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, ${date}: ${err.message||err}`);break}
       if(!result.ok){
-        // v11.11.39: retain the best valid partial placement for this date and continue.
+        // v11.11.40: retain the best valid partial placement for this date and continue.
         // The Audit is responsible for flagging any unmet league guarantees, matching the
         // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
         const partial=result.placements||[];
@@ -2285,11 +2371,11 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.39: save the best valid schedule even when a guaranteed matchup could not be placed.
+  // v11.11.40: save the best valid schedule even when a guaranteed matchup could not be placed.
   // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
   // preventing the director from reviewing the rest of the generated league schedule.
 
-  // v11.11.39 workflow:
+  // v11.11.40 workflow:
   // Generate -> Save -> Audit -> Auto-Optimize fixable failures -> Audit again.
   // Optimization only uses same-date swaps, so the nightly game guarantee is
   // preserved exactly.
@@ -2722,6 +2808,7 @@ function renderAll(){
     const dash=$('dashboardValidation');
     if(dash) dash.insertAdjacentHTML('afterbegin',`<div class="status warn"><b>Startup safety mode:</b> ${failures.map(esc).join(', ')} could not be rendered. Other league data remains available.</div>`);
   }
+  renderSchedulingDiagnostics();
 }
 
 window.addEventListener('error',e=>{reportRuntimeIssue('JavaScript error',e.error||new Error(e.message||'Unknown error'))});
