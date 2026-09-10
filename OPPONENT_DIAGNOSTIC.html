@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MSS Opponent Diagnostic v11.11.45</title>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;background:#f4f7fb;color:#14213d;margin:0}
+header{background:#18335f;color:#fff;padding:18px 24px}
+main{max-width:1200px;margin:20px auto;padding:0 16px}
+.card{background:#fff;border:1px solid #d8e0ea;border-radius:12px;padding:18px;margin-bottom:16px}
+button{background:#18335f;color:#fff;border:0;border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer}
+input[type=file]{margin:8px 0 14px}
+.status{padding:10px 12px;border-radius:8px;margin-top:10px;background:#eef3f9}
+.bad{border-left:5px solid #c0392b}
+.good{border-left:5px solid #2e8b57}
+.team{border:1px solid #d8e0ea;border-radius:9px;padding:10px 12px;margin:8px 0;background:#fff}
+.issue{font-weight:800;color:#9b1c1c}
+.date{font-size:13px;margin-top:5px}
+.small{font-size:12px;color:#5f6f85}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border-bottom:1px solid #e4e9f0;padding:7px 8px;text-align:left}
+th{background:#f7f9fc}
+</style>
+</head>
+<body>
+<header>
+  <h1 style="margin:0">MSS Opponent Diagnostic v11.11.45</h1>
+  <div style="margin-top:4px">Standalone diagnostic — separate from the League Scheduler</div>
+</header>
+<main>
+  <div class="card">
+    <h2 style="margin-top:0">Load a Schedule Export</h2>
+    <p>This page does not touch the scheduler or its saved league. In the scheduler, use <b>Export CSV</b>, then load that CSV here.</p>
+    <input id="fileInput" type="file" accept=".csv,text/csv">
+    <div><button id="analyzeBtn">Analyze Opponent Sequences</button></div>
+    <div id="status" class="status">No schedule loaded yet.</div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0">What this checks</h2>
+    <div class="small">For each Division / Pool / Team, the diagnostic sorts games chronologically and flags:
+      <b>Immediate Rematch</b> and <b>Repeat Before Full Rotation</b>. It also highlights the 5/6 divisions so they can be compared with other odd-team divisions.</div>
+  </div>
+
+  <div id="results"></div>
+</main>
+
+<script>
+let rows=[];
+
+function parseCSV(text){
+  const out=[]; let row=[],field='',q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i],n=text[i+1];
+    if(q){
+      if(c==='"'&&n==='"'){field+='"';i++}
+      else if(c==='"')q=false;
+      else field+=c;
+    }else{
+      if(c==='"')q=true;
+      else if(c===','){row.push(field);field=''}
+      else if(c==='\n'){row.push(field);out.push(row);row=[];field=''}
+      else if(c!=='\r')field+=c;
+    }
+  }
+  if(field.length||row.length){row.push(field);out.push(row)}
+  if(!out.length)return [];
+  const hdr=out[0].map(x=>x.trim());
+  return out.slice(1).filter(r=>r.some(x=>String(x).trim()!=='')).map(r=>{
+    const obj={}; hdr.forEach((h,i)=>obj[h]=r[i]??''); return obj;
+  });
+}
+function pick(obj,names){
+  for(const n of names) if(Object.prototype.hasOwnProperty.call(obj,n) && String(obj[n]).trim()!=='') return String(obj[n]).trim();
+  return '';
+}
+function normalizeRows(raw){
+  return raw.map(r=>({
+    date:pick(r,['Date','date']),
+    time:pick(r,['Time','time','Start Time','Start']),
+    division:pick(r,['Division / Pool','Division','division']),
+    matchup:pick(r,['Matchup','matchup']),
+    status:pick(r,['Status','status'])
+  })).filter(r=>r.date&&r.matchup);
+}
+function splitDivisionPool(s){
+  const parts=s.split('—').map(x=>x.trim());
+  if(parts.length>=2)return {division:parts.slice(0,-1).join(' — '),pool:parts[parts.length-1]};
+  return {division:s||'Unknown Division',pool:'Pool A'};
+}
+function splitMatchup(s){
+  const m=s.split(/\s+vs\s+/i);
+  return m.length>=2?[m[0].trim(),m.slice(1).join(' vs ').trim()]:null;
+}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function stamp(r){return `${r.date} ${r.time||'00:00'}`}
+
+function analyze(){
+  const status=document.getElementById('status'),results=document.getElementById('results');
+  if(!rows.length){status.textContent='Load a scheduler Export CSV first.';results.innerHTML='';return}
+
+  const games=[];
+  for(const r of rows){
+    if(/cancel/i.test(r.status||''))continue;
+    const pair=splitMatchup(r.matchup); if(!pair)continue;
+    const dp=splitDivisionPool(r.division);
+    games.push({...r,division:dp.division,pool:dp.pool,a:pair[0],b:pair[1]});
+  }
+  const groups={};
+  for(const g of games){
+    const key=`${g.division}|||${g.pool}`;
+    (groups[key]??=[]).push(g);
+  }
+
+  let totalImmediate=0,totalRotation=0,html='';
+  for(const [key,gs] of Object.entries(groups).sort((a,b)=>a[0].localeCompare(b[0]))){
+    const [division,pool]=key.split('|||');
+    const teams=[...new Set(gs.flatMap(g=>[g.a,g.b]))].sort();
+    const focus=/5th\/6th|5\/6/i.test(division);
+
+    let groupImmediate=0,groupRotation=0,teamHtml='';
+    for(const team of teams){
+      const tg=gs.filter(g=>g.a===team||g.b===team).sort((x,y)=>stamp(x).localeCompare(stamp(y)));
+      const allOpp=teams.filter(t=>t!==team),seen=new Set();
+      let last=null,issues=0;
+      const byDate={};
+
+      for(const g of tg){
+        const opp=g.a===team?g.b:g.a,flags=[];
+        if(last===opp){flags.push('IMMEDIATE REMATCH');groupImmediate++;totalImmediate++}
+        if(seen.has(opp)&&allOpp.some(x=>!seen.has(x))){
+          flags.push('REPEAT BEFORE FULL ROTATION');groupRotation++;totalRotation++;
+        }
+        (byDate[g.date]??=[]).push({opp,time:g.time,flags});
+        seen.add(opp);
+        if(seen.size===allOpp.length)seen.clear();
+        last=opp;
+        issues+=flags.length;
+      }
+
+      teamHtml+=`<div class="team ${issues?'bad':'good'}"><b>${esc(team)}</b> — ${issues?`<span class="issue">${issues} issue(s)</span>`:'No sequence issues detected'}`;
+      for(const d of Object.keys(byDate).sort()){
+        const seq=byDate[d].sort((a,b)=>(a.time||'').localeCompare(b.time||'')).map(x=>x.flags.length?`<span class="issue">${esc(x.opp)} ⚠ ${esc(x.flags.join(' / '))}</span>`:esc(x.opp)).join(' → ');
+        teamHtml+=`<div class="date"><b>${esc(d)}</b> ${seq}</div>`;
+      }
+      teamHtml+='</div>';
+    }
+
+    html+=`<div class="card"><h2 style="margin-top:0">${esc(division)} — ${esc(pool)} ${focus?'🔎':''}</h2>
+      <div class="small">${teams.length} teams • Immediate rematches: <b>${groupImmediate}</b> • Repeats before full rotation: <b>${groupRotation}</b></div>
+      ${teamHtml}</div>`;
+  }
+
+  status.innerHTML=`Analyzed <b>${games.length}</b> games. Immediate rematches: <b>${totalImmediate}</b>. Repeats before full rotation: <b>${totalRotation}</b>.`;
+  results.innerHTML=html||'<div class="card">No valid games found in the CSV.</div>';
+}
+
+document.getElementById('fileInput').addEventListener('change',async e=>{
+  const f=e.target.files?.[0];
+  if(!f)return;
+  const txt=await f.text();
+  rows=normalizeRows(parseCSV(txt));
+  document.getElementById('status').textContent=`Loaded ${rows.length} schedule rows from ${f.name}. Click Analyze Opponent Sequences.`;
+});
+document.getElementById('analyzeBtn').addEventListener('click',analyze);
+</script>
+</body>
+</html>
