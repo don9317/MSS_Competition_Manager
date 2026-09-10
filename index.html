@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.46</title>
+<title>MSS League Scheduler v11.11.45</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.46</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.45</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -200,7 +200,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <section id="admin-settings" class="panel">
   <div class="card">
     <h2>Resources & Scheduling Setup</h2>
-    <div class="status info" style="margin:8px 0"><b>v11.11.46:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
+    <div class="status info" style="margin:8px 0"><b>v11.11.45:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
     <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
   </div>
 
@@ -288,7 +288,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>  </div>
 
   <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
-    <h2>🔎 Scheduling Diagnostics — v11.11.46</h2>
+    <h2>🔎 Scheduling Diagnostics — v11.11.45</h2>
     <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
     <div id="schedulingDiagnosticsContent"></div>
   </div>
@@ -317,16 +317,11 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <button class="secondary" id="auditScopeBtn" type="button" onclick="safeRunScheduleAudit(false)">Audit Selected Scope</button>
       <button class="secondary" id="auditAllBtn" type="button" onclick="safeRunScheduleAudit(true)">Audit Entire League</button>
       <button class="secondary" id="exportScheduleBtn">Export CSV</button>
-      <button class="secondary" id="exportScheduleBackupBtn">Export Schedule Backup</button>
-      <label class="secondary" style="display:inline-flex;align-items:center;cursor:pointer">Restore Schedule
-        <input id="scheduleRestoreFile" type="file" accept=".csv,.json,text/csv,application/json" class="hidden">
-      </label>
       <button class="secondary" id="exportDivisionSeasonBtn">Export Division Season</button>
       <button class="secondary" id="exportDivisionWeekBtn">Export Division Week</button>
       <button class="secondary" id="printBtn">Print</button>
       <label style="margin:0;min-width:260px">Schedule / Display Scope<select id="scheduleFilter"></select></label>
     </div>
-    <div class="hint" style="margin-bottom:4px"><b>Version upgrade safety:</b> Export Schedule Backup saves the exact game objects. Restore Schedule accepts either that JSON backup or the standard Export CSV.</div>
     <div class="hint" style="margin-bottom:8px">For multi-pool divisions, choose <b>Entire Division</b> to schedule all pools together. Pools may use different Court Groups through Pool Court Overrides. Use <b>Export Division Season</b> for the full division schedule or <b>Export Division Week</b> for one playing date. Schedule generation follows the League Scheduling Rules configured under Resources.</div><div id="genSummary"></div><div id="scheduleAudit" style="margin-top:12px"></div>
     <div class="table-wrap"><table id="scheduleTable"></table></div>
   </div>
@@ -1798,7 +1793,7 @@ async function autoRepairGeneratedSchedule(newGames,retainedGames,targets){
   const touchedPools=targets.map(t=>({division:t.division,pool:t.pool}));
   let before=repairScoreForSchedule([...retainedGames,...newGames],touchedPools),current=before,iterations=0;
 
-  // v11.11.46: every candidate move swaps endpoints between two games in the
+  // v11.11.45: every candidate move swaps endpoints between two games in the
   // SAME pool on the SAME playing date. Therefore each team's nightly and
   // season game count is preserved exactly. The 3-games-per-night guarantee
   // cannot be damaged by optimization.
@@ -1954,7 +1949,7 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
   const pairKey=(a,b)=>[a,b].sort().join('|');
   const teamOrder=new Map(ids.map((id,i)=>[id,i]));
 
-  // v11.11.46 — GUARANTEE-FIRST, VARIETY-SECOND.
+  // v11.11.45 — GUARANTEE-FIRST, VARIETY-SECOND.
   // This intentionally preserves the v11.11.35 exact nightly degree planner:
   // every team receives the configured minimum on every playing date, with only
   // the mathematically required extra game for odd team-game totals.
@@ -2100,7 +2095,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   const games=plannedGames.map((g,i)=>({...g,_idx:i}));
   if(!games.length)return {ok:true,placed:0,total:0,attempts:0};
 
-  // v11.11.46 — bounded asynchronous constraint solver.
+  // v11.11.45 — bounded asynchronous constraint solver.
   // The earlier greedy placer could finish quickly but strand guaranteed games.
   // This solver uses "most constrained game first" backtracking, yields frequently
   // to Chrome, and falls back through controlled rule tiers only when necessary.
@@ -2377,7 +2372,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
       try{result=await placeGuaranteeDatePlan({division:d,pool,date,dateIndex,plannedGames:entry.games,available,used,teamTimes,coachTimes,newGames,placementYield})}
       catch(err){hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, ${date}: ${err.message||err}`);break}
       if(!result.ok){
-        // v11.11.46: retain the best valid partial placement for this date and continue.
+        // v11.11.45: retain the best valid partial placement for this date and continue.
         // The Audit is responsible for flagging any unmet league guarantees, matching the
         // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
         const partial=result.placements||[];
@@ -2404,11 +2399,11 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.46: save the best valid schedule even when a guaranteed matchup could not be placed.
+  // v11.11.45: save the best valid schedule even when a guaranteed matchup could not be placed.
   // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
   // preventing the director from reviewing the rest of the generated league schedule.
 
-  // v11.11.46 workflow:
+  // v11.11.45 workflow:
   // Generate -> Save -> Audit -> Auto-Optimize fixable failures -> Audit again.
   // Optimization only uses same-date swaps, so the nightly game guarantee is
   // preserved exactly.
@@ -2747,133 +2742,6 @@ function renderCoach(){renderCoachSelectors();const c=$('coachSelect').value,tid
 function renderPublic(){groupOptions($('publicDivision'));const f=$('publicDivision').value||'ALL';$('publicHeader').innerHTML=`<div class="public-title">${esc(state.settings.leagueName||'MSS 3v3 League')}</div><div class="hint">League standings, team schedules, results, courts and game status</div>`;const publicGames=(state.publishedGames&&state.publishedGames.length?state.publishedGames:state.games);const g=publicGames.filter(x=>f==='ALL'||poolKey(x.division,x.pool)===f).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('publicSchedule').innerHTML=scheduleCards(g);$('publicStandings').innerHTML=standingsHTML(f,publicGames);bindTeamLinks()}
 function scheduleRows(games){return [['Playing Date #','Date','Time','Playing Surface','Division','Pool','Team A','Team B','Score A','Score B'],...games.slice().sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court)).map(g=>[g.week||'',g.date,g.time,g.court,divisionLabel(g.division),poolDisplayName(g.division,g.pool),teamById(g.aId).name,teamById(g.bId).name,g.sa??'',g.sb??''])]}
 function exportSchedule(){const rows=scheduleRows(state.games);download(rows.map(r=>r.map(csv).join(',')).join('\n'),'3v3-league-schedule.csv','text/csv')}
-
-function normalizeNameKey(v){return String(v||'').trim().toLowerCase().replace(/\s+/g,' ')}
-function parseCsvMatrix(str){
-  const rows=[];let row=[],field='',quoted=false;
-  for(let i=0;i<str.length;i++){
-    const c=str[i],n=str[i+1];
-    if(quoted){
-      if(c==='"'&&n==='"'){field+='"';i++}
-      else if(c==='"')quoted=false;
-      else field+=c;
-    }else{
-      if(c==='"')quoted=true;
-      else if(c===','){row.push(field);field=''}
-      else if(c==='\n'){row.push(field);rows.push(row);row=[];field=''}
-      else if(c!=='\r')field+=c;
-    }
-  }
-  if(field.length||row.length){row.push(field);rows.push(row)}
-  return rows.filter(r=>r.some(v=>String(v).trim()!==''));
-}
-function divisionKeyFromLabel(label){
-  const key=normalizeNameKey(label);
-  const direct=allDivisionKeys().find(d=>normalizeNameKey(divisionLabel(d))===key);
-  if(direct)return direct;
-  // tolerant fallback for grade formatting differences
-  const compact=s=>normalizeNameKey(s).replace(/[^a-z0-9]+/g,'');
-  return allDivisionKeys().find(d=>compact(divisionLabel(d))===compact(label))||'';
-}
-function poolKeyFromDisplay(d,label){
-  const key=normalizeNameKey(label);
-  const pools=[...new Set(state.teams.filter(t=>divisionKey(t)===d).map(t=>String(t.pool||'A')))];
-  return pools.find(p=>normalizeNameKey(poolDisplayName(d,p))===key) ||
-         pools.find(p=>normalizeNameKey(p)===key) ||
-         (pools.length===1?pools[0]:'');
-}
-function teamIdFromNameInPool(d,pool,name){
-  const key=normalizeNameKey(name);
-  const candidates=state.teams.filter(t=>divisionKey(t)===d&&String(t.pool||'A')===String(pool)&&normalizeNameKey(t.name)===key);
-  if(candidates.length===1)return candidates[0].id;
-  // fallback within division only
-  const divMatches=state.teams.filter(t=>divisionKey(t)===d&&normalizeNameKey(t.name)===key);
-  return divMatches.length===1?divMatches[0].id:'';
-}
-function exportScheduleBackup(){
-  const payload={
-    type:'MSS_LEAGUE_SCHEDULE_BACKUP',
-    version:'11.11.46',
-    exportedAt:new Date().toISOString(),
-    leagueName:state.settings?.leagueName||'',
-    games:state.games||[]
-  };
-  download(JSON.stringify(payload,null,2),'mss-league-schedule-backup.json','application/json');
-  showActionFeedback(`Schedule backup exported (${payload.games.length} games).`);
-}
-function restoreScheduleFromCsvText(txt){
-  const matrix=parseCsvMatrix(txt);
-  if(matrix.length<2)throw new Error('The CSV does not contain schedule rows.');
-  const headers=matrix[0].map(h=>normalizeNameKey(h));
-  const idx=(...names)=>{for(const n of names){const i=headers.indexOf(normalizeNameKey(n));if(i>=0)return i}return -1};
-  const iWeek=idx('Playing Date #','Week');
-  const iDate=idx('Date');
-  const iTime=idx('Time');
-  const iCourt=idx('Playing Surface','Court');
-  const iDiv=idx('Division');
-  const iPool=idx('Pool');
-  const iA=idx('Team A');
-  const iB=idx('Team B');
-  const iSA=idx('Score A');
-  const iSB=idx('Score B');
-  if([iDate,iTime,iCourt,iDiv,iPool,iA,iB].some(i=>i<0))throw new Error('This CSV is missing one or more required schedule columns.');
-
-  const games=[],errors=[];
-  for(let r=1;r<matrix.length;r++){
-    const row=matrix[r],line=r+1;
-    const d=divisionKeyFromLabel(row[iDiv]);
-    if(!d){errors.push(`Row ${line}: division not found — ${row[iDiv]}`);continue}
-    const p=poolKeyFromDisplay(d,row[iPool]);
-    if(!p){errors.push(`Row ${line}: pool not found — ${row[iPool]}`);continue}
-    const aId=teamIdFromNameInPool(d,p,row[iA]),bId=teamIdFromNameInPool(d,p,row[iB]);
-    if(!aId||!bId){errors.push(`Row ${line}: team match failed — ${row[iA]} vs ${row[iB]}`);continue}
-    const date=String(row[iDate]||'').trim(),time=String(row[iTime]||'').trim(),court=String(row[iCourt]||'').trim();
-    if(!date||!time||!court){errors.push(`Row ${line}: missing date, time, or court`);continue}
-    const sa=iSA>=0&&String(row[iSA]||'').trim()!==''?Number(row[iSA]):null;
-    const sb=iSB>=0&&String(row[iSB]||'').trim()!==''?Number(row[iSB]):null;
-    games.push({
-      id:uid('g'),division:d,pool:p,aId,bId,date,time,court,
-      week:iWeek>=0?Number(row[iWeek]||0)||null:null,
-      sa:Number.isFinite(sa)?sa:null,sb:Number.isFinite(sb)?sb:null,
-      status:(Number.isFinite(sa)&&Number.isFinite(sb))?'Completed':'Scheduled',
-      pending:true
-    });
-  }
-  if(!games.length)throw new Error(errors[0]||'No schedule games could be restored.');
-  return {games,errors};
-}
-async function restoreScheduleFile(file){
-  if(!file)return;
-  try{
-    const txt=await file.text();
-    let restored=[],errors=[];
-    if(file.name.toLowerCase().endsWith('.json')||txt.trim().startsWith('{')){
-      const obj=JSON.parse(txt);
-      if(obj?.type==='MSS_LEAGUE_SCHEDULE_BACKUP'&&Array.isArray(obj.games))restored=obj.games;
-      else if(Array.isArray(obj?.games))restored=obj.games;
-      else if(Array.isArray(obj))restored=obj;
-      else throw new Error('JSON file does not contain a recognizable MSS schedule backup.');
-    }else{
-      const result=restoreScheduleFromCsvText(txt);
-      restored=result.games;errors=result.errors;
-    }
-    if(!restored.length)throw new Error('No games were found in the selected file.');
-    const msg=`Restore ${restored.length} scheduled games and replace the current schedule?${errors.length?`\n\n${errors.length} CSV row(s) could not be matched and will be skipped.`:''}`;
-    if(!confirm(msg))return;
-    state.games=restored.map(g=>({...g,id:g.id||uid('g'),status:g.status||'Scheduled',pending:true}));
-    state.publishedGames=[];
-    state.scheduleChanges=[];
-    persist();renderAll();setTab('schedule');
-    $('genSummary').innerHTML=`<div class="status ok"><b>Schedule restored.</b> ${state.games.length} games loaded from ${esc(file.name)}.${errors.length?`<br><b>${errors.length} row(s) skipped.</b> Export Setup before making additional changes.`:''}</div>`;
-    showActionFeedback(`Restored ${state.games.length} scheduled games.`);
-  }catch(err){
-    console.error(err);
-    alert(`Schedule restore failed: ${err.message||err}`);
-  }finally{
-    const input=$('scheduleRestoreFile');if(input)input.value='';
-  }
-}
-
 function selectedExportDivision(){
   const scope=$('scheduleFilter').value||'ALL';if(scope.startsWith('DIV::'))return scope.slice(5);if(scope!=='ALL')return scope.split('::')[0];
   const names=allDivisionKeys().map((d,i)=>`${i+1}. ${divisionLabel(d)}`).join('\n'),ans=prompt(`Choose a division number to export:\n${names}`);const i=Number(ans)-1;return allDivisionKeys()[i]||''
@@ -2988,7 +2856,7 @@ safeBind('addExceptionBtn','click',addException);safeBind('addCourtBtn','click',
 $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',generateSchedule);safeBind('optimizeBtn','click',optimizeSchedule);safeBind('generateReadyBtn','click',scheduleAllReadyDivisions);/* Audit buttons use inline safeRunScheduleAudit handlers so they remain functional even if another optional control binding fails. */
 ['managementDivision','managementWeek','managementStatus','managementCourt'].forEach(id=>$(id).addEventListener('change',renderManagement));
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
-$('exportScheduleBtn').addEventListener('click',exportSchedule);$('exportScheduleBackupBtn').addEventListener('click',exportScheduleBackup);$('scheduleRestoreFile').addEventListener('change',e=>restoreScheduleFile(e.target.files?.[0]));safeBind('exportDivisionSeasonBtn','click',exportDivisionSeason);safeBind('exportDivisionWeekBtn','click',exportDivisionWeek);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});safeBind('calendarDate','change',renderCourtCalendar);safeBind('calendarScope','change',renderCourtCalendar);safeBind('calendarPrintBtn','click',()=>window.print());
+$('exportScheduleBtn').addEventListener('click',exportSchedule);safeBind('exportDivisionSeasonBtn','click',exportDivisionSeason);safeBind('exportDivisionWeekBtn','click',exportDivisionWeek);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});safeBind('calendarDate','change',renderCourtCalendar);safeBind('calendarScope','change',renderCourtCalendar);safeBind('calendarPrintBtn','click',()=>window.print());
 $('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());$('sampleScoresBtn').addEventListener('click',createSampleScores);$('clearScoresBtn').addEventListener('click',clearAllScores);document.addEventListener('click',e=>{const close=e.target.closest&&e.target.closest('#closeTeamModal');if(close){e.preventDefault();e.stopPropagation();closeTeamModal();return}if(e.target===$('teamModal'))closeTeamModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTeamModal();closeGameEditor()}});
 document.querySelectorAll('#admin-settings input,#admin-settings select').forEach(e=>e.addEventListener('change',()=>{syncSettings();ensureDivisionConfig();persist();renderAll()}));
 $('addDivisionBtn').onclick=addDivision;$('detectDivisionsBtn').onclick=detectDivisions;$('autoAssignDivisionsBtn').onclick=autoAssignDivisions;
