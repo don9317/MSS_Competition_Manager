@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.54</title>
+<title>MSS League Scheduler v11.11.55</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.54</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.55</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -200,7 +200,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <section id="admin-settings" class="panel">
   <div class="card">
     <h2>Resources & Scheduling Setup</h2>
-    <div class="status info" style="margin:8px 0"><b>v11.11.54:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
+    <div class="status info" style="margin:8px 0"><b>v11.11.55:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
     <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
   </div>
 
@@ -288,7 +288,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>  </div>
 
   <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
-    <h2>🔎 Scheduling Diagnostics — v11.11.54</h2>
+    <h2>🔎 Scheduling Diagnostics — v11.11.55</h2>
     <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
     <div id="schedulingDiagnosticsContent"></div>
   </div>
@@ -310,7 +310,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.54</b> — Separate Court + Time optimizer installed.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.55</b> — Separate Court + Time optimizer installed.</div>
   <div class="card">
     <div class="toolbar">
       <button class="primary" id="generateBtn">Generate Schedule</button>
@@ -329,7 +329,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <label style="margin:0;min-width:260px">Schedule / Display Scope<select id="scheduleFilter"></select></label>
     </div>
     <div class="hint" style="margin-bottom:4px"><b>Version upgrade safety:</b> Export Schedule Backup saves the exact game objects. Restore Schedule accepts either that JSON backup or the standard Export CSV.</div>
-    <div class="status ok" style="margin-bottom:6px"><b>v11.11.54 Utilization Tool:</b> After generating and auditing the schedule, click <b>Optimize Court + Time Use</b>. It may move an existing game to another legal court and/or start time on the <b>same playing date</b> and within that division/pool window. Matchups and game counts never change. Every accepted move must pass the protected Rules Audit.</div>
+    <div class="status ok" style="margin-bottom:6px"><b>v11.11.55 Utilization Tool:</b> After generating and auditing the schedule, click <b>Optimize Court + Time Use</b>. It may move an existing game to another legal court and/or start time on the <b>same playing date</b> and within that division/pool window. Matchups and game counts never change. Every accepted move must pass the protected Rules Audit.</div>
     <div class="hint" style="margin-bottom:8px">For multi-pool divisions, choose <b>Entire Division</b> to schedule all pools together. Pools may use different Court Groups through Pool Court Overrides. Use <b>Export Division Season</b> for the full division schedule or <b>Export Division Week</b> for one playing date. Schedule generation follows the League Scheduling Rules configured under Resources.</div><div id="genSummary"></div><div id="scheduleAudit" style="margin-top:12px"></div>
     <div class="table-wrap"><table id="scheduleTable"></table></div>
   </div>
@@ -1801,7 +1801,7 @@ async function autoRepairGeneratedSchedule(newGames,retainedGames,targets){
   const touchedPools=targets.map(t=>({division:t.division,pool:t.pool}));
   let before=repairScoreForSchedule([...retainedGames,...newGames],touchedPools),current=before,iterations=0;
 
-  // v11.11.54: every candidate move swaps endpoints between two games in the
+  // v11.11.55: every candidate move swaps endpoints between two games in the
   // SAME pool on the SAME playing date. Therefore each team's nightly and
   // season game count is preserved exactly. The 3-games-per-night guarantee
   // cannot be damaged by optimization.
@@ -1957,7 +1957,7 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
   const pairKey=(a,b)=>[a,b].sort().join('|');
   const teamOrder=new Map(ids.map((id,i)=>[id,i]));
 
-  // v11.11.54 — GUARANTEE-FIRST, VARIETY-SECOND.
+  // v11.11.55 — GUARANTEE-FIRST, VARIETY-SECOND.
   // This intentionally preserves the v11.11.35 exact nightly degree planner:
   // every team receives the configured minimum on every playing date, with only
   // the mathematically required extra game for odd team-game totals.
@@ -2125,7 +2125,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   const games=plannedGames.map((g,i)=>({...g,_idx:i}));
   if(!games.length)return {ok:true,placed:0,total:0,attempts:0};
 
-  // v11.11.54 — bounded asynchronous constraint solver.
+  // v11.11.55 — bounded asynchronous constraint solver.
   // The earlier greedy placer could finish quickly but strand guaranteed games.
   // This solver uses "most constrained game first" backtracking, yields frequently
   // to Chrome, and falls back through controlled rule tiers only when necessary.
@@ -2411,7 +2411,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
         hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): the 3-game guarantee was preserved only by allowing an immediate-rematch fallback after all no-rematch placements were exhausted. Review the Immediate Rematches audit.`);
       }
       if(!result.ok){
-        // v11.11.54: retain the best valid partial placement for this date and continue.
+        // v11.11.55: retain the best valid partial placement for this date and continue.
         // The Audit is responsible for flagging any unmet league guarantees, matching the
         // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
         const partial=result.placements||[];
@@ -2438,11 +2438,11 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.54: save the best valid schedule even when a guaranteed matchup could not be placed.
+  // v11.11.55: save the best valid schedule even when a guaranteed matchup could not be placed.
   // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
   // preventing the director from reviewing the rest of the generated league schedule.
 
-  // v11.11.54 workflow:
+  // v11.11.55 workflow:
   // Generate -> Save -> Audit -> Auto-Optimize fixable failures -> Audit again.
   // Optimization only uses same-date swaps, so the nightly game guarantee is
   // preserved exactly.
@@ -2894,40 +2894,74 @@ function restoreBlock(block,snap){
     if(x){g.time=x.time;g.court=x.court;g.pending=x.pending}
   });
 }
-async function optimizeCourtUseSafely(){
-  if(!state.games.length)return alert('Generate a schedule first.');
 
+async function optimizeCourtUseSafely(){
   const btn=$('courtOptimizeBtn');
   const originalText=btn?.textContent||'Optimize Court + Time Use';
-  const scope=$('scheduleFilter')?.value||'ALL';
-  const movable=state.games.filter(g=>g.status!=='Cancelled'&&scopeMatchesGame(scope,g));
-  if(!movable.length)return alert('There are no scheduled games in the selected scope.');
 
-  const original=JSON.parse(JSON.stringify(state.games));
-  const originalAudit=runScheduleAudit(true);
-  const beforeLeague=courtPackingMetrics(state.games);
-  const dates=utilizationScopeDates(movable);
-  const beforeByDate=Object.fromEntries(dates.map(d=>[d,packingMetricsForDate(d)]));
-
-  if(btn){btn.disabled=true;btn.textContent='Optimizing Court + Time…'}
-  setGenerationStage('Optimizing court + time blocks');
-  $('genSummary').innerHTML=`<div class="status info"><b>Optimizing Court + Time…</b> Repacking division/pool/date blocks while preserving matchups, playing dates, nightly game counts and protected Audit rules.<br><span id="courtOptProgress">Preparing blocks…</span></div>`;
-  await yieldToBrowser();
-
-  let currentAudit=originalAudit;
-  let currentLeague=beforeLeague;
-  let acceptedBlocks=0,rejectedBlocks=0,attemptedBlocks=0;
-  const blocks=buildOptimizationBlocks(movable);
-  const modes=['few-courts','early','late'];
-
+  // Everything is inside try/finally so the button can NEVER remain disabled forever.
+  let original=null;
   try{
-    for(let bi=0;bi<blocks.length;bi++){
+    if(!state.games.length){
+      alert('Generate a schedule first.');
+      return;
+    }
+
+    const scope=$('scheduleFilter')?.value||'ALL';
+    const scopeGames=state.games.filter(g=>g.status!=='Cancelled'&&scopeMatchesGame(scope,g));
+    if(!scopeGames.length){
+      alert('There are no scheduled games in the selected scope.');
+      return;
+    }
+
+    // v55 intentionally optimizes one playing date at a time.
+    // Use the selected Court Calendar date when available; otherwise default to the first date in scope.
+    const calendarDate=$('courtCalendarDate')?.value;
+    const dates=[...new Set(scopeGames.map(g=>g.date).filter(Boolean))].sort();
+    const targetDate=(calendarDate&&dates.includes(calendarDate))?calendarDate:dates[0];
+    const movable=scopeGames.filter(g=>g.date===targetDate);
+
+    if(!movable.length){
+      alert(`No scheduled games were found for ${targetDate}.`);
+      return;
+    }
+
+    original=JSON.parse(JSON.stringify(state.games));
+    const originalAudit=runScheduleAudit(true);
+    const beforeDate=packingMetricsForDate(targetDate);
+
+    if(btn){
+      btn.disabled=true;
+      btn.textContent='Optimizing Court + Time…';
+    }
+
+    setGenerationStage(`Optimizing ${targetDate}`);
+    $('genSummary').innerHTML=`<div class="status info">
+      <b>Optimizing Court + Time for ${esc(targetDate)}…</b><br>
+      <span id="courtOptProgress">Preparing division/pool blocks…</span><br>
+      <span class="hint">The button will automatically re-enable whether the optimizer succeeds, stops, or encounters an error.</span>
+    </div>`;
+    await yieldToBrowser();
+
+    let currentAudit=originalAudit;
+    let currentDate=beforeDate;
+    let acceptedBlocks=0,rejectedBlocks=0;
+    const blocks=buildOptimizationBlocks(movable);
+    const modes=['few-courts','early','late'];
+
+    if(!blocks.length){
+      throw new Error(`No optimization blocks were created for ${targetDate}.`);
+    }
+
+    for(let bi=0; bi<blocks.length; bi++){
       const block=blocks[bi];
-      attemptedBlocks++;
 
       const progress=$('courtOptProgress');
-      if(progress)progress.textContent=`Block ${bi+1} of ${blocks.length}: ${divisionLabel(block.division)} — ${poolDisplayName(block.division,block.pool)} — ${block.date}`;
-      if(btn)btn.textContent=`Optimizing ${bi+1}/${blocks.length}…`;
+      if(progress){
+        progress.textContent=`Block ${bi+1} of ${blocks.length}: ${divisionLabel(block.division)} — ${poolDisplayName(block.division,block.pool)}`;
+      }
+      if(btn) btn.textContent=`Optimizing ${bi+1}/${blocks.length}…`;
+      setGenerationStage(`Optimizing ${targetDate} — block ${bi+1} of ${blocks.length}`);
       await yieldToBrowser();
 
       const snap=snapshotBlock(block);
@@ -2935,21 +2969,25 @@ async function optimizeCourtUseSafely(){
 
       for(const mode of modes){
         restoreBlock(block,snap);
+
         const assignment=makeBlockCandidate(block,mode);
-        if(!assignment)continue;
+        if(!assignment) continue;
 
         applyBlockCandidate(block,assignment);
-        const packing=courtPackingMetrics(state.games);
-        if(packing.objective>=currentLeague.objective)continue;
+
+        const trialDate=packingMetricsForDate(targetDate);
+        if(trialDate.objective>=currentDate.objective) continue;
 
         const trialAudit=runScheduleAudit(true);
-        if(!protectedAuditDidNotWorsen(currentAudit,trialAudit))continue;
+        if(!protectedAuditDidNotWorsen(currentAudit,trialAudit)) continue;
 
-        if(!best||packing.objective<best.packing.objective){
+        if(!best || trialDate.objective<best.dateMetrics.objective){
           best={
-            packing,
+            dateMetrics:trialDate,
             audit:trialAudit,
-            positions:block.games.map(g=>({id:g.id,time:g.time,court:g.court,pending:g.pending}))
+            positions:block.games.map(g=>({
+              id:g.id,time:g.time,court:g.court,pending:g.pending
+            }))
           };
         }
       }
@@ -2960,30 +2998,40 @@ async function optimizeCourtUseSafely(){
         const pos=new Map(best.positions.map(x=>[x.id,x]));
         block.games.forEach(g=>{
           const x=pos.get(g.id);
-          if(x){g.time=x.time;g.court=x.court;g.pending=true}
+          if(x){
+            g.time=x.time;
+            g.court=x.court;
+            g.pending=true;
+          }
         });
-        currentLeague=best.packing;
+        currentDate=best.dateMetrics;
         currentAudit=best.audit;
         acceptedBlocks++;
       }else{
         rejectedBlocks++;
       }
+
+      // Explicit yield after EVERY block.
+      await yieldToBrowser();
     }
 
-    if(btn)btn.textContent='Final Audit…';
-    setGenerationStage('Running final utilization safety audit');
+    if(btn) btn.textContent='Running Final Audit…';
+    setGenerationStage(`Final safety audit for ${targetDate}`);
+    const finalProgress=$('courtOptProgress');
+    if(finalProgress) finalProgress.textContent='Running final protected Rules Audit…';
     await yieldToBrowser();
 
     const finalAudit=runScheduleAudit(true);
-    const afterLeague=courtPackingMetrics(state.games);
+    const afterDate=packingMetricsForDate(targetDate);
 
-    if(!protectedAuditDidNotWorsen(originalAudit,finalAudit)||afterLeague.objective>beforeLeague.objective){
+    if(!protectedAuditDidNotWorsen(originalAudit,finalAudit) || afterDate.objective>beforeDate.objective){
       state.games=original;
       persist();
       renderAll();
       runScheduleAudit(true);
-      setGenerationStage('Court + time optimization rolled back safely');
-      alert('Court + Time optimization was rolled back because the final schedule did not pass the protected safety gate.');
+      setGenerationStage(`Court + time optimization rolled back for ${targetDate}`);
+      $('genSummary').innerHTML=`<div class="status warn"><b>Optimize Court + Time rolled back.</b><br>
+        The proposed ${targetDate} changes did not pass the final safety gate, so the original schedule was fully restored.</div>`;
       return;
     }
 
@@ -2991,31 +3039,42 @@ async function optimizeCourtUseSafely(){
     renderAll();
 
     const improvement=protectedAuditImprovementText(originalAudit,finalAudit);
-    const afterByDate=Object.fromEntries(dates.map(d=>[d,packingMetricsForDate(d)]));
-    const dateRows=dates.map(d=>{
-      const b=beforeByDate[d],a=afterByDate[d];
-      return `${d}: ${b.efficiency.toFixed(1)}% → ${a.efficiency.toFixed(1)}% packing; ${b.internalEmptyCourtSlots} → ${a.internalEmptyCourtSlots} internal empty court-slot(s); ${b.courtBlocks} → ${a.courtBlocks} court block(s)`;
-    });
 
-    $('genSummary').innerHTML=`<div class="status ok"><b>Optimize Court + Time complete.</b><br>
-      <b>${acceptedBlocks}</b> block(s) repacked • ${rejectedBlocks} block(s) left unchanged • ${attemptedBlocks} block(s) reviewed.<br>
-      <b>Full schedule:</b> ${beforeLeague.efficiency.toFixed(1)}% → ${afterLeague.efficiency.toFixed(1)}% packing • ${beforeLeague.internalEmptyCourtSlots} → ${afterLeague.internalEmptyCourtSlots} internal empty court-slot(s) • ${beforeLeague.courtBlocks} → ${afterLeague.courtBlocks} court block(s).<br>
-      <b>Metric note:</b> Court Calendar shows one playing date at a time; the line above measures the full saved schedule, so its raw empty-slot count can be larger than the Calendar's selected-date count.
-      ${dateRows.length?`<details><summary>Show before/after by playing date</summary><div class="hint">${dateRows.map(esc).join('<br>')}</div></details>`:''}
+    $('genSummary').innerHTML=`<div class="status ok">
+      <b>Optimize Court + Time complete for ${esc(targetDate)}.</b><br>
+      <b>${acceptedBlocks}</b> block(s) repacked • ${rejectedBlocks} block(s) unchanged • ${blocks.length} total block(s) reviewed.<br>
+      <b>Before:</b> ${beforeDate.efficiency.toFixed(1)}% packing • ${beforeDate.internalEmptyCourtSlots} internal empty court-slot(s) • ${beforeDate.courtBlocks} court block(s) • longest internal gap ${beforeDate.longestInternalGap||0} min.<br>
+      <b>After:</b> ${afterDate.efficiency.toFixed(1)}% packing • ${afterDate.internalEmptyCourtSlots} internal empty court-slot(s) • ${afterDate.courtBlocks} court block(s) • longest internal gap ${afterDate.longestInternalGap||0} min.
       ${improvement?`<br><b>Protected Audit improvements:</b> ${esc(improvement)}`:''}<br>
-      <span class="hint">Matchups, playing dates, and game counts were unchanged. Each accepted division/pool/date block preserved the team's within-date game sequence and passed the protected Rules Audit.</span></div>`;
+      <span class="hint">Only ${esc(targetDate)} was optimized. Matchups, playing date, and game counts were unchanged. Use Court Calendar on the same date to verify these exact metrics.</span>
+    </div>`;
 
-    setGenerationStage('Court + time optimization complete');
+    setGenerationStage(`Court + time optimization complete for ${targetDate}`);
   }catch(err){
-    console.error('Block court/time optimization stopped safely',err);
-    state.games=original;
-    persist();
-    renderAll();
-    runScheduleAudit(true);
-    setGenerationStage('Court + time optimization stopped safely');
-    alert(`Court + Time optimization stopped and the original schedule was restored. ${err.message||err}`);
+    console.error('v11.11.55 Court + Time optimizer error',err);
+
+    if(original){
+      state.games=original;
+      try{persist()}catch(_){}
+      try{renderAll()}catch(_){}
+      try{runScheduleAudit(true)}catch(_){}
+    }
+
+    setGenerationStage('Court + time optimization stopped with an error');
+
+    // Show the actual failure instead of silently leaving a gray button.
+    try{
+      $('genSummary').innerHTML=`<div class="status warn"><b>Optimize Court + Time stopped.</b><br>
+        <b>Error:</b> ${esc(err?.message||String(err))}<br>
+        ${original?'The original schedule was restored.':'No schedule changes were committed.'}</div>`;
+    }catch(_){}
+
+    alert(`Court + Time optimizer stopped: ${err?.message||err}`);
   }finally{
-    if(btn){btn.disabled=false;btn.textContent=originalText}
+    if(btn){
+      btn.disabled=false;
+      btn.textContent=originalText;
+    }
   }
 }
 
