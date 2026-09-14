@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.59</title>
+<title>MSS Simulation Test Lab — MSS League Scheduler v11.11.59</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -42,6 +42,23 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </style>
 </head>
 <body>
+
+<div id="simulationLabPanel" class="card" style="margin:14px;padding:16px;border:2px solid #1f2937">
+  <h2 style="margin-top:0">MSS Simulation Test Lab — v11.11.59</h2>
+  <p class="hint">Isolated test mode. This page does <b>not</b> save simulation data to the league IndexedDB.</p>
+  <div class="toolbar">
+    <button class="primary" id="runSimulationSuiteBtn" type="button" onclick="runSimulationSuite()">Run Regression Suite</button>
+    <button type="button" onclick="location.href='index.html'">Return to League Scheduler</button>
+  </div>
+  <div id="simulationSuiteStatus" class="status">Ready to run.</div>
+  <div id="simulationSuiteSummary"></div>
+  <table id="simulationSuiteTable" style="width:100%;margin-top:10px">
+    <thead><tr><th>Scenario</th><th>Purpose</th><th>Preflight</th><th>Games</th><th>Audit</th><th>Result</th><th>Details</th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <details style="margin-top:12px"><summary>Machine-readable results</summary><pre id="simulationResultsJson" style="white-space:pre-wrap"></pre></details>
+</div>
+
 <header>
   <img src="logo.png" alt="My Sport Space logo">
   <div><h1>MSS League Scheduler v11.11.59</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
@@ -436,6 +453,11 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </div>
 
 <script>
+window.__MSS_SIMULATION_MODE=true;
+window.alert=(msg)=>{console.log('SIMULATION ALERT:',msg);};
+window.confirm=(msg)=>true;
+window.prompt=(msg,def='')=>def;
+
 const DB_NAME='MSSLeagueSchedulerDB';
 const LEGACY_DB_NAMES=[];
 const STORAGE_TIMEOUT_MS=2500;
@@ -603,7 +625,7 @@ async function deleteStateFromDB(){
   });
 }
 function snapshotState(){return JSON.parse(JSON.stringify(state))}
-function queueSave(immediate=false){
+function queueSave(immediate=false){if(window.__MSS_SIMULATION_MODE)return Promise.resolve();
   if(saveTimer){clearTimeout(saveTimer);saveTimer=null}
   const run=()=>{
     const snapshot=snapshotState();setSaveStatus('saving','Saving progress…');
@@ -615,7 +637,7 @@ function queueSave(immediate=false){
   saveTimer=setTimeout(run,250);
   return saveQueue;
 }
-function persist(){queueSave(false);return true}
+function persist(){if(window.__MSS_SIMULATION_MODE)return true;queueSave(false);return true}
 async function save(){syncSettings();renderAll();try{await queueSave(true)}catch(e){alert('The league could not be saved: '+(e.message||e))}}
 async function load(){
   // Render a usable clean application FIRST. Saved data restoration is secondary.
@@ -3609,15 +3631,173 @@ function renderAll(){
   }
 }
 
+
+function simulationBaseState(opts={}){
+  const teamCount=opts.teamCount||6;
+  const poolSizes=opts.poolSizes||[teamCount];
+  const start=opts.start||'16:00', end=opts.end||'19:00';
+  const courtCount=opts.courtCount||4;
+  const dates=opts.dates||4;
+  const seasonStart='2026-09-27';
+  const seasonEnd=addDaysISO(seasonStart,(dates-1)*7);
+  const divId='sim_div_1';
+  const teams=[];
+  for(let i=1;i<=teamCount;i++){
+    teams.push({
+      id:`sim_t${i}`,name:`Team ${String(i).padStart(2,'0')}`,coach:opts.sharedCoach&&i<=Math.min(3,teamCount)?'Coach Shared':`Coach ${i}`,
+      grade:opts.grade||'7/8',gender:opts.gender||'Girls',skill:'Open',divisionId:divId,request:''
+    });
+  }
+  if(opts.requestTeam)teams[0].request=opts.requestTeam;
+  const courts=Array.from({length:courtCount},(_,i)=>({
+    id:`sim_c${i+1}`,name:`Court ${i+1}`,start,end,windows:[{start,end}]
+  }));
+  const group={id:'sim_group',name:'Simulation Courts',surfaceIds:courts.map(c=>c.id),dynamicAll:false};
+  const lists={};let pos=0;
+  poolSizes.forEach((n,i)=>{const key=String.fromCharCode(65+i);lists[key]=teams.slice(pos,pos+n).map(x=>x.id);pos+=n});
+  return {
+    teams,courts,courtGroups:[group],
+    divisionConfig:{[divId]:{start,end,courtGroupId:group.id,gamesPerWeek:3,seasonGuarantee:3*dates,maxGamesPerDate:4,courtMode:'exclusive',overflowApproved:false}},
+    divisions:[{id:divId,name:opts.name||`${teamCount}-Team Simulation`,grades:[opts.grade||'7/8'],gender:opts.gender||'Girls',skill:'Open'}],
+    settings:{
+      leagueName:`Simulation — ${opts.name||teamCount+' teams'}`,seasonStart,seasonEnd,gamesPerWeek:3,seasonGuarantee:3*dates,maxGamesPerDate:4,
+      gameLength:opts.gameLength||15,minRest:0,defaultPoolMax:16,days:[0],exceptions:[],exceptionNotes:{},
+      allowBackToBack:true,playAllTeamsOnce:true,avoidImmediateRematches:true,protectSharedCoaches:true,honorScheduleRequests:true,keepPoolPlay:true
+    },
+    pools:{[divId]:{max:16,approved:true,names:{},lists}},
+    approved:true,games:[],publishedGames:[],scheduleChanges:[],activity:[]
+  };
+}
+function simulationReset(opts){
+  state=simulationBaseState(opts);
+  normalizeLoadedState();hydrate();ensureDivisionConfig();renderAll();
+  const sf=$('scheduleFilter');if(sf){sf.value='ALL';sf.dataset.lastValue='ALL'}
+  const cs=$('calendarScope');if(cs)cs.value='ALL';
+  setTab('schedule');
+}
+function simulationAuditSummary(audit){
+  if(!audit)return {overall:'NO GAMES',fails:99,warns:0,hard:[]};
+  const hard=(audit.results||[]).filter(r=>r.status==='FAIL').map(r=>`${r.label}: ${r.violations?.length||0}`);
+  return {overall:audit.overall||'PASS',fails:audit.fails||0,warns:audit.warns||0,hard};
+}
+function lockedSignature(g){return [g.id,g.date,g.time,g.court,g.aId,g.bId].join('|')}
+async function runSimulationScenario(s){
+  simulationReset(s.opts);
+  const pre=runProductionPreflight();
+  const beforeGames=state.games.length;
+  await generateSchedule();
+  const audit=runScheduleAudit(true);
+  const a=simulationAuditSummary(audit);
+  let pass=true,detail=[];
+  if(s.expectPreflightReady===true&&!pre.ready){pass=false;detail.push(`Preflight unexpectedly blocked (${pre.blocking.length})`)}
+  if(s.expectPreflightReady===false&&pre.ready){pass=false;detail.push('Preflight should have blocked this scenario')}
+  if(s.expectGenerate===true&&state.games.length===0){pass=false;detail.push('No schedule generated')}
+  if(s.expectGenerate===false&&state.games.length>0){pass=false;detail.push('Schedule generated despite expected hard block')}
+  if(s.expectZeroAuditFails&&a.fails!==0){pass=false;detail.push(`${a.fails} hard audit failure(s): ${a.hard.join('; ')}`)}
+  if(s.expectSharedCoachWarning){
+    const row=(audit?.results||[]).find(r=>r.label==='Shared-coach conflicts');
+    if(!row||row.status==='FAIL'){pass=false;detail.push('Shared-coach rule was not warning-level')}
+  }
+
+  let optimization=null;
+  if(s.optimize&&state.games.length){
+    const before={};
+    seasonDatesRaw().forEach(d=>before[d]=packingMetricsForDate(d));
+    await optimizeAllPlayingDates();
+    const after={};
+    seasonDatesRaw().forEach(d=>after[d]=packingMetricsForDate(d));
+    const post=simulationAuditSummary(runScheduleAudit(true));
+    optimization={before,after,post};
+    if(post.fails>a.fails){pass=false;detail.push(`Optimization worsened hard Audit ${a.fails}→${post.fails}`)}
+  }
+
+  let lockTest=null;
+  if(s.lockTest&&state.games.length){
+    const g=state.games[0];g.lockedManual=true;const sig=lockedSignature(g),id=g.id;
+    await optimizeSchedule();
+    await optimizeAllPlayingDates();
+    const same=state.games.find(x=>x.id===id);
+    const preserved=!!same&&lockedSignature(same)===sig;
+    lockTest={preserved};
+    if(!preserved){pass=false;detail.push('Locked manual game was changed by an optimizer')}
+  }
+  return {
+    id:s.id,name:s.name,purpose:s.purpose,pass,
+    preflight:{ready:pre.ready,blocking:pre.blocking.length,warnings:pre.warnings.length},
+    games:state.games.length,audit:a,
+    optimization:optimization?{postFails:optimization.post.fails}:null,
+    lockTest,
+    detail:detail.join(' • ')||'Passed all expected checks'
+  };
+}
+function simulationScenarios(){
+  return [
+    {id:'S01',name:'4 teams / 1 pool',purpose:'Small even pool',opts:{teamCount:4,courtCount:2},expectPreflightReady:true,expectGenerate:true,expectZeroAuditFails:true},
+    {id:'S02',name:'5 teams / 1 pool',purpose:'Odd-pool parity / rotating 4th game',opts:{teamCount:5,courtCount:3},expectPreflightReady:true,expectGenerate:true,expectZeroAuditFails:true},
+    {id:'S03',name:'6 teams / 1 pool',purpose:'Standard even pool',opts:{teamCount:6,courtCount:3},expectPreflightReady:true,expectGenerate:true,expectZeroAuditFails:true},
+    {id:'S04',name:'7 teams / 1 pool',purpose:'Odd-pool parity',opts:{teamCount:7,courtCount:4},expectPreflightReady:true,expectGenerate:true,expectZeroAuditFails:true},
+    {id:'S05',name:'8 teams / 1 pool',purpose:'Standard larger pool',opts:{teamCount:8,courtCount:4},expectPreflightReady:true,expectGenerate:true,expectZeroAuditFails:true},
+    {id:'S06',name:'9 teams / 1 pool',purpose:'Known historically difficult odd pool',opts:{teamCount:9,courtCount:5},expectPreflightReady:true,expectGenerate:true,expectZeroAuditFails:true},
+    {id:'S07',name:'10 teams / 1 pool',purpose:'Larger even pool',opts:{teamCount:10,courtCount:5},expectPreflightReady:true,expectGenerate:true,expectZeroAuditFails:true},
+    {id:'S08',name:'12 teams / 2 pools',purpose:'Multiple pools in one division',opts:{teamCount:12,poolSizes:[6,6],courtCount:6},expectPreflightReady:true,expectGenerate:true,expectZeroAuditFails:true},
+    {id:'S09',name:'16 teams / 2 pools',purpose:'Large registration load',opts:{teamCount:16,poolSizes:[8,8],courtCount:8},expectPreflightReady:true,expectGenerate:true,expectZeroAuditFails:true},
+    {id:'S10',name:'Shared coaches',purpose:'Shared-coach conflicts remain warning-level',opts:{teamCount:8,courtCount:4,sharedCoach:true},expectPreflightReady:true,expectGenerate:true,expectZeroAuditFails:true,expectSharedCoachWarning:true},
+    {id:'S11',name:'High-school window',purpose:'7–10 PM division window',opts:{teamCount:8,courtCount:4,start:'19:00',end:'22:00',grade:'HS'},expectPreflightReady:true,expectGenerate:true,expectZeroAuditFails:true,optimize:true},
+    {id:'S12',name:'Locked director change',purpose:'Optimizers must preserve manually locked game',opts:{teamCount:8,courtCount:4},expectPreflightReady:true,expectGenerate:true,expectZeroAuditFails:true,lockTest:true},
+    {id:'S13',name:'Impossible court capacity',purpose:'Preflight must block mathematically impossible setup',opts:{teamCount:10,courtCount:1,start:'16:00',end:'17:00'},expectPreflightReady:false,expectGenerate:false},
+    {id:'S14',name:'Impossible schedule request',purpose:'Generator must refuse a team unavailable every Sunday',opts:{teamCount:6,courtCount:3,requestTeam:'no_sun'},expectPreflightReady:true,expectGenerate:false}
+  ];
+}
+async function runSimulationSuite(){
+  const btn=$('runSimulationSuiteBtn'),status=$('simulationSuiteStatus'),tbody=$('simulationSuiteTable').querySelector('tbody');
+  btn.disabled=true;tbody.innerHTML='';$('simulationSuiteSummary').innerHTML='';$('simulationResultsJson').textContent='';
+  const rows=[];
+  let scenarios=simulationScenarios();
+  const qp=new URLSearchParams(location.search);
+  if(qp.get('smoke')==='1'){
+    const keep=new Set(['S01','S02','S06','S10','S13','S14']);
+    scenarios=scenarios.filter(s=>keep.has(s.id)).map(s=>({...s,optimize:false,lockTest:false}));
+  }
+  const started=performance.now();
+  try{
+    for(let i=0;i<scenarios.length;i++){
+      status.className='status';
+      status.innerHTML=`<b>Running scenario ${i+1} of ${scenarios.length}:</b> ${esc(scenarios[i].name)}`;
+      await yieldToBrowser();
+      let r;
+      try{r=await runSimulationScenario(scenarios[i])}
+      catch(err){console.error(err);r={id:scenarios[i].id,name:scenarios[i].name,purpose:scenarios[i].purpose,pass:false,preflight:{ready:false,blocking:0,warnings:0},games:state.games?.length||0,audit:{overall:'ERROR',fails:99,warns:0,hard:[]},detail:err.message||String(err)}}
+      rows.push(r);
+      tbody.insertAdjacentHTML('beforeend',`<tr><td><b>${esc(r.id)} — ${esc(r.name)}</b></td><td>${esc(r.purpose)}</td><td>${r.preflight.ready?'READY':'BLOCKED'}<br><span class="hint">${r.preflight.blocking} block / ${r.preflight.warnings} warn</span></td><td>${r.games}</td><td>${esc(r.audit.overall)}<br><span class="hint">${r.audit.fails} fail / ${r.audit.warns} warn</span></td><td><span class="status ${r.pass?'ok':'warn'}" style="padding:4px 7px">${r.pass?'PASS':'FAIL'}</span></td><td>${esc(r.detail)}</td></tr>`);
+      await yieldToBrowser();
+    }
+  }finally{
+    const passed=rows.filter(x=>x.pass).length,failed=rows.length-passed,elapsed=((performance.now()-started)/1000).toFixed(1);
+    status.className=`status ${failed?'warn':'ok'}`;
+    status.innerHTML=`<b>Regression suite complete:</b> ${passed}/${rows.length} passed • ${failed} failed • ${elapsed}s`;
+    $('simulationSuiteSummary').innerHTML=`<div class="metrics" style="margin-top:10px"><div class="card"><div class="hint">Scenarios</div><div class="kpi">${rows.length}</div></div><div class="card"><div class="hint">Passed</div><div class="kpi">${passed}</div></div><div class="card"><div class="hint">Failed</div><div class="kpi">${failed}</div></div><div class="card"><div class="hint">Elapsed</div><div class="kpi">${elapsed}s</div></div></div>`;
+    const report={version:'v11.11.59',passed,failed,total:rows.length,elapsedSeconds:+elapsed,results:rows};
+    $('simulationResultsJson').textContent=JSON.stringify(report,null,2);
+    document.body.dataset.simulationComplete='true';
+    document.body.dataset.simulationPassed=String(passed);
+    document.body.dataset.simulationFailed=String(failed);
+    document.title=`MSS Simulation ${passed}/${rows.length} passed`;
+    btn.disabled=false;
+  }
+}
+async function simulationLabBoot(){
+  state=simulationBaseState({teamCount:6,courtCount:3});
+  normalizeLoadedState();hydrate();ensureDivisionConfig();renderAll();setView('admin');setTab('schedule');
+  setSaveStatus('saved','Simulation mode','No IndexedDB writes');
+  if(new URLSearchParams(location.search).get('autorun')==='1')setTimeout(()=>runSimulationSuite(),50);
+}
+
 window.addEventListener('error',e=>{reportRuntimeIssue('JavaScript error',e.error||new Error(e.message||'Unknown error'))});
 window.addEventListener('unhandledrejection',e=>{reportRuntimeIssue('Background task error',e.reason||new Error('Unknown promise rejection'))});
 
 // Start loading before wiring optional controls. This prevents a single control-binding issue
 // from leaving the application on a blank screen.
-load().catch(err=>{
-  reportRuntimeIssue('Application startup failed',err);
-  try{hydrate();ensurePools();ensureDivisionConfig();renderAll();setView('admin')}catch(fallbackErr){reportRuntimeIssue('Startup fallback failed',fallbackErr)}
-});
+simulationLabBoot().catch(err=>reportRuntimeIssue('Simulation Lab startup failed',err));
 
 function safeBind(id,event,handler){try{const el=$(id);if(!el)return false;el.addEventListener(event,handler);return true}catch(err){console.error('Binding failed',id,err);showActionFeedback(`Control ${id} could not be initialized: ${err.message}`,false);return false}}
 try{
