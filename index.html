@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.77</title>
+<title>MSS League Scheduler v11.11.78</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.77</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.78</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -200,7 +200,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <section id="admin-settings" class="panel">
   <div class="card">
     <h2>Resources & Scheduling Setup</h2>
-    <div class="status info" style="margin:8px 0"><b>v11.11.77:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
+    <div class="status info" style="margin:8px 0"><b>v11.11.78:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
     <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
   </div>
 
@@ -288,13 +288,13 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>  </div>
 
   <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
-    <h2>🔎 Scheduling Diagnostics — v11.11.77</h2>
+    <h2>🔎 Scheduling Diagnostics — v11.11.78</h2>
     <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
     <div id="schedulingDiagnosticsContent"></div>
   </div>
 
   <div class="card diagnostic-panel" id="opponentPatternDiagnostics" style="margin-top:14px">
-    <h2>🧪 Odd-Pool Opponent Pattern Diagnostic — v11.11.77</h2>
+    <h2>🧪 Odd-Pool Opponent Pattern Diagnostic — v11.11.78</h2>
     <div class="section-note"><b>Diagnostic only:</b> Reads the current generated schedule. It does not generate, re-optimize, or change any game.</div>
     <div class="toolbar" style="margin:10px 0"><button type="button" class="secondary" onclick="renderOpponentPatternDiagnosticsV72()">Refresh Diagnostic</button></div>
     <div id="opponentPatternDiagnosticsContent"></div>
@@ -317,7 +317,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.77</b> — Targeted final hard-rule repair + strict opponent-balance ceiling.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.78</b> — Original-baseline balance protection + targeted hard-rule repair.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -1877,7 +1877,7 @@ async function autoRepairGeneratedSchedule(newGames,retainedGames,targets){
   const touchedPools=targets.map(t=>({division:t.division,pool:t.pool}));
   let before=repairScoreForSchedule([...retainedGames,...newGames],touchedPools),current=before,iterations=0;
 
-  // v11.11.77: every candidate move swaps endpoints between two games in the
+  // v11.11.78: every candidate move swaps endpoints between two games in the
   // SAME pool on the SAME playing date. Therefore each team's nightly and
   // season game count is preserved exactly. The 3-games-per-night guarantee
   // cannot be damaged by optimization.
@@ -2034,7 +2034,7 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
   const pairKey=(a,b)=>[a,b].sort().join('|');
   const teamOrder=new Map(ids.map((id,i)=>[id,i]));
 
-  // v11.11.77 — GUARANTEE-FIRST, VARIETY-SECOND.
+  // v11.11.78 — GUARANTEE-FIRST, VARIETY-SECOND.
   // This intentionally preserves the v11.11.35 exact nightly degree planner:
   // every team receives the configured minimum on every playing date, with only
   // the mathematically required extra game for odd team-game totals.
@@ -2066,7 +2066,7 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
         const kb=pairKey(a,b),kc=pairKey(a,c);
         const db=dailyPairCounts.get(kb)||0, dc=dailyPairCounts.get(kc)||0;
         const pb=pairCounts.get(kb)||0, pc=pairCounts.get(kc)||0;
-        // v11.11.77: same-date uniqueness first. In odd pools the parity-required
+        // v11.11.78: same-date uniqueness first. In odd pools the parity-required
         // fourth game should consume a different opponent whenever the degree
         // sequence permits it. This remains a preference, not a hard rejection,
         // so the nightly game guarantee can never be stranded.
@@ -2117,7 +2117,7 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
       return false;
     }
 
-    // v11.11.77: strict parity-extra construction. First require every pairing on this
+    // v11.11.78: strict parity-extra construction. First require every pairing on this
     // playing date to be unique. This directly prevents the parity-required fourth
     // game from reusing an opponent already faced that day. If no exact degree plan
     // exists under that condition, fall back to the guarantee-first solver so no team
@@ -2227,7 +2227,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   const games=plannedGames.map((g,i)=>({...g,_idx:i}));
   if(!games.length)return {ok:true,placed:0,total:0,attempts:0};
 
-  // v11.11.77 — bounded asynchronous constraint solver.
+  // v11.11.78 — bounded asynchronous constraint solver.
   // The earlier greedy placer could finish quickly but strand guaranteed games.
   // This solver uses "most constrained game first" backtracking, yields frequently
   // to Chrome, and falls back through controlled rule tiers only when necessary.
@@ -2249,7 +2249,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
       if(chronologicalImmediateRematchAtCandidate(b,a,sl,newGames,placements))return false;
     }
 
-    // v11.11.77 — preserve the opponent-coverage sequence created by the matchup planner.
+    // v11.11.78 — preserve the opponent-coverage sequence created by the matchup planner.
     // The Audit rule is chronological, so a repeat that is intentionally planned AFTER a
     // first-time opponent must not be moved earlier merely because that slot is convenient.
     // This constraint is relaxed only after higher-priority guarantee/capacity attempts fail.
@@ -2531,7 +2531,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
         hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): the 3-game guarantee was preserved only by allowing an immediate-rematch fallback after all no-rematch placements were exhausted. Review the Immediate Rematches audit.`);
       }
       if(!result.ok){
-        // v11.11.77: retain the best valid partial placement for this date and continue.
+        // v11.11.78: retain the best valid partial placement for this date and continue.
         // The Audit is responsible for flagging any unmet league guarantees, matching the
         // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
         const partial=result.placements||[];
@@ -2558,11 +2558,11 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.77: save the best valid schedule even when a guaranteed matchup could not be placed.
+  // v11.11.78: save the best valid schedule even when a guaranteed matchup could not be placed.
   // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
   // preventing the director from reviewing the rest of the generated league schedule.
 
-  // v11.11.77 workflow:
+  // v11.11.78 workflow:
   // Generate -> Save -> Audit -> Auto-Optimize fixable failures -> Audit again.
   // Optimization only uses same-date swaps, so the nightly game guarantee is
   // preserved exactly.
@@ -2971,7 +2971,7 @@ async function surgicalFailedPoolRepairV71(){
 }
 
 
-// v11.11.77 — fast pool-local season sequence repair.
+// v11.11.78 — fast pool-local season sequence repair.
 // Screens same-date edge switches with a cheap pool-only chronology score first.
 // Full Audit is invoked only for a candidate that improves the target pool.
 async function seasonSequenceRepairV75(){
@@ -3073,16 +3073,16 @@ async function opponentCoverageRepairBounded(){
 }
 
 
-// v11.11.77 — final targeted hard-opponent repair.
+// v11.11.78 — final targeted hard-opponent repair.
 // Works only on existing slots. It never changes dates/times/courts/game counts.
 // A candidate is accepted only when hard opponent defects improve, opponent balance
 // does not exceed the starting v77 baseline, and every protected structural Audit
 // rule is no worse. Locked manual games are never touched.
-async function targetedFinalRepairV77(){
+async function targetedFinalRepairV78(balanceCeilingOverride=null){
   const started=performance.now(),MAX_MS=14000,MAX_CHECKS=320;
   let checks=0,accepted=0,timedOut=false;
   let base=opponentCoverageSnapshot();
-  const balanceCeiling=base.balance;
+  const balanceCeiling=balanceCeilingOverride==null?base.balance:Number(balanceCeilingOverride);
   const structuralLabels=['No self-matchups','No team double-booking','No court double-booking','Division time windows','Assigned court groups','Team schedule requests','Minimum games per playing date','Calculated season minimum','Maximum games per playing date','Rest / back-to-back rule'];
   const structural=(snap)=>Object.fromEntries(structuralLabels.map(k=>[k,snap.protected?.[k]||0]));
   let structBase=structural(base);
@@ -3112,7 +3112,7 @@ async function targetedFinalRepairV77(){
             const after=opponentCoverageSnapshot(),sc=score(after);
             if(safe(after)&&sc<bestScore){best={games:[g1,g2],vals:v.map(x=>[...x]),after};bestScore=sc}
             [g1.aId,g1.bId,g2.aId,g2.bId]=save;
-            if(checks%20===0){setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`v77 targeted repair • ${checks}/${MAX_CHECKS} candidates • balance ceiling ${balanceCeiling}`,96);await yieldToBrowser()}
+            if(checks%20===0){setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`v78 targeted repair • ${checks}/${MAX_CHECKS} candidates • original balance ceiling ${balanceCeiling}`,96);await yieldToBrowser()}
           }
         }
         // Three-game cycles can solve cases unreachable by a single edge switch.
@@ -3127,7 +3127,7 @@ async function targetedFinalRepairV77(){
             const after=opponentCoverageSnapshot(),sc=score(after);
             if(safe(after)&&sc<bestScore){best={games:arr,vals:v.map(x=>[...x]),after};bestScore=sc}
             arr.forEach((g,n)=>{g.aId=save[n][0];g.bId=save[n][1]});
-            if(checks%20===0){setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`v77 targeted cycle repair • ${checks}/${MAX_CHECKS} candidates • balance ceiling ${balanceCeiling}`,97);await yieldToBrowser()}
+            if(checks%20===0){setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`v78 targeted cycle repair • ${checks}/${MAX_CHECKS} candidates • original balance ceiling ${balanceCeiling}`,97);await yieldToBrowser()}
           }
         }
       }
@@ -3160,6 +3160,10 @@ async function optimizeSchedule_v56core(){
   await yieldToBrowser();
 
   const beforeAudit=runScheduleAudit(scope==='ALL');
+  // v11.11.78: capture opponent-balance BEFORE any repair stage touches the schedule.
+  // This ceiling remains fixed for the entire Re-Optimize run.
+  const originalOpponentBaseline=opponentCoverageSnapshot();
+  const originalBalanceCeiling=originalOpponentBaseline.balance;
   const priorLimit=window.__mssOptimizeLimit,priorPair=window.__mssPairCheckLimit;
   const fullLeagueScope=scope==='ALL';
   window.__mssOptimizeLimit=fullLeagueScope?18:40;
@@ -3181,19 +3185,29 @@ async function optimizeSchedule_v56core(){
   state.games=[...retainedGames,...working].map(g=>({...g,status:g.status||'Scheduled',pending:true}));
   setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…','Core repair complete • starting bounded opponent cleanup',62);
   await yieldToBrowser();
-  const oddPoolRepair=await oddPoolSequenceRepairBounded();
-  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Safe opponent cleanup complete • ${oddPoolRepair.accepted} accepted`,72);
+  const runBalanceGuardedStage=async(fn)=>{
+    const snap=state.games.map(g=>({...g}));
+    const result=await fn();
+    const after=opponentCoverageSnapshot();
+    if(after.balance>originalBalanceCeiling){
+      state.games=snap;
+      return {...result,rolledBackForBalance:true,balanceAfter:after.balance,balanceCeiling:originalBalanceCeiling};
+    }
+    return {...result,rolledBackForBalance:false,balanceAfter:after.balance,balanceCeiling:originalBalanceCeiling};
+  };
+  const oddPoolRepair=await runBalanceGuardedStage(()=>oddPoolSequenceRepairBounded());
+  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Safe opponent cleanup complete • original balance ceiling ${originalBalanceCeiling}`,72);
   await yieldToBrowser();
-  const surgicalRepair=await surgicalFailedPoolRepairV71();
-  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`v71 surgical repair complete • ${surgicalRepair.accepted}/${surgicalRepair.targets} pool improvement(s)`,86);
+  const surgicalRepair=await runBalanceGuardedStage(()=>surgicalFailedPoolRepairV71());
+  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Surgical repair complete • original balance ceiling ${originalBalanceCeiling}`,86);
   await yieldToBrowser();
-  const opponentRepair=await opponentCoverageRepairBounded();
-  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…','v76 balance-protected sequence repair • screening only promising pool-local switches',92);
+  const opponentRepair=await runBalanceGuardedStage(()=>opponentCoverageRepairBounded());
+  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Season-sequence repair • original balance ceiling ${originalBalanceCeiling}`,92);
   await yieldToBrowser();
-  const seasonRepair=await seasonSequenceRepairV75();
-  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…','v77 targeted final repair • strict balance ceiling active',97);
+  const seasonRepair=await runBalanceGuardedStage(()=>seasonSequenceRepairV75());
+  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`v78 targeted final repair • original balance ceiling ${originalBalanceCeiling}`,97);
   await yieldToBrowser();
-  const finalRepair=await targetedFinalRepairV77();
+  const finalRepair=await targetedFinalRepairV78(originalBalanceCeiling);
   persist();
   renderAll();
 
@@ -3206,8 +3220,8 @@ async function optimizeSchedule_v56core(){
     `<br><b>v71 surgical repair:</b> ${surgicalRepair.targets} failing pool(s) targeted • ${surgicalRepair.checks} whole-pool edge-switch candidates checked • ${surgicalRepair.rem} immediate rematch issue(s) after surgical stage.`+
     `<br><b>Safety gate:</b> Generate Schedule is unchanged. Dates/times/courts/game counts remain fixed during surgical repair; any candidate worsening a protected hard Audit rule is rejected and rolled back.`+
     `<br><b>v76 season sequence:</b> ${seasonRepair.accepted} safe improvement(s) accepted • ${seasonRepair.localChecks} fast local candidates screened • ${seasonRepair.fullAudits} full safety Audit(s) needed • ${seasonRepair.rem} immediate-rematch / ${seasonRepair.opp} opponent-rotation issue(s) remain. Opponent balance is protected from worsening during every rollback-safe repair stage.
-    <br><b>v77 targeted final repair:</b> ${finalRepair.accepted} safe improvement(s) accepted • ${finalRepair.checks} candidates checked • ${finalRepair.rem} immediate-rematch / ${finalRepair.opp} opponent-rotation issue(s) remain • opponent balance ${finalRepair.balance} (ceiling ${finalRepair.balanceCeiling}).
-    <br><b>Performance guard:</b> ${oddPoolRepair.checks+surgicalRepair.checks+opponentRepair.checks+seasonRepair.localChecks+finalRepair.checks} candidate checks${oddPoolRepair.timedOut||surgicalRepair.timedOut||opponentRepair.timedOut||seasonRepair.timedOut||finalRepair.timedOut?' • bounded cleanup limit reached safely':''}.`+`<br><span class="hint">Only same-pool, same-date swaps were used, so each team's nightly game count was preserved. 🔒 Locked manual director changes were not altered.</span></div>`;
+    <br><b>v78 targeted final repair:</b> ${finalRepair.accepted} safe improvement(s) accepted • ${finalRepair.checks} candidates checked • ${finalRepair.rem} immediate-rematch / ${finalRepair.opp} opponent-rotation issue(s) remain • opponent balance ${finalRepair.balance} (original pre-repair ceiling ${finalRepair.balanceCeiling}).
+    <br><b>v78 balance guard:</b> Original pre-repair opponent-balance baseline ${originalBalanceCeiling}; every cleanup stage is rolled back if it exceeds that ceiling.<br><b>Performance guard:</b> ${oddPoolRepair.checks+surgicalRepair.checks+opponentRepair.checks+seasonRepair.localChecks+finalRepair.checks} candidate checks${oddPoolRepair.timedOut||surgicalRepair.timedOut||opponentRepair.timedOut||seasonRepair.timedOut||finalRepair.timedOut?' • bounded cleanup limit reached safely':''}.`+`<br><span class="hint">Only same-pool, same-date swaps were used, so each team's nightly game count was preserved. 🔒 Locked manual director changes were not altered.</span></div>`;
 
   setGenerationStage('Re-optimization complete');
   setTab('schedule');
@@ -3902,7 +3916,7 @@ async function optimizeCourtUseSafely(){
 
     setGenerationStage(`Court + time optimization complete for ${targetDate}`);
   }catch(err){
-    console.error('v11.11.77 Court + Time optimizer error',err);
+    console.error('v11.11.78 Court + Time optimizer error',err);
     if(original){
       state.games=original;
       try{persist()}catch(_){}
