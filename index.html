@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.60</title>
+<title>MSS League Scheduler v11.11.61</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.60</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.61</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -200,7 +200,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <section id="admin-settings" class="panel">
   <div class="card">
     <h2>Resources & Scheduling Setup</h2>
-    <div class="status info" style="margin:8px 0"><b>v11.11.60:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
+    <div class="status info" style="margin:8px 0"><b>v11.11.61:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
     <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
   </div>
 
@@ -288,7 +288,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>  </div>
 
   <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
-    <h2>🔎 Scheduling Diagnostics — v11.11.60</h2>
+    <h2>🔎 Scheduling Diagnostics — v11.11.61</h2>
     <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
     <div id="schedulingDiagnosticsContent"></div>
   </div>
@@ -310,7 +310,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.60</b> — Opponent Rotation Regression Fix + clearer Test Lab diagnostics.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.61</b> — Chronological Opponent Coverage Planner + sequence-preserving placement.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -1821,7 +1821,7 @@ async function autoRepairGeneratedSchedule(newGames,retainedGames,targets){
   const touchedPools=targets.map(t=>({division:t.division,pool:t.pool}));
   let before=repairScoreForSchedule([...retainedGames,...newGames],touchedPools),current=before,iterations=0;
 
-  // v11.11.60: every candidate move swaps endpoints between two games in the
+  // v11.11.61: every candidate move swaps endpoints between two games in the
   // SAME pool on the SAME playing date. Therefore each team's nightly and
   // season game count is preserved exactly. The 3-games-per-night guarantee
   // cannot be damaged by optimization.
@@ -1978,7 +1978,7 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
   const pairKey=(a,b)=>[a,b].sort().join('|');
   const teamOrder=new Map(ids.map((id,i)=>[id,i]));
 
-  // v11.11.60 — GUARANTEE-FIRST, VARIETY-SECOND.
+  // v11.11.61 — GUARANTEE-FIRST, VARIETY-SECOND.
   // This intentionally preserves the v11.11.35 exact nightly degree planner:
   // every team receives the configured minimum on every playing date, with only
   // the mathematically required extra game for odd team-game totals.
@@ -2011,6 +2011,8 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
         // Prefer unseen opponents first, but do not make it a hard rejection:
         // a hard rejection caused v11.11.36 to strand whole pools.
         if(ub!==uc)return uc-ub;
+        const needB=unseenCount(b),needC=unseenCount(c);
+        if(needB!==needC)return needC-needB;
         if(pb!==pc)return pb-pc;
         if(remaining[b]!==remaining[c])return remaining[c]-remaining[b];
         return (teamOrder.get(b)||0)-(teamOrder.get(c)||0);
@@ -2025,7 +2027,7 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
     }
     function solve(){
       nodes++;
-      if(nodes>180000)return false;
+      if(nodes>420000)return false;
       if(games.length===totalNeeded)return true;
       if(!feasible())return false;
 
@@ -2146,15 +2148,16 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   const games=plannedGames.map((g,i)=>({...g,_idx:i}));
   if(!games.length)return {ok:true,placed:0,total:0,attempts:0};
 
-  // v11.11.60 — bounded asynchronous constraint solver.
+  // v11.11.61 — bounded asynchronous constraint solver.
   // The earlier greedy placer could finish quickly but strand guaranteed games.
   // This solver uses "most constrained game first" backtracking, yields frequently
   // to Chrome, and falls back through controlled rule tiers only when necessary.
   const tiers=[
-    {name:'strict',relaxCoach:false,relaxRest:false,relaxRematch:false,timeMs:7000,nodeLimit:22000},
-    {name:'coach-relaxed',relaxCoach:true,relaxRest:false,relaxRematch:false,timeMs:4500,nodeLimit:16000},
-    {name:'rest-relaxed',relaxCoach:true,relaxRest:true,relaxRematch:false,timeMs:4000,nodeLimit:14000},
-    {name:'rematch-relaxed',relaxCoach:true,relaxRest:true,relaxRematch:true,timeMs:3000,nodeLimit:10000}
+    {name:'strict',relaxCoach:false,relaxRest:false,relaxSequence:false,relaxRematch:false,timeMs:8500,nodeLimit:30000},
+    {name:'coach-relaxed',relaxCoach:true,relaxRest:false,relaxSequence:false,relaxRematch:false,timeMs:5500,nodeLimit:22000},
+    {name:'rest-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:false,relaxRematch:false,timeMs:5000,nodeLimit:20000},
+    {name:'sequence-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:true,relaxRematch:false,timeMs:4000,nodeLimit:16000},
+    {name:'rematch-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:true,relaxRematch:true,timeMs:3000,nodeLimit:12000}
   ];
   let overallBest=[],overallBestTier='strict',totalNodes=0;
 
@@ -2165,6 +2168,21 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     if(state.settings.avoidImmediateRematches&&!tier.relaxRematch){
       if(chronologicalImmediateRematchAtCandidate(a,b,sl,newGames,placements))return false;
       if(chronologicalImmediateRematchAtCandidate(b,a,sl,newGames,placements))return false;
+    }
+
+    // v11.11.61 — preserve the opponent-coverage sequence created by the matchup planner.
+    // The Audit rule is chronological, so a repeat that is intentionally planned AFTER a
+    // first-time opponent must not be moved earlier merely because that slot is convenient.
+    // This constraint is relaxed only after higher-priority guarantee/capacity attempts fail.
+    if(state.settings.playAllTeamsOnce&&!tier.relaxSequence){
+      for(const p of placements||[]){
+        const shared=[a,b].filter(id=>p.game.a===id||p.game.b===id);
+        if(!shared.length)continue;
+        const thisOrder=Number(game.roundOrder??game._idx??0);
+        const otherOrder=Number(p.game.roundOrder??p.game._idx??0);
+        if(thisOrder>otherOrder && sl.stamp<=p.sl.stamp)return false;
+        if(thisOrder<otherOrder && sl.stamp>=p.sl.stamp)return false;
+      }
     }
 
     const extA=teamTimes[a]||new Set(),extB=teamTimes[b]||new Set();
@@ -2209,7 +2227,9 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
       const thisOpp=game.a===teamId?game.b:game.a;
       if(nearestOpp===thisOpp)rematchPenalty+=5000;
     }
-    return gap/60000 - rematchPenalty - sl.stamp/1e14;
+    const order=Number(game.roundOrder??game._idx??0);
+    const sequenceBias=order*0.25;
+    return gap/60000 - rematchPenalty - sl.stamp/1e14 - sequenceBias;
   }
 
   for(let tierIndex=0;tierIndex<tiers.length;tierIndex++){
@@ -2432,7 +2452,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
         hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): the 3-game guarantee was preserved only by allowing an immediate-rematch fallback after all no-rematch placements were exhausted. Review the Immediate Rematches audit.`);
       }
       if(!result.ok){
-        // v11.11.60: retain the best valid partial placement for this date and continue.
+        // v11.11.61: retain the best valid partial placement for this date and continue.
         // The Audit is responsible for flagging any unmet league guarantees, matching the
         // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
         const partial=result.placements||[];
@@ -2459,11 +2479,11 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.60: save the best valid schedule even when a guaranteed matchup could not be placed.
+  // v11.11.61: save the best valid schedule even when a guaranteed matchup could not be placed.
   // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
   // preventing the director from reviewing the rest of the generated league schedule.
 
-  // v11.11.60 workflow:
+  // v11.11.61 workflow:
   // Generate -> Save -> Audit -> Auto-Optimize fixable failures -> Audit again.
   // Optimization only uses same-date swaps, so the nightly game guarantee is
   // preserved exactly.
@@ -3268,7 +3288,7 @@ async function optimizeCourtUseSafely(){
 
     setGenerationStage(`Court + time optimization complete for ${targetDate}`);
   }catch(err){
-    console.error('v11.11.60 Court + Time optimizer error',err);
+    console.error('v11.11.61 Court + Time optimizer error',err);
     if(original){
       state.games=original;
       try{persist()}catch(_){}
