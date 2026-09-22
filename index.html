@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.63</title>
+<title>MSS League Scheduler v11.11.64</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.63</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.64</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -200,7 +200,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <section id="admin-settings" class="panel">
   <div class="card">
     <h2>Resources & Scheduling Setup</h2>
-    <div class="status info" style="margin:8px 0"><b>v11.11.63:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
+    <div class="status info" style="margin:8px 0"><b>v11.11.64:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
     <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
   </div>
 
@@ -288,7 +288,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>  </div>
 
   <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
-    <h2>🔎 Scheduling Diagnostics — v11.11.63</h2>
+    <h2>🔎 Scheduling Diagnostics — v11.11.64</h2>
     <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
     <div id="schedulingDiagnosticsContent"></div>
   </div>
@@ -310,7 +310,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.63</b> — Production Re-Optimize Hotfix + runtime guard.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.64</b> — Production Re-Optimize Hotfix + runtime guard.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -1821,7 +1821,7 @@ async function autoRepairGeneratedSchedule(newGames,retainedGames,targets){
   const touchedPools=targets.map(t=>({division:t.division,pool:t.pool}));
   let before=repairScoreForSchedule([...retainedGames,...newGames],touchedPools),current=before,iterations=0;
 
-  // v11.11.63: every candidate move swaps endpoints between two games in the
+  // v11.11.64: every candidate move swaps endpoints between two games in the
   // SAME pool on the SAME playing date. Therefore each team's nightly and
   // season game count is preserved exactly. The 3-games-per-night guarantee
   // cannot be damaged by optimization.
@@ -1978,7 +1978,7 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
   const pairKey=(a,b)=>[a,b].sort().join('|');
   const teamOrder=new Map(ids.map((id,i)=>[id,i]));
 
-  // v11.11.63 — GUARANTEE-FIRST, VARIETY-SECOND.
+  // v11.11.64 — GUARANTEE-FIRST, VARIETY-SECOND.
   // This intentionally preserves the v11.11.35 exact nightly degree planner:
   // every team receives the configured minimum on every playing date, with only
   // the mathematically required extra game for odd team-game totals.
@@ -2148,7 +2148,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   const games=plannedGames.map((g,i)=>({...g,_idx:i}));
   if(!games.length)return {ok:true,placed:0,total:0,attempts:0};
 
-  // v11.11.63 — bounded asynchronous constraint solver.
+  // v11.11.64 — bounded asynchronous constraint solver.
   // The earlier greedy placer could finish quickly but strand guaranteed games.
   // This solver uses "most constrained game first" backtracking, yields frequently
   // to Chrome, and falls back through controlled rule tiers only when necessary.
@@ -2170,7 +2170,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
       if(chronologicalImmediateRematchAtCandidate(b,a,sl,newGames,placements))return false;
     }
 
-    // v11.11.63 — preserve the opponent-coverage sequence created by the matchup planner.
+    // v11.11.64 — preserve the opponent-coverage sequence created by the matchup planner.
     // The Audit rule is chronological, so a repeat that is intentionally planned AFTER a
     // first-time opponent must not be moved earlier merely because that slot is convenient.
     // This constraint is relaxed only after higher-priority guarantee/capacity attempts fail.
@@ -2452,7 +2452,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
         hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): the 3-game guarantee was preserved only by allowing an immediate-rematch fallback after all no-rematch placements were exhausted. Review the Immediate Rematches audit.`);
       }
       if(!result.ok){
-        // v11.11.63: retain the best valid partial placement for this date and continue.
+        // v11.11.64: retain the best valid partial placement for this date and continue.
         // The Audit is responsible for flagging any unmet league guarantees, matching the
         // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
         const partial=result.placements||[];
@@ -2479,11 +2479,11 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.63: save the best valid schedule even when a guaranteed matchup could not be placed.
+  // v11.11.64: save the best valid schedule even when a guaranteed matchup could not be placed.
   // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
   // preventing the director from reviewing the rest of the generated league schedule.
 
-  // v11.11.63 workflow:
+  // v11.11.64 workflow:
   // Generate -> Save -> Audit -> Auto-Optimize fixable failures -> Audit again.
   // Optimization only uses same-date swaps, so the nightly game guarantee is
   // preserved exactly.
@@ -2574,16 +2574,20 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   setTab('schedule');
   resetRuntimeOverflowPlan();
 }
-function opponentCoverageScore(){
-  const a=runScheduleAudit(true),opp=(a?.results||[]).find(r=>r.label==='All opponents before repeats'),rem=(a?.results||[]).find(r=>r.label==='Immediate rematches');
-  return {fails:a?.fails||0,opp:opp?.violations?.length||0,rem:rem?.violations?.length||0};
+function opponentCoverageSnapshot(){
+  const a=runScheduleAudit(true),out={audit:a,fails:a?.fails||0,opp:0,rem:0,protected:{}};
+  const labels=new Set(['No self-matchups','No team double-booking','No court double-booking','Division time windows','Assigned court groups','Team schedule requests','Minimum games per playing date','Calculated season minimum','Maximum games per playing date','Immediate rematches','Rest / back-to-back rule']);
+  (a?.results||[]).forEach(r=>{
+    const n=r.violations?.length||0;
+    if(r.label==='All opponents before repeats')out.opp=n;
+    if(r.label==='Immediate rematches')out.rem=n;
+    if(labels.has(r.label))out.protected[r.label]=n;
+  });
+  return out;
 }
-function opponentCoverageProtectedVector(){
-  const labels=['No self-matchups','No team double-booking','No court double-booking','Division time windows','Assigned court groups','Team schedule requests','Minimum games per playing date','Calculated season minimum','Maximum games per playing date','Immediate rematches','Rest / back-to-back rule'];
-  const a=runScheduleAudit(true),out={};(a?.results||[]).forEach(r=>{if(labels.includes(r.label))out[r.label]=r.violations?.length||0});return out;
-}
+function opponentCoverageScore(){const s=opponentCoverageSnapshot();return {fails:s.fails,opp:s.opp,rem:s.rem}}
+function opponentCoverageProtectedVector(){return opponentCoverageSnapshot().protected}
 function opponentCoverageWorsened(a,b){return Object.keys(a).some(k=>(b[k]||0)>(a[k]||0))}
-
 
 function poolForTeamSafe(teamId,divisionId){
   const lists=state.pools?.[divisionId]?.lists||{};
@@ -2592,7 +2596,6 @@ function poolForTeamSafe(teamId,divisionId){
   }
   return '';
 }
-
 function chronologicalOpponentIssueCountForTeam(teamId){
   const games=state.games.filter(g=>g.status!=='Cancelled'&&(g.aId===teamId||g.bId===teamId))
     .slice().sort((x,y)=>`${x.date} ${x.time}`.localeCompare(`${y.date} ${y.time}`));
@@ -2607,13 +2610,16 @@ function chronologicalOpponentIssueCountForTeam(teamId){
   }
   return issues;
 }
-function oddPoolSequenceRepair(){
-  let accepted=0;
-  for(let sweep=0;sweep<10;sweep++){
+async function oddPoolSequenceRepairBounded(){
+  const MAX_CHECKS=60,MAX_MS=8000,YIELD_EVERY=4;
+  const started=performance.now();let checks=0,accepted=0,timedOut=false;
+  let baseline=opponentCoverageSnapshot();
+  for(let sweep=0;sweep<4;sweep++){
     let improved=false;
     const teamIds=(state.teams||[]).map(t=>t.id);
     outer:
     for(const teamId of teamIds){
+      if(checks>=MAX_CHECKS||performance.now()-started>=MAX_MS){timedOut=true;break outer}
       const team=state.teams.find(t=>t.id===teamId);if(!team)continue;
       const d=divisionKey(team),p=poolForTeamSafe(teamId,d),poolIds=(p?(state.pools?.[d]?.lists?.[p]||[]):[]);
       if(!p||poolIds.length<3||poolIds.length%2===0)continue;
@@ -2627,44 +2633,62 @@ function oddPoolSequenceRepair(){
         if(!offending){seen.add(badOpp);prev=badOpp;continue}
         const candidates=state.games.filter(g=>g.status!=='Cancelled'&&!g.lockedManual&&g.id!==bad.id&&g.date===bad.date&&g.division===bad.division&&g.pool===bad.pool&&g.aId!==teamId&&g.bId!==teamId);
         for(const other of candidates)for(const side of ['aId','bId']){
+          if(checks>=MAX_CHECKS||performance.now()-started>=MAX_MS){timedOut=true;break outer}
           const newOpp=other[side];if(newOpp===teamId||newOpp===badOpp||seen.has(newOpp))continue;
           const badSide=bad.aId===teamId?'bId':'aId',ob=bad[badSide],oo=other[side];
-          const bp=opponentCoverageProtectedVector(),bs=opponentCoverageScore();
-          bad[badSide]=newOpp;other[side]=ob;
-          const ap=opponentCoverageProtectedVector(),as=opponentCoverageScore(),ta=chronologicalOpponentIssueCountForTeam(teamId);
-          if(bad.aId!==bad.bId&&other.aId!==other.bId&&!opponentCoverageWorsened(bp,ap)&&ta<beforeTeam&&(as.opp<bs.opp||(as.opp===bs.opp&&as.rem<bs.rem))){
-            accepted++;improved=true;break outer;
+          bad[badSide]=newOpp;other[side]=ob;checks++;
+          const after=opponentCoverageSnapshot(),ta=chronologicalOpponentIssueCountForTeam(teamId);
+          if(bad.aId!==bad.bId&&other.aId!==other.bId&&!opponentCoverageWorsened(baseline.protected,after.protected)&&ta<beforeTeam&&(after.opp<baseline.opp||(after.opp===baseline.opp&&after.rem<baseline.rem))){
+            accepted++;improved=true;baseline=after;break outer;
           }
           bad[badSide]=ob;other[side]=oo;
+          if(checks%YIELD_EVERY===0){
+            setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Odd-pool opponent cleanup • ${checks}/${MAX_CHECKS} checks`,68);
+            await yieldToBrowser();
+          }
         }
         seen.add(badOpp);prev=badOpp;
       }
     }
-    if(!improved)break;
+    if(timedOut||!improved)break;
   }
-  return {accepted,...opponentCoverageScore()};
+  return {accepted,opp:baseline.opp,rem:baseline.rem,checks,timedOut};
 }
-
-async function opponentCoverageRepair(){
-  let accepted=0;
-  for(let pass=0;pass<12;pass++){
+async function opponentCoverageRepairBounded(){
+  const MAX_CHECKS=80,MAX_MS=10000,YIELD_EVERY=4;
+  const started=performance.now();let checks=0,accepted=0,timedOut=false;
+  let baseline=opponentCoverageSnapshot();
+  for(let pass=0;pass<5;pass++){
     let improved=false;const dates=[...new Set(state.games.filter(g=>g.status!=='Cancelled').map(g=>g.date))].sort();
     outer: for(const date of dates){
       const groups=new Map();state.games.forEach((g,idx)=>{if(g.status==='Cancelled'||g.date!==date||g.lockedManual)return;const k=`${g.division||''}|${g.pool||''}`;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(idx)});
       for(const idxs of groups.values())for(let x=0;x<idxs.length;x++)for(let y=x+1;y<idxs.length;y++){
+        if(checks>=MAX_CHECKS||performance.now()-started>=MAX_MS){timedOut=true;break outer}
         const g1=state.games[idxs[x]],g2=state.games[idxs[y]];if(g1.lockedManual||g2.lockedManual)continue;
         if(new Set([g1.aId,g1.bId,g2.aId,g2.bId]).size!==4)continue;
-        const o1={aId:g1.aId,bId:g1.bId},o2={aId:g2.aId,bId:g2.bId},beforeP=opponentCoverageProtectedVector(),beforeS=opponentCoverageScore();
+        const o1={aId:g1.aId,bId:g1.bId},o2={aId:g2.aId,bId:g2.bId};
         const candidates=[[[o1.aId,o2.aId],[o1.bId,o2.bId]],[[o1.aId,o2.bId],[o1.bId,o2.aId]]];let keep=false;
-        for(const c of candidates){g1.aId=c[0][0];g1.bId=c[0][1];g2.aId=c[1][0];g2.bId=c[1][1];const afterP=opponentCoverageProtectedVector(),afterS=opponentCoverageScore();
-          if(!opponentCoverageWorsened(beforeP,afterP)&&(afterS.opp<beforeS.opp||(afterS.opp===beforeS.opp&&afterS.rem<beforeS.rem))){keep=true;accepted++;improved=true;break}
-          Object.assign(g1,o1);Object.assign(g2,o2)}
+        for(const c of candidates){
+          if(checks>=MAX_CHECKS||performance.now()-started>=MAX_MS){timedOut=true;break}
+          g1.aId=c[0][0];g1.bId=c[0][1];g2.aId=c[1][0];g2.bId=c[1][1];checks++;
+          const after=opponentCoverageSnapshot();
+          if(!opponentCoverageWorsened(baseline.protected,after.protected)&&(after.opp<baseline.opp||(after.opp===baseline.opp&&after.rem<baseline.rem))){
+            keep=true;accepted++;improved=true;baseline=after;break;
+          }
+          Object.assign(g1,o1);Object.assign(g2,o2);
+          if(checks%YIELD_EVERY===0){
+            setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`General opponent cleanup • ${checks}/${MAX_CHECKS} checks`,82);
+            await yieldToBrowser();
+          }
+        }
         if(keep)break outer;
+        Object.assign(g1,o1);Object.assign(g2,o2);
       }
     }
-    if(!improved)break;await yieldToBrowser();
+    if(timedOut||!improved)break;
+    await yieldToBrowser();
   }
-  return {accepted,...opponentCoverageScore()};
+  return {accepted,opp:baseline.opp,rem:baseline.rem,checks,timedOut};
 }
 
 async function optimizeSchedule_v56core(){
@@ -2681,12 +2705,14 @@ async function optimizeSchedule_v56core(){
   ])).values()];
 
   setGenerationStage('Re-optimizing saved schedule');
+  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Core schedule repair • ${gamesInScope.length} games`,18);
   await yieldToBrowser();
 
   const beforeAudit=runScheduleAudit(scope==='ALL');
   const priorLimit=window.__mssOptimizeLimit,priorPair=window.__mssPairCheckLimit;
-  window.__mssOptimizeLimit=40;
-  window.__mssPairCheckLimit=6000;
+  const fullLeagueScope=scope==='ALL';
+  window.__mssOptimizeLimit=fullLeagueScope?18:40;
+  window.__mssPairCheckLimit=fullLeagueScope?2500:6000;
 
   let repair;
   try{
@@ -2702,8 +2728,12 @@ async function optimizeSchedule_v56core(){
   }
 
   state.games=[...retainedGames,...working].map(g=>({...g,status:g.status||'Scheduled',pending:true}));
-  const oddPoolRepair=oddPoolSequenceRepair();
-  const opponentRepair=await opponentCoverageRepair();
+  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…','Core repair complete • starting bounded opponent cleanup',62);
+  await yieldToBrowser();
+  const oddPoolRepair=await oddPoolSequenceRepairBounded();
+  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Odd-pool cleanup complete • ${oddPoolRepair.accepted} accepted`,74);
+  await yieldToBrowser();
+  const opponentRepair=await opponentCoverageRepairBounded();
   persist();
   renderAll();
 
@@ -2712,7 +2742,8 @@ async function optimizeSchedule_v56core(){
   $('genSummary').innerHTML=
     `<div class="status ${afterAudit?.fails?'warn':'ok'}"><b>Re-optimization complete.</b> ${esc(txt)}`+
     `<br><b>Final Audit:</b> ${esc(afterAudit?.overall||'PASS')}${afterAudit?.fails?` • ${afterAudit.fails} failed rule(s)`:''}${afterAudit?.warns?` • ${afterAudit.warns} warning(s)`:''}.`+
-    `<br><b>Opponent coverage:</b> ${oddPoolRepair.accepted} odd-pool + ${opponentRepair.accepted} general safe repair(s) accepted • ${opponentRepair.opp} remaining opponent-rotation issue(s).`+`<br><span class="hint">Only same-pool, same-date swaps were used, so each team's nightly game count was preserved. 🔒 Locked manual director changes were not altered.</span></div>`;
+    `<br><b>Opponent coverage:</b> ${oddPoolRepair.accepted} odd-pool + ${opponentRepair.accepted} general safe repair(s) accepted • ${opponentRepair.opp} remaining opponent-rotation issue(s).`+
+    `<br><b>Performance guard:</b> ${oddPoolRepair.checks+opponentRepair.checks} candidate checks${oddPoolRepair.timedOut||opponentRepair.timedOut?' • bounded cleanup limit reached safely':''}.`+`<br><span class="hint">Only same-pool, same-date swaps were used, so each team's nightly game count was preserved. 🔒 Locked manual director changes were not altered.</span></div>`;
 
   setGenerationStage('Re-optimization complete');
   setTab('schedule');
@@ -3351,7 +3382,7 @@ async function optimizeCourtUseSafely(){
 
     setGenerationStage(`Court + time optimization complete for ${targetDate}`);
   }catch(err){
-    console.error('v11.11.63 Court + Time optimizer error',err);
+    console.error('v11.11.64 Court + Time optimizer error',err);
     if(original){
       state.games=original;
       try{persist()}catch(_){}
