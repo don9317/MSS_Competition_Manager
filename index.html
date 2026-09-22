@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.71</title>
+<title>MSS League Scheduler v11.11.72</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.71</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.72</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -200,7 +200,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <section id="admin-settings" class="panel">
   <div class="card">
     <h2>Resources & Scheduling Setup</h2>
-    <div class="status info" style="margin:8px 0"><b>v11.11.71:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
+    <div class="status info" style="margin:8px 0"><b>v11.11.72:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
     <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
   </div>
 
@@ -288,9 +288,16 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>  </div>
 
   <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
-    <h2>🔎 Scheduling Diagnostics — v11.11.71</h2>
+    <h2>🔎 Scheduling Diagnostics — v11.11.72</h2>
     <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
     <div id="schedulingDiagnosticsContent"></div>
+  </div>
+
+  <div class="card diagnostic-panel" id="opponentPatternDiagnostics" style="margin-top:14px">
+    <h2>🧪 Odd-Pool Opponent Pattern Diagnostic — v11.11.72</h2>
+    <div class="section-note"><b>Diagnostic only:</b> Reads the current generated schedule. It does not generate, re-optimize, or change any game.</div>
+    <div class="toolbar" style="margin:10px 0"><button type="button" class="secondary" onclick="renderOpponentPatternDiagnosticsV72()">Refresh Diagnostic</button></div>
+    <div id="opponentPatternDiagnosticsContent"></div>
   </div>
 
   <div class="card" style="margin-top:14px">
@@ -310,7 +317,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.71</b> — Opponent Balance + expanded rollback-safe surgical repair.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.72</b> — Odd-pool comparison diagnostic; v71 scheduling logic unchanged.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -1396,6 +1403,55 @@ function renderSchedulingDiagnostics(){
      </details>`;
 }
 
+function opponentPatternPoolReportV72(d,pool){
+  const ids=(state.pools?.[d]?.lists?.[pool]||[]).slice(), names=Object.fromEntries((state.teams||[]).map(t=>[t.id,t.name||t.team||t.id]));
+  const dates=seasonDates(), min=Number(poolResourceConfig(d,pool)?.gamesPerWeek||state.divisionConfig?.[d]?.gamesPerWeek||state.settings.gamesPerWeek||3);
+  const pg=state.games.filter(g=>g.status!=='Cancelled'&&g.division===d&&g.pool===pool);
+  const expected=Math.ceil(ids.length*min/2), parity=(ids.length*min)%2===1;
+  const dateRows=[];
+  for(const date of dates){
+    const dg=pg.filter(g=>g.date===date), counts=Object.fromEntries(ids.map(id=>[id,0]));
+    dg.forEach(g=>{if(g.aId in counts)counts[g.aId]++;if(g.bId in counts)counts[g.bId]++});
+    const extras=ids.filter(id=>counts[id]>min);
+    const extraMatchups=[];
+    for(const id of extras){
+      const opponents=dg.filter(g=>g.aId===id||g.bId===id).map(g=>g.aId===id?g.bId:g.aId);
+      const freq={};opponents.forEach(o=>freq[o]=(freq[o]||0)+1);
+      extraMatchups.push(`${names[id]||id} (${counts[id]}): ${Object.entries(freq).map(([o,n])=>`${names[o]||o}${n>1?` ×${n}`:''}`).join(', ')}`);
+    }
+    dateRows.push({date,games:dg.length,extras,extraMatchups,counts});
+  }
+  const pair=new Map();
+  for(const g of pg){const key=[g.aId,g.bId].sort().join('|');pair.set(key,(pair.get(key)||0)+1)}
+  const repeated=[...pair.entries()].filter(([,n])=>n>1).map(([k,n])=>{const [a,b]=k.split('|');return `${names[a]||a} ↔ ${names[b]||b} ×${n}`}).sort();
+  const teamSummary=ids.map(id=>{
+    const f={};pg.forEach(g=>{if(g.aId===id)f[g.bId]=(f[g.bId]||0)+1;else if(g.bId===id)f[g.aId]=(f[g.aId]||0)+1});
+    const vals=ids.filter(x=>x!==id).map(x=>f[x]||0), minF=Math.min(...vals),maxF=Math.max(...vals);
+    return {id,minF,maxF,detail:ids.filter(x=>x!==id).map(x=>`${names[x]||x} ×${f[x]||0}`).join('; ')};
+  });
+  return {d,pool,ids,names,dates,min,pg,expected,parity,dateRows,repeated,teamSummary};
+}
+function renderOpponentPatternDiagnosticsV72(){
+  const host=$('opponentPatternDiagnosticsContent');if(!host)return;
+  if(!state.games?.length){host.innerHTML='<div class="status warn">No generated schedule is currently loaded. Generate or restore a schedule, then refresh this diagnostic.</div>';return}
+  const reports=[];
+  for(const d of allDivisionKeys())for(const pool of Object.keys(state.pools?.[d]?.lists||{})){
+    const ids=state.pools[d].lists[pool]||[];if(ids.length%2===1)reports.push(opponentPatternPoolReportV72(d,pool));
+  }
+  reports.sort((a,b)=>b.ids.length-a.ids.length||divisionLabel(a.d).localeCompare(divisionLabel(b.d)));
+  host.innerHTML=`<div class="status ok"><b>Current schedule diagnostic:</b> ${reports.length} odd-team pool(s) examined. Compare the working 7-team pool directly with the 9-team and 5-team pools below.</div>`+reports.map(r=>{
+    const focus=r.ids.length===9||r.ids.length===7||r.ids.length===5;
+    const dates=r.dateRows.map(x=>`<tr><td>${x.date}</td><td>${x.games} / ${r.expected}</td><td>${x.extras.length?x.extras.map(id=>esc(r.names[id]||id)).join(', '):'None'}</td><td>${x.extraMatchups.length?x.extraMatchups.map(esc).join('<br>'):'—'}</td></tr>`).join('');
+    const uneven=r.teamSummary.filter(x=>x.maxF-x.minF>=2);
+    return `<details ${focus?'open':''} style="margin:10px 0;border:1px solid #d7dfeb;border-radius:10px;padding:10px;background:#fff"><summary><b>${esc(divisionLabel(r.d))} — ${esc(poolDisplayName(r.d,r.pool))}</b> • ${r.ids.length} teams • ${r.pg.length} season games • parity extra ${r.parity?'YES':'No'}</summary>
+      <div class="diagnostic-grid" style="margin-top:8px"><div><b>Teams:</b> ${r.ids.length}</div><div><b>Minimum/team/date:</b> ${r.min}</div><div><b>Expected games/date:</b> ${r.expected}</div><div><b>Possible opponents/team:</b> ${r.ids.length-1}</div><div><b>Season games/team target:</b> ${r.min*r.dates.length}</div><div><b>Uneven teams (spread ≥2):</b> ${uneven.length}</div></div>
+      <table style="width:100%;margin-top:8px"><thead><tr><th>Date</th><th>Games actual / expected</th><th>Teams above minimum</th><th>Opponent list for extra-game teams</th></tr></thead><tbody>${dates}</tbody></table>
+      <details style="margin-top:8px"><summary><b>Repeated pairings (${r.repeated.length})</b></summary><div class="hint" style="margin-top:6px">${r.repeated.length?r.repeated.map(esc).join('<br>'):'No repeated pairings'}</div></details>
+      <details style="margin-top:8px"><summary><b>Per-team opponent frequency</b></summary><div class="hint" style="margin-top:6px">${r.teamSummary.map(x=>`<b>${esc(r.names[x.id]||x.id)}</b> (min ${x.minF}, max ${x.maxF}): ${esc(x.detail)}`).join('<br>')}</div></details>
+    </details>`;
+  }).join('')||'<div class="hint">No odd-team pools found.</div>';
+}
+
 function renderSettings(){
   $('exceptions').innerHTML=state.settings.exceptions.map(d=>`<div class="item"><b>${esc(d)}</b>${state.settings.exceptionNotes?.[d]?` <span class="hint">• ${esc(state.settings.exceptionNotes[d])}</span>`:''}<button class="danger" style="float:right;padding:4px 8px" data-remove-ex="${d}">Remove</button></div>`).join('')||'<span class="hint">No exception/off dates.</span>';
   document.querySelectorAll('[data-remove-ex]').forEach(b=>b.addEventListener('click',()=>removeException(b.dataset.removeEx)));
@@ -1408,7 +1464,7 @@ function renderSettings(){
   $('courtGroupsList').innerHTML=state.courtGroups.map(g=>{const ids=groupSurfaceIds(g),uses=courtGroupUseEntries(g),assignmentValue=courtGroupAssignmentValue(g),useLabels=uses.map(u=>u.label),divisionOptions=allDivisionKeys().map(d=>`<option value="D::${d}" ${assignmentValue===`D::${d}`?'selected':''}>${esc(divisionLabel(d))} — Division Default</option>`).join(''),poolOptions=allDivisionKeys().flatMap(d=>divisionPoolEntries(d).length>1?divisionPoolEntries(d).map(pool=>`<option value="P::${d}::${pool}" ${assignmentValue===`P::${d}::${pool}`?'selected':''}>${esc(divisionLabel(d))} — ${esc(poolDisplayName(d,pool))}</option>`):[]).join('');return `<div class="item"><div class="row" style="justify-content:space-between;align-items:flex-start"><div style="flex:1"><b>${esc(g.name)} (${ids.length} surface${ids.length===1?'':'s'})</b><br><span class="hint">${ids.map(id=>esc((state.courts.find(c=>c.id===id)||{}).name||'Missing surface')).join(', ')||'No surfaces'}${commonGroupWindows(g).length?`<br><b>Common availability:</b> ${commonGroupWindows(g).map(w=>`${fmtTime(w.start)}–${fmtTime(w.end)}`).join(', ')}`:''}</span><div class="field" style="margin-top:8px;max-width:560px"><label>Assign this Court Group to</label><select data-group-division="${g.id}">${uses.length>1?'<option value="__MULTIPLE__" selected disabled>Multiple current uses — shown below</option>':`<option value="" ${!assignmentValue?'selected':''}>Choose division or pool…</option>`}${divisionOptions}${poolOptions}</select></div><span class="hint"><b>Current use:</b> ${useLabels.length?useLabels.map(esc).join(', '):'No division or pool yet'}</span></div><button class="danger" data-remove-group="${g.id}">Remove</button></div></div>`}).join('')||'<p class="hint">No court groups created.</p>';
   document.querySelectorAll('[data-remove-group]').forEach(b=>b.addEventListener('click',()=>removeCourtGroup(b.dataset.removeGroup)));
   document.querySelectorAll('[data-group-division]').forEach(sel=>sel.addEventListener('change',()=>assignCourtGroupToDivision(sel.dataset.groupDivision,sel.value)));
-  renderDivisionAssignments();renderCapacity();renderSchedulingDiagnostics();
+  renderDivisionAssignments();renderCapacity();renderSchedulingDiagnostics();renderOpponentPatternDiagnosticsV72();
 }
 function renderDivisionAssignments(){
   ensureDivisionConfig();
@@ -1821,7 +1877,7 @@ async function autoRepairGeneratedSchedule(newGames,retainedGames,targets){
   const touchedPools=targets.map(t=>({division:t.division,pool:t.pool}));
   let before=repairScoreForSchedule([...retainedGames,...newGames],touchedPools),current=before,iterations=0;
 
-  // v11.11.71: every candidate move swaps endpoints between two games in the
+  // v11.11.72: every candidate move swaps endpoints between two games in the
   // SAME pool on the SAME playing date. Therefore each team's nightly and
   // season game count is preserved exactly. The 3-games-per-night guarantee
   // cannot be damaged by optimization.
@@ -1978,7 +2034,7 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
   const pairKey=(a,b)=>[a,b].sort().join('|');
   const teamOrder=new Map(ids.map((id,i)=>[id,i]));
 
-  // v11.11.71 — GUARANTEE-FIRST, VARIETY-SECOND.
+  // v11.11.72 — GUARANTEE-FIRST, VARIETY-SECOND.
   // This intentionally preserves the v11.11.35 exact nightly degree planner:
   // every team receives the configured minimum on every playing date, with only
   // the mathematically required extra game for odd team-game totals.
@@ -2148,7 +2204,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   const games=plannedGames.map((g,i)=>({...g,_idx:i}));
   if(!games.length)return {ok:true,placed:0,total:0,attempts:0};
 
-  // v11.11.71 — bounded asynchronous constraint solver.
+  // v11.11.72 — bounded asynchronous constraint solver.
   // The earlier greedy placer could finish quickly but strand guaranteed games.
   // This solver uses "most constrained game first" backtracking, yields frequently
   // to Chrome, and falls back through controlled rule tiers only when necessary.
@@ -2170,7 +2226,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
       if(chronologicalImmediateRematchAtCandidate(b,a,sl,newGames,placements))return false;
     }
 
-    // v11.11.71 — preserve the opponent-coverage sequence created by the matchup planner.
+    // v11.11.72 — preserve the opponent-coverage sequence created by the matchup planner.
     // The Audit rule is chronological, so a repeat that is intentionally planned AFTER a
     // first-time opponent must not be moved earlier merely because that slot is convenient.
     // This constraint is relaxed only after higher-priority guarantee/capacity attempts fail.
@@ -2452,7 +2508,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
         hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): the 3-game guarantee was preserved only by allowing an immediate-rematch fallback after all no-rematch placements were exhausted. Review the Immediate Rematches audit.`);
       }
       if(!result.ok){
-        // v11.11.71: retain the best valid partial placement for this date and continue.
+        // v11.11.72: retain the best valid partial placement for this date and continue.
         // The Audit is responsible for flagging any unmet league guarantees, matching the
         // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
         const partial=result.placements||[];
@@ -2479,11 +2535,11 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.71: save the best valid schedule even when a guaranteed matchup could not be placed.
+  // v11.11.72: save the best valid schedule even when a guaranteed matchup could not be placed.
   // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
   // preventing the director from reviewing the rest of the generated league schedule.
 
-  // v11.11.71 workflow:
+  // v11.11.72 workflow:
   // Generate -> Save -> Audit -> Auto-Optimize fixable failures -> Audit again.
   // Optimization only uses same-date swaps, so the nightly game guarantee is
   // preserved exactly.
@@ -3679,7 +3735,7 @@ async function optimizeCourtUseSafely(){
 
     setGenerationStage(`Court + time optimization complete for ${targetDate}`);
   }catch(err){
-    console.error('v11.11.71 Court + Time optimizer error',err);
+    console.error('v11.11.72 Court + Time optimizer error',err);
     if(original){
       state.games=original;
       try{persist()}catch(_){}
