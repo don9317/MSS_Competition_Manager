@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.65</title>
+<title>MSS League Scheduler v11.11.66</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -42,8 +42,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </style>
 </head>
 <body><div id="simulationLabPanel" class="card" style="margin:14px;padding:16px;border:2px solid #1f2937">
-  <h2 style="margin-top:0">MSS Simulation Test Lab — v11.11.65</h2>
-  <p class="hint">Isolated test mode. This page does <b>not</b> save simulation data to the league IndexedDB. v65 adds a bounded odd-pool opponent finisher on top of v64's production performance guard.</p>
+  <h2 style="margin-top:0">MSS Simulation Test Lab — v11.11.66</h2>
+  <p class="hint">Isolated test mode. This page does <b>not</b> save simulation data to the league IndexedDB. v66 production build retains v64's bounded performance guard; production index adds the targeted pool-level opponent solver and explicit Audit completion feedback.</p>
   <div class="toolbar">
     <button class="primary" id="runSimulationSuiteBtn" type="button" onclick="runSimulationSuite()">Run Regression Suite</button>
     <button type="button" onclick="location.href='index.html'">Return to League Scheduler</button>
@@ -59,7 +59,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.65</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.66</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -215,7 +215,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <section id="admin-settings" class="panel">
   <div class="card">
     <h2>Resources & Scheduling Setup</h2>
-    <div class="status info" style="margin:8px 0"><b>v11.11.65:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
+    <div class="status info" style="margin:8px 0"><b>v11.11.66:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
     <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
   </div>
 
@@ -303,7 +303,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>  </div>
 
   <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
-    <h2>🔎 Scheduling Diagnostics — v11.11.65</h2>
+    <h2>🔎 Scheduling Diagnostics — v11.11.66</h2>
     <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
     <div id="schedulingDiagnosticsContent"></div>
   </div>
@@ -325,7 +325,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.65</b> — Production Re-Optimize Hotfix + runtime guard.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.66</b> — Production Re-Optimize Hotfix + runtime guard.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -453,7 +453,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <style>body>header,body>nav,body>main,body>.topbar,body>.tabs,body>.subtabs{display:none!important} #simulationLabPanel{display:block!important;max-width:1500px;margin:14px auto!important}</style>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.65</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.66</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -609,7 +609,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <section id="admin-settings" class="panel">
   <div class="card">
     <h2>Resources & Scheduling Setup</h2>
-    <div class="status info" style="margin:8px 0"><b>v11.11.65:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
+    <div class="status info" style="margin:8px 0"><b>v11.11.66:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
     <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
   </div>
 
@@ -697,7 +697,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>  </div>
 
   <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
-    <h2>🔎 Scheduling Diagnostics — v11.11.65</h2>
+    <h2>🔎 Scheduling Diagnostics — v11.11.66</h2>
     <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
     <div id="schedulingDiagnosticsContent"></div>
   </div>
@@ -719,7 +719,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.65</b> — Odd-Pool Sequence Repair (5/9-team focus).</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.66</b> — Odd-Pool Sequence Repair (5/9-team focus).</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -2232,7 +2232,7 @@ async function autoRepairGeneratedSchedule(newGames,retainedGames,targets){
   const touchedPools=targets.map(t=>({division:t.division,pool:t.pool}));
   let before=repairScoreForSchedule([...retainedGames,...newGames],touchedPools),current=before,iterations=0;
 
-  // v11.11.65: every candidate move swaps endpoints between two games in the
+  // v11.11.66: every candidate move swaps endpoints between two games in the
   // SAME pool on the SAME playing date. Therefore each team's nightly and
   // season game count is preserved exactly. The 3-games-per-night guarantee
   // cannot be damaged by optimization.
@@ -2389,7 +2389,7 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
   const pairKey=(a,b)=>[a,b].sort().join('|');
   const teamOrder=new Map(ids.map((id,i)=>[id,i]));
 
-  // v11.11.65 — GUARANTEE-FIRST, VARIETY-SECOND.
+  // v11.11.66 — GUARANTEE-FIRST, VARIETY-SECOND.
   // This intentionally preserves the v11.11.35 exact nightly degree planner:
   // every team receives the configured minimum on every playing date, with only
   // the mathematically required extra game for odd team-game totals.
@@ -2559,7 +2559,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   const games=plannedGames.map((g,i)=>({...g,_idx:i}));
   if(!games.length)return {ok:true,placed:0,total:0,attempts:0};
 
-  // v11.11.65 — bounded asynchronous constraint solver.
+  // v11.11.66 — bounded asynchronous constraint solver.
   // The earlier greedy placer could finish quickly but strand guaranteed games.
   // This solver uses "most constrained game first" backtracking, yields frequently
   // to Chrome, and falls back through controlled rule tiers only when necessary.
@@ -2581,7 +2581,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
       if(chronologicalImmediateRematchAtCandidate(b,a,sl,newGames,placements))return false;
     }
 
-    // v11.11.65 — preserve the opponent-coverage sequence created by the matchup planner.
+    // v11.11.66 — preserve the opponent-coverage sequence created by the matchup planner.
     // The Audit rule is chronological, so a repeat that is intentionally planned AFTER a
     // first-time opponent must not be moved earlier merely because that slot is convenient.
     // This constraint is relaxed only after higher-priority guarantee/capacity attempts fail.
@@ -2863,7 +2863,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
         hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): the 3-game guarantee was preserved only by allowing an immediate-rematch fallback after all no-rematch placements were exhausted. Review the Immediate Rematches audit.`);
       }
       if(!result.ok){
-        // v11.11.65: retain the best valid partial placement for this date and continue.
+        // v11.11.66: retain the best valid partial placement for this date and continue.
         // The Audit is responsible for flagging any unmet league guarantees, matching the
         // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
         const partial=result.placements||[];
@@ -2890,11 +2890,11 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.65: save the best valid schedule even when a guaranteed matchup could not be placed.
+  // v11.11.66: save the best valid schedule even when a guaranteed matchup could not be placed.
   // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
   // preventing the director from reviewing the rest of the generated league schedule.
 
-  // v11.11.65 workflow:
+  // v11.11.66 workflow:
   // Generate -> Save -> Audit -> Auto-Optimize fixable failures -> Audit again.
   // Optimization only uses same-date swaps, so the nightly game guarantee is
   // preserved exactly.
@@ -3065,105 +3065,6 @@ async function oddPoolSequenceRepairBounded(){
   }
   return {accepted,opp:baseline.opp,rem:baseline.rem,checks,timedOut};
 }
-
-function opponentSequenceIssuePoolKeys(){
-  const a=runScheduleAudit(true),keys=new Set();
-  for(const r of (a?.results||[])){
-    if(r.label!=='Immediate rematches'&&r.label!=='All opponents before repeats')continue;
-    for(const v of (r.violations||[])){
-      const s=String(v||'');
-      // Audit detail begins with the rendered division/pool label followed by an em dash.
-      const head=s.split(' — ')[0].trim();
-      for(const d of (state.divisions||[])){
-        const dLabel=divisionLabel(d.id);
-        const pools=state.pools?.[d.id]?.lists||{};
-        for(const pool of Object.keys(pools)){
-          const rendered=`${dLabel} — ${poolDisplayName(d.id,pool)}`;
-          if(head===rendered||s.startsWith(rendered+' — '))keys.add(`${d.id}|${pool}`);
-        }
-      }
-    }
-  }
-  // Fallback: identify affected pools directly from teams with chronological issues.
-  if(!keys.size){
-    for(const d of (state.divisions||[]))for(const [pool,ids] of Object.entries(state.pools?.[d.id]?.lists||{})){
-      if((ids||[]).some(id=>chronologicalOpponentIssueCountForTeam(id)>0))keys.add(`${d.id}|${pool}`);
-    }
-  }
-  return [...keys];
-}
-function poolOpponentSequenceIssueCount(d,pool){
-  const ids=state.pools?.[d]?.lists?.[pool]||[];
-  return ids.reduce((n,id)=>n+chronologicalOpponentIssueCountForTeam(id),0);
-}
-async function oddPoolOpponentFinisher(){
-  const MAX_TOTAL_CHECKS=120,MAX_POOL_CHECKS=48,MAX_MS=12000,YIELD_EVERY=3;
-  const started=performance.now(),targets=opponentSequenceIssuePoolKeys();
-  let totalChecks=0,accepted=0,timedOut=false;
-  const details=[];
-  let baseline=opponentCoverageSnapshot();
-
-  for(let ti=0;ti<targets.length;ti++){
-    if(totalChecks>=MAX_TOTAL_CHECKS||performance.now()-started>=MAX_MS){timedOut=true;break}
-    const [d,pool]=targets[ti].split('|'),ids=state.pools?.[d]?.lists?.[pool]||[];
-    if(ids.length<3||ids.length%2===0)continue; // surgical odd-pool pass only
-    const beforePool=poolOpponentSequenceIssueCount(d,pool);
-    let poolChecks=0,poolAccepted=0,improved=true;
-
-    while(improved&&poolChecks<MAX_POOL_CHECKS&&totalChecks<MAX_TOTAL_CHECKS&&performance.now()-started<MAX_MS){
-      improved=false;
-      const idxs=state.games.map((g,i)=>({g,i}))
-        .filter(x=>x.g.status!=='Cancelled'&&!x.g.lockedManual&&x.g.division===d&&x.g.pool===pool)
-        .map(x=>x.i);
-
-      search:
-      for(let x=0;x<idxs.length;x++)for(let y=x+1;y<idxs.length;y++){
-        if(poolChecks>=MAX_POOL_CHECKS||totalChecks>=MAX_TOTAL_CHECKS||performance.now()-started>=MAX_MS)break search;
-        const g1=state.games[idxs[x]],g2=state.games[idxs[y]];
-        // Keep each game exactly on its original date/time/court. Only opponent identities may move.
-        const original1={aId:g1.aId,bId:g1.bId},original2={aId:g2.aId,bId:g2.bId};
-        const variants=[
-          [[original1.aId,original2.aId],[original1.bId,original2.bId]],
-          [[original1.aId,original2.bId],[original1.bId,original2.aId]],
-          [[original1.bId,original2.aId],[original1.aId,original2.bId]],
-          [[original1.bId,original2.bId],[original1.aId,original2.aId]]
-        ];
-        for(const v of variants){
-          if(poolChecks>=MAX_POOL_CHECKS||totalChecks>=MAX_TOTAL_CHECKS||performance.now()-started>=MAX_MS)break;
-          g1.aId=v[0][0];g1.bId=v[0][1];g2.aId=v[1][0];g2.bId=v[1][1];
-          poolChecks++;totalChecks++;
-          const validIds=[g1.aId,g1.bId,g2.aId,g2.bId].every(id=>ids.includes(id));
-          const after=opponentCoverageSnapshot(),afterPool=poolOpponentSequenceIssueCount(d,pool);
-          const globallyBetter=(after.opp<baseline.opp)||(after.opp===baseline.opp&&after.rem<baseline.rem);
-          if(validIds&&g1.aId!==g1.bId&&g2.aId!==g2.bId&&!opponentCoverageWorsened(baseline.protected,after.protected)&&afterPool<poolOpponentSequenceIssueCountWithOriginal(d,pool,g1,g2,original1,original2)&&globallyBetter){
-            baseline=after;accepted++;poolAccepted++;improved=true;
-            break search;
-          }
-          Object.assign(g1,original1);Object.assign(g2,original2);
-          if(totalChecks%YIELD_EVERY===0){
-            setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Odd-pool finisher ${ti+1}/${targets.length} • ${totalChecks}/${MAX_TOTAL_CHECKS} checks`,78);
-            await yieldToBrowser();
-          }
-        }
-        Object.assign(g1,original1);Object.assign(g2,original2);
-      }
-    }
-    const afterPool=poolOpponentSequenceIssueCount(d,pool);
-    details.push({d,pool,before:beforePool,after:afterPool,accepted:poolAccepted,checks:poolChecks});
-    await yieldToBrowser();
-  }
-  if(performance.now()-started>=MAX_MS||totalChecks>=MAX_TOTAL_CHECKS)timedOut=true;
-  return {accepted,opp:baseline.opp,rem:baseline.rem,checks:totalChecks,timedOut,targets:targets.length,details};
-}
-function poolOpponentSequenceIssueCountWithOriginal(d,pool,g1,g2,o1,o2){
-  // Temporarily score the pre-candidate state without another full Audit.
-  const n1={aId:g1.aId,bId:g1.bId},n2={aId:g2.aId,bId:g2.bId};
-  Object.assign(g1,o1);Object.assign(g2,o2);
-  const score=poolOpponentSequenceIssueCount(d,pool);
-  Object.assign(g1,n1);Object.assign(g2,n2);
-  return score;
-}
-
 async function opponentCoverageRepairBounded(){
   const MAX_CHECKS=80,MAX_MS=10000,YIELD_EVERY=4;
   const started=performance.now();let checks=0,accepted=0,timedOut=false;
@@ -3889,7 +3790,7 @@ async function optimizeCourtUseSafely(){
 
     setGenerationStage(`Court + time optimization complete for ${targetDate}`);
   }catch(err){
-    console.error('v11.11.65 Court + Time optimizer error',err);
+    console.error('v11.11.66 Court + Time optimizer error',err);
     if(original){
       state.games=original;
       try{persist()}catch(_){}
@@ -4408,7 +4309,7 @@ async function runSimulationSuite(){
     status.className=`status ${failed?'warn':'ok'}`;
     status.innerHTML=`<b>Regression suite complete:</b> ${passed}/${rows.length} passed • ${failed} failed • ${elapsed}s`;
     $('simulationSuiteSummary').innerHTML=`<div class="metrics" style="margin-top:10px"><div class="card"><div class="hint">Scenarios</div><div class="kpi">${rows.length}</div></div><div class="card"><div class="hint">Passed</div><div class="kpi">${passed}</div></div><div class="card"><div class="hint">Failed</div><div class="kpi">${failed}</div></div><div class="card"><div class="hint">Elapsed</div><div class="kpi">${elapsed}s</div></div></div>`;
-    const report={version:'v11.11.65',passed,failed,total:rows.length,elapsedSeconds:+elapsed,results:rows};
+    const report={version:'v11.11.66',passed,failed,total:rows.length,elapsedSeconds:+elapsed,results:rows};
     $('simulationResultsJson').textContent=JSON.stringify(report,null,2);
     const failedRows=rows.filter(x=>!x.pass);
     $('simulationFailureSummary').innerHTML=failedRows.length?`<div class="status warn" style="margin-top:10px"><b>${failedRows.length} FAILED SCENARIO(S) — exact reasons</b><br>${failedRows.map(r=>`<b>${esc(r.id)} — ${esc(r.name)}</b>: ${esc(r.detail)}${(r.audit?.hard||[]).length?`<br>${r.audit.hard.map(x=>'• '+esc(x)).join('<br>')}`:''}`).join('<br><br>')}</div>`:`<div class="status ok" style="margin-top:10px"><b>ALL REGRESSION SCENARIOS PASSED.</b> No unexplained failures.</div>`;
