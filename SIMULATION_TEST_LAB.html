@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.62</title>
+<title>MSS League Scheduler v11.11.63</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -42,8 +42,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </style>
 </head>
 <body><div id="simulationLabPanel" class="card" style="margin:14px;padding:16px;border:2px solid #1f2937">
-  <h2 style="margin-top:0">MSS Simulation Test Lab — v11.11.62</h2>
-  <p class="hint">Isolated test mode. This page does <b>not</b> save simulation data to the league IndexedDB. v62 target: fix S02/S06 while preserving all 12 v61 passes.</p>
+  <h2 style="margin-top:0">MSS Simulation Test Lab — v11.11.63</h2>
+  <p class="hint">Isolated test mode. This page does <b>not</b> save simulation data to the league IndexedDB. v63 hotfix: S15 explicitly exercises the production-style 9-team Re-Optimize runtime path.</p>
   <div class="toolbar">
     <button class="primary" id="runSimulationSuiteBtn" type="button" onclick="runSimulationSuite()">Run Regression Suite</button>
     <button type="button" onclick="location.href='index.html'">Return to League Scheduler</button>
@@ -59,7 +59,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.62</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.63</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -215,7 +215,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <section id="admin-settings" class="panel">
   <div class="card">
     <h2>Resources & Scheduling Setup</h2>
-    <div class="status info" style="margin:8px 0"><b>v11.11.62:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
+    <div class="status info" style="margin:8px 0"><b>v11.11.63:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
     <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
   </div>
 
@@ -303,7 +303,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>  </div>
 
   <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
-    <h2>🔎 Scheduling Diagnostics — v11.11.62</h2>
+    <h2>🔎 Scheduling Diagnostics — v11.11.63</h2>
     <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
     <div id="schedulingDiagnosticsContent"></div>
   </div>
@@ -325,7 +325,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.62</b> — Production Readiness + isolated Simulation Test Lab.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.63</b> — Production Re-Optimize Hotfix + runtime guard.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -453,7 +453,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <style>body>header,body>nav,body>main,body>.topbar,body>.tabs,body>.subtabs{display:none!important} #simulationLabPanel{display:block!important;max-width:1500px;margin:14px auto!important}</style>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.62</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.63</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -609,7 +609,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <section id="admin-settings" class="panel">
   <div class="card">
     <h2>Resources & Scheduling Setup</h2>
-    <div class="status info" style="margin:8px 0"><b>v11.11.62:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
+    <div class="status info" style="margin:8px 0"><b>v11.11.63:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
     <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
   </div>
 
@@ -697,7 +697,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>  </div>
 
   <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
-    <h2>🔎 Scheduling Diagnostics — v11.11.62</h2>
+    <h2>🔎 Scheduling Diagnostics — v11.11.63</h2>
     <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
     <div id="schedulingDiagnosticsContent"></div>
   </div>
@@ -719,7 +719,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.62</b> — Odd-Pool Sequence Repair (5/9-team focus).</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.63</b> — Odd-Pool Sequence Repair (5/9-team focus).</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -2232,7 +2232,7 @@ async function autoRepairGeneratedSchedule(newGames,retainedGames,targets){
   const touchedPools=targets.map(t=>({division:t.division,pool:t.pool}));
   let before=repairScoreForSchedule([...retainedGames,...newGames],touchedPools),current=before,iterations=0;
 
-  // v11.11.62: every candidate move swaps endpoints between two games in the
+  // v11.11.63: every candidate move swaps endpoints between two games in the
   // SAME pool on the SAME playing date. Therefore each team's nightly and
   // season game count is preserved exactly. The 3-games-per-night guarantee
   // cannot be damaged by optimization.
@@ -2389,7 +2389,7 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
   const pairKey=(a,b)=>[a,b].sort().join('|');
   const teamOrder=new Map(ids.map((id,i)=>[id,i]));
 
-  // v11.11.62 — GUARANTEE-FIRST, VARIETY-SECOND.
+  // v11.11.63 — GUARANTEE-FIRST, VARIETY-SECOND.
   // This intentionally preserves the v11.11.35 exact nightly degree planner:
   // every team receives the configured minimum on every playing date, with only
   // the mathematically required extra game for odd team-game totals.
@@ -2559,7 +2559,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   const games=plannedGames.map((g,i)=>({...g,_idx:i}));
   if(!games.length)return {ok:true,placed:0,total:0,attempts:0};
 
-  // v11.11.62 — bounded asynchronous constraint solver.
+  // v11.11.63 — bounded asynchronous constraint solver.
   // The earlier greedy placer could finish quickly but strand guaranteed games.
   // This solver uses "most constrained game first" backtracking, yields frequently
   // to Chrome, and falls back through controlled rule tiers only when necessary.
@@ -2581,7 +2581,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
       if(chronologicalImmediateRematchAtCandidate(b,a,sl,newGames,placements))return false;
     }
 
-    // v11.11.62 — preserve the opponent-coverage sequence created by the matchup planner.
+    // v11.11.63 — preserve the opponent-coverage sequence created by the matchup planner.
     // The Audit rule is chronological, so a repeat that is intentionally planned AFTER a
     // first-time opponent must not be moved earlier merely because that slot is convenient.
     // This constraint is relaxed only after higher-priority guarantee/capacity attempts fail.
@@ -2863,7 +2863,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
         hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): the 3-game guarantee was preserved only by allowing an immediate-rematch fallback after all no-rematch placements were exhausted. Review the Immediate Rematches audit.`);
       }
       if(!result.ok){
-        // v11.11.62: retain the best valid partial placement for this date and continue.
+        // v11.11.63: retain the best valid partial placement for this date and continue.
         // The Audit is responsible for flagging any unmet league guarantees, matching the
         // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
         const partial=result.placements||[];
@@ -2890,11 +2890,11 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.62: save the best valid schedule even when a guaranteed matchup could not be placed.
+  // v11.11.63: save the best valid schedule even when a guaranteed matchup could not be placed.
   // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
   // preventing the director from reviewing the rest of the generated league schedule.
 
-  // v11.11.62 workflow:
+  // v11.11.63 workflow:
   // Generate -> Save -> Audit -> Auto-Optimize fixable failures -> Audit again.
   // Optimization only uses same-date swaps, so the nightly game guarantee is
   // preserved exactly.
@@ -2995,11 +2995,20 @@ function opponentCoverageProtectedVector(){
 }
 function opponentCoverageWorsened(a,b){return Object.keys(a).some(k=>(b[k]||0)>(a[k]||0))}
 
+
+function poolForTeamSafe(teamId,divisionId){
+  const lists=state.pools?.[divisionId]?.lists||{};
+  for(const [pool,ids] of Object.entries(lists)){
+    if((ids||[]).includes(teamId))return pool;
+  }
+  return '';
+}
+
 function chronologicalOpponentIssueCountForTeam(teamId){
   const games=state.games.filter(g=>g.status!=='Cancelled'&&(g.aId===teamId||g.bId===teamId))
     .slice().sort((x,y)=>`${x.date} ${x.time}`.localeCompare(`${y.date} ${y.time}`));
   const seen=new Set(),poolTeamIds=new Set(),team=state.teams.find(t=>t.id===teamId);
-  if(team){const d=divisionKey(team),p=teamPool(d,teamId);((state.pools?.[d]?.lists?.[p])||[]).forEach(id=>{if(id!==teamId)poolTeamIds.add(id)})}
+  if(team){const d=divisionKey(team),p=poolForTeamSafe(teamId,d);if(p)((state.pools?.[d]?.lists?.[p])||[]).forEach(id=>{if(id!==teamId)poolTeamIds.add(id)})}
   let issues=0,prev=null;
   for(const g of games){
     const opp=g.aId===teamId?g.bId:g.aId;
@@ -3017,8 +3026,8 @@ function oddPoolSequenceRepair(){
     outer:
     for(const teamId of teamIds){
       const team=state.teams.find(t=>t.id===teamId);if(!team)continue;
-      const d=divisionKey(team),p=teamPool(d,teamId),poolIds=(state.pools?.[d]?.lists?.[p]||[]);
-      if(poolIds.length%2===0)continue;
+      const d=divisionKey(team),p=poolForTeamSafe(teamId,d),poolIds=(p?(state.pools?.[d]?.lists?.[p]||[]):[]);
+      if(!p||poolIds.length<3||poolIds.length%2===0)continue;
       const beforeTeam=chronologicalOpponentIssueCountForTeam(teamId);if(!beforeTeam)continue;
       const tg=state.games.filter(g=>g.status!=='Cancelled'&&!g.lockedManual&&(g.aId===teamId||g.bId===teamId))
         .slice().sort((a,b)=>`${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
@@ -3753,7 +3762,7 @@ async function optimizeCourtUseSafely(){
 
     setGenerationStage(`Court + time optimization complete for ${targetDate}`);
   }catch(err){
-    console.error('v11.11.62 Court + Time optimizer error',err);
+    console.error('v11.11.63 Court + Time optimizer error',err);
     if(original){
       state.games=original;
       try{persist()}catch(_){}
@@ -4240,7 +4249,8 @@ function simulationScenarios(){
     {id:'S11',name:'High-school window',purpose:'7–10 PM division window',opts:{teamCount:8,courtCount:4,start:'19:00',end:'22:00',grade:'HS'},expectPreflightReady:true,expectGenerate:true,expectZeroAuditFails:true,optimize:true},
     {id:'S12',name:'Locked director change',purpose:'Optimizers must preserve manually locked game',opts:{teamCount:8,courtCount:4},expectPreflightReady:true,expectGenerate:true,expectZeroAuditFails:true,lockTest:true},
     {id:'S13',name:'Impossible court capacity',purpose:'Preflight must block mathematically impossible setup',opts:{teamCount:10,courtCount:1,start:'16:00',end:'17:00'},expectPreflightReady:false,expectGenerate:false},
-    {id:'S14',name:'Impossible schedule request',purpose:'Generator must refuse a team unavailable every Sunday',opts:{teamCount:6,courtCount:3,requestTeam:'no_sun'},expectPreflightReady:true,expectGenerate:false}
+    {id:'S14',name:'Impossible schedule request',purpose:'Generator must refuse a team unavailable every Sunday',opts:{teamCount:6,courtCount:3,requestTeam:'no_sun'},expectPreflightReady:true,expectGenerate:false},
+    {id:'S15',name:'Production Re-Optimize runtime',purpose:'9-team saved-league Re-Optimize must complete without runtime errors',opts:{teamCount:9,courtCount:5},expectPreflightReady:true,expectGenerate:true}
   ];
 }
 async function runSimulationSuite(){
@@ -4271,7 +4281,7 @@ async function runSimulationSuite(){
     status.className=`status ${failed?'warn':'ok'}`;
     status.innerHTML=`<b>Regression suite complete:</b> ${passed}/${rows.length} passed • ${failed} failed • ${elapsed}s`;
     $('simulationSuiteSummary').innerHTML=`<div class="metrics" style="margin-top:10px"><div class="card"><div class="hint">Scenarios</div><div class="kpi">${rows.length}</div></div><div class="card"><div class="hint">Passed</div><div class="kpi">${passed}</div></div><div class="card"><div class="hint">Failed</div><div class="kpi">${failed}</div></div><div class="card"><div class="hint">Elapsed</div><div class="kpi">${elapsed}s</div></div></div>`;
-    const report={version:'v11.11.62',passed,failed,total:rows.length,elapsedSeconds:+elapsed,results:rows};
+    const report={version:'v11.11.63',passed,failed,total:rows.length,elapsedSeconds:+elapsed,results:rows};
     $('simulationResultsJson').textContent=JSON.stringify(report,null,2);
     const failedRows=rows.filter(x=>!x.pass);
     $('simulationFailureSummary').innerHTML=failedRows.length?`<div class="status warn" style="margin-top:10px"><b>${failedRows.length} FAILED SCENARIO(S) — exact reasons</b><br>${failedRows.map(r=>`<b>${esc(r.id)} — ${esc(r.name)}</b>: ${esc(r.detail)}${(r.audit?.hard||[]).length?`<br>${r.audit.hard.map(x=>'• '+esc(x)).join('<br>')}`:''}`).join('<br><br>')}</div>`:`<div class="status ok" style="margin-top:10px"><b>ALL REGRESSION SCENARIOS PASSED.</b> No unexplained failures.</div>`;
