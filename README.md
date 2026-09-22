@@ -1,12 +1,12 @@
-# MSS League Scheduler v11.11.67
+# MSS League Scheduler v11.11.68
 
-## v11.11.67 — retain partial schedules and audit unmet guarantees
+## v11.11.68 — retain partial schedules and audit unmet guarantees
 
 This build keeps the bounded, browser-responsive guaranteed-game placer from v11.11.32, but restores the earlier league-director workflow: if one pool/date cannot place every guaranteed game, the best valid partial schedule is retained and generation continues through the remaining dates/divisions. The schedule is saved and displayed, and Audit Entire League identifies every team/date that falls below the 3-games-per-date or calculated season minimum.
 
 Generation warnings now identify the exact division/pool/date, games placed vs. planned, and the bounded-placement reason. A failure in one pool/date no longer discards the entire league schedule.
 
-## v11.11.67 — responsive guaranteed-game placement
+## v11.11.68 — responsive guaranteed-game placement
 - Replaces the recursive guaranteed-game DFS with bounded, one-game-at-a-time greedy placement.
 - Yields to the browser every couple of game placements so Chrome stays responsive.
 - Uses up to 24 short placement attempts with varied slot ordering instead of combinatorial backtracking.
@@ -14,7 +14,7 @@ Generation warnings now identify the exact division/pool/date, games placed vs. 
 - Commits a pool/date only when all guaranteed games fit, preserving the 3-games-per-playing-date contract.
 
 
-## v11.11.67 stability changes
+## v11.11.68 stability changes
 - Generate Schedule now stops after the initial schedule is placed, saved, and rendered.
 - Post-generation cleanup is no longer automatic; use the new **Optimize Schedule** button only when desired.
 - Optimization is bounded and optional so it cannot prevent a generated schedule from appearing.
@@ -23,7 +23,7 @@ Generation warnings now identify the exact division/pool/date, games placed vs. 
 - Pool override time fields no longer fall back to a hidden 6:00 PM–8:00 PM default.
 
 
-## v11.11.67 — Court Group assignment consistency
+## v11.11.68 — Court Group assignment consistency
 
 - Court Group assignment now uses the actual Division Scheduling / Pool Court Override records as the single source of truth.
 - Old `primaryDivisionId` metadata can no longer silently overwrite or contradict the current assignment.
@@ -170,7 +170,7 @@ Alternate/overflow-court approval is now a separate saved step. Approving altern
 Game placement now yields to the browser inside each date, matchup, court-search, nightly-repair, and season-repair loop. Each division/pool has a 45-second safe ceiling, cleanup is bounded/cooperative, and the full audit is deferred until the generated schedule has rendered.
 
 
-## v11.11.67 guarantee-first scheduling
+## v11.11.68 guarantee-first scheduling
 - Rebuilt from the stable v11.11.29 generation flow.
 - Matchups are planned before courts/times using round-robin rotation.
 - Minimum games per playing date and calculated season minimum are hard guarantees.
@@ -178,7 +178,7 @@ Game placement now yields to the browser inside each date, matchup, court-search
 - Court/time placement commits a playing date only if every guaranteed matchup for that date can be placed.
 - A failed placement stops safely and does not save a partial schedule.
 
-## v11.11.67
+## v11.11.68
 - Replaces the date-level greedy placer with a bounded asynchronous constraint solver.
 - Uses most-constrained-game-first search to protect the 3-games-per-playing-date guarantee.
 - Yields frequently to the browser to preserve the anti-freeze behavior from v11.11.32/33.
@@ -186,14 +186,14 @@ Game placement now yields to the browser inside each date, matchup, court-search
 - Keeps the best partial schedule only if all bounded solver tiers fail.
 
 
-## v11.11.67
+## v11.11.68
 - Plans exactly the nightly minimum game count, adding only the single parity game mathematically required for an odd team-game total.
 - Rotates the odd-pool extra game across teams and dates.
 - Prefers least-played opponents while building the matchup plan, reducing repeats before all opponents are faced.
 - Removes the whole-round overscheduling behavior from v11.11.34.
 - Director Dashboard now shows Games Scheduled, Minimum Required, and Extra Games as separate metrics.
 
-## v11.11.67
+## v11.11.68
 - Rolled the matchup planner back to the v11.11.35 guarantee-first architecture.
 - The 3-games-per-playing-date guarantee remains the first scheduling rule and is never sacrificed to improve opponent variety.
 - Opponent selection now strongly prefers unseen opponents but never rejects a legal guaranteed matchup solely because it is a repeat.
@@ -201,7 +201,7 @@ Game placement now yields to the browser inside each date, matchup, court-search
 - Immediate-rematch avoidance remains a soft placement preference rather than a hard constraint, so it cannot strand teams at 0/1/2 games.
 - Capacity, overflow, asynchronous browser-yielding, and bounded slot placement remain unchanged from the stable v11.11.35 path.
 
-## v11.11.67
+## v11.11.68
 - Preserves the v11.11.37 / v11.11.35 guarantee-first engine: same-date matchup swaps cannot change any team's nightly game count.
 - Adds an automatic bounded matchup-polish pass after generation and before save.
 - Prioritizes eliminating immediate rematches first, then reducing repeats before all pool opponents have been faced.
@@ -209,7 +209,7 @@ Game placement now yields to the browser inside each date, matchup, court-search
 - Audit details for Immediate Rematches and All Opponents Before Repeats now include Division and Pool.
 - No changes to court capacity, overflow approval, or the 3-games-per-playing-date guarantee.
 
-## v11.11.67
+## v11.11.68
 - Normal workflow is now Generate → Audit → Auto-Optimize fixable failures → Audit again.
 - Auto-Optimize uses only same-pool, same-date endpoint swaps, preserving every team's nightly and season game counts.
 - Repair priority is immediate rematches first, then opponent rotation, then shared-coach/rest improvements.
@@ -219,10 +219,10 @@ Game placement now yields to the browser inside each date, matchup, court-search
 
 ## GitHub Pages deployment
 Upload these files to the repository root and REPLACE the existing files.
-GitHub Pages will launch **index.html**, which is this v11.11.67 application.
+GitHub Pages will launch **index.html**, which is this v11.11.68 application.
 For local use, open **START_HERE.html**.
 
-## v11.11.67 — Corrected Diagnostic Build
+## v11.11.68 — Corrected Diagnostic Build
 - Scheduling Diagnostics is visibly placed on the Resources page directly above Division Scheduling.
 - 5/6 divisions are displayed first.
 - Shows saved time window and effective time window separately.
@@ -230,14 +230,14 @@ For local use, open **START_HERE.html**.
 - Also shows Court Group, common availability, team count, required games/date, odd-pool requirement, shared coaches, and team restrictions.
 - Scheduling logic is unchanged from v11.11.39. This build is diagnostic only.
 
-## v11.11.67 — Stable Scheduler + Separate Diagnostic
-- `index.html` is the known-working v11.11.42 scheduler code with only the visible version updated to v11.11.67.
+## v11.11.68 — Stable Scheduler + Separate Diagnostic
+- `index.html` is the known-working v11.11.42 scheduler code with only the visible version updated to v11.11.68.
 - No diagnostic JavaScript is embedded in the scheduler.
 - `OPPONENT_DIAGNOSTIC.html` is a completely separate standalone page.
 - To diagnose matchup sequencing: in the scheduler use Export CSV, then open OPPONENT_DIAGNOSTIC.html and load that CSV.
 - The diagnostic flags Immediate Rematches and Repeat Before Full Rotation without touching the scheduler or saved league state.
 
-## v11.11.67 — Schedule Restore / Upgrade Safety
+## v11.11.68 — Schedule Restore / Upgrade Safety
 - Adds **Export Schedule Backup** on the Schedule page. This saves the exact scheduled-game objects as JSON.
 - Adds **Restore Schedule**. It accepts either the JSON schedule backup or the scheduler's standard Export CSV.
 - CSV restore matches Division, Pool, Team A, Team B, Date, Time, Playing Surface, Playing Date #, and scores.
@@ -245,7 +245,7 @@ For local use, open **START_HERE.html**.
 - This reduces dependence on browser IndexedDB carrying generated games across extracted-version folders.
 - The separate OPPONENT_DIAGNOSTIC.html page is retained.
 
-## v11.11.67 — Chronological Immediate Rematch Fix
+## v11.11.68 — Chronological Immediate Rematch Fix
 - Generator and Audit now use the same immediate-rematch definition: a team's next chronological game cannot be against the same opponent as its previous chronological game, regardless of elapsed minutes or days.
 - Candidate placement checks both chronological neighbors, including games already placed on the current playing date.
 - Immediate rematches remain prohibited through strict, coach-relaxed, and rest-relaxed placement passes.
@@ -253,13 +253,13 @@ For local use, open **START_HERE.html**.
 - Audit detail groups the same underlying two-team rematch into one line and shows both game timestamps.
 - All game-count, capacity, odd-pool, overflow, and schedule restore logic is otherwise unchanged.
 
-## v11.11.67 — Audit Detail Expansion
+## v11.11.68 — Audit Detail Expansion
 - Shared-coach conflicts now show the coach, date/time, every simultaneous game, division/pool, matchup, court, and which team belongs to that coach.
 - "All opponents before repeats" now shows the exact repeat date/time and the opponents the team had not yet faced at that point.
 - No scheduling rules or generation priorities were changed in this build. This is intentionally a diagnostic/audit-detail release so the remaining 5th/6th-grade concentration can be researched without risking the 3-games-per-date guarantee.
 - Immediate-rematch behavior from v11.11.47 is retained.
 
-## v11.11.67 — Safe Court-Only Utilization
+## v11.11.68 — Safe Court-Only Utilization
 This release rolls back the risky v11.11.50 court optimizer and preserves the v11.11.48 scheduling/generation behavior.
 
 Changes:
@@ -277,9 +277,9 @@ Changes:
   - **Court blocks** = separate continuous runs of games on courts.
 - The old misleading “occupied times” label is removed.
 
-## v11.11.67 — Corrected Separate Court + Time Optimizer
+## v11.11.68 — Corrected Separate Court + Time Optimizer
 - Visible green **Optimize Court + Time Use** button on the Schedule page.
-- Visible **BUILD CHECK: v11.11.67** banner confirms the correct `index.html` is live.
+- Visible **BUILD CHECK: v11.11.68** banner confirms the correct `index.html` is live.
 - Utilization optimization is a separate action after schedule generation/audit.
 - The optimizer may move a game to another legal court and/or time on the same playing date.
 - It never changes the matchup, playing date, or number of games.
@@ -288,7 +288,7 @@ Changes:
 - Shared-coach conflicts remain warning-level and do not block utilization improvements.
 - Rejected moves are restored immediately; a final whole-schedule safety gate restores the original schedule if anything worsens.
 
-## v11.11.67 — Block Court + Time Utilization
+## v11.11.68 — Block Court + Time Utilization
 
 - Re-Optimize Schedule is the emphasized scheduling-quality step.
 - Optimize Court + Time Use is a separate facility-utilization step.
@@ -301,7 +301,7 @@ Changes:
 - Final whole-schedule rollback remains in place.
 - Completion output now distinguishes full-schedule metrics from single-date Court Calendar metrics and shows per-date before/after results.
 
-## v11.11.67 — Instrumented Single-Date Court + Time Optimization
+## v11.11.68 — Instrumented Single-Date Court + Time Optimization
 
 Purpose: diagnose and stabilize the v54 optimizer hang while keeping the new block-packing approach.
 
@@ -317,7 +317,7 @@ Changes:
 - Final safety gate still restores the original schedule if any protected Audit rule worsens.
 - Matchups, playing date, and game counts remain fixed.
 
-## v11.11.67 — Diagnostic Optimization Status
+## v11.11.68 — Diagnostic Optimization Status
 
 - Permanent Optimization Status panel directly beneath Schedule controls.
 - Re-Optimize Schedule immediately shows working status, then COMPLETE/FAILED with before/after Audit failure and warning counts.
@@ -327,7 +327,7 @@ Changes:
 - Both buttons always re-enable in `finally`.
 - Failure/rollback is explicitly shown rather than silently leaving a disabled button.
 
-## v11.11.67 — Global Optimization Stage Fix
+## v11.11.68 — Global Optimization Stage Fix
 
 This is a surgical execution fix. Scheduling and packing algorithms are unchanged from v11.11.56.
 
@@ -338,7 +338,7 @@ Changes:
 - The Court + Time error path no longer depends on the stage updater succeeding.
 - v11.11.56 live progress, diagnostics, before/after metrics, timestamps, rollback protection, and button restoration are retained.
 
-## v11.11.67 — Production Readiness
+## v11.11.68 — Production Readiness
 
 ### Production Preflight
 Adds a one-click preflight before official schedule generation. It checks:
@@ -373,7 +373,7 @@ The result is a clear **READY TO SCHEDULE** or **DO NOT GENERATE YET** with bloc
 Recommended production workflow:
 Import → Preflight → Backup → Generate → Re-Optimize → Audit → Optimize All Dates → Final Audit → Publish.
 
-## v11.11.67 — Simulation Test Lab
+## v11.11.68 — Simulation Test Lab
 
 Adds an isolated browser-based regression lab that runs the actual production scheduling,
 audit, re-optimization, all-dates court/time optimization, preflight, and locked-game logic
@@ -391,10 +391,10 @@ Initial suite:
 
 Open `SIMULATION_TEST_LAB.html` and select **Run Regression Suite**.
 
-## v11.11.67 — Opponent Rotation Regression Fix
+## v11.11.68 — Opponent Rotation Regression Fix
 Focused release. Guarantee-first nightly scheduling, Production Preflight, Court/Time optimization, and locked manual changes are unchanged. Re-Optimize adds a conservative same-date/same-pool opponent-coverage repair that cannot worsen protected higher-priority Audit rules and never touches locked games. The Simulation Test Lab runs production Re-Optimize before judging feasible scenarios and shows a failures-only summary.
 
-## v11.11.67 — Chronological Opponent Coverage
+## v11.11.68 — Chronological Opponent Coverage
 
 This release addresses the key finding from the v60 regression suite: the matchup planner
 could prefer first-time opponents, but the time-slot placer could reorder those games and
@@ -419,17 +419,17 @@ Priority hierarchy remains unchanged:
 5. shared-coach warnings
 6. opponent coverage before repeats
 
-## v11.11.67 — Odd-Pool Sequence Repair
+## v11.11.68 — Odd-Pool Sequence Repair
 Focused on remaining v61 failures S02 (5 teams) and S06 (9 teams). Adds an odd-pool-only chronological opponent exchange that can handle parity-game structures the prior four-distinct-team repair could not. It preserves date/time/court/game counts, locked manual changes, and all higher-priority Audit rules. The 12 v61 passing scenarios remain the regression gate.
 
-## v11.11.67 — Production Re-Optimize Hotfix
+## v11.11.68 — Production Re-Optimize Hotfix
 Fixes the v62 runtime error `teamPool is not defined`. v63 uses a local, explicit
 `poolForTeamSafe(teamId, divisionId)` lookup against the application's existing
 `state.pools[divisionId].lists` structure and safely skips teams with no pool assignment.
 No scheduling priorities or court/time optimization rules were changed.
 The Test Lab adds S15 to execute the production-style 9-team Re-Optimize path.
 
-## v11.11.67 — Production Performance & Browser-Safety Fix
+## v11.11.68 — Production Performance & Browser-Safety Fix
 
 This release addresses the full-league Re-Optimize browser freeze seen with the
 97-team / 592-game production rehearsal.
@@ -452,7 +452,7 @@ Changes:
 Production goal: bounded, responsive, deadline-safe optimization rather than an
 unbounded search for a theoretically perfect opponent sequence.
 
-## v11.11.67 — Deterministic Odd-Pool Repair + Direct Audit Confirmation
+## v11.11.68 — Deterministic Odd-Pool Repair + Direct Audit Confirmation
 
 Built from v64 to retain the proven responsive production baseline.
 
@@ -471,3 +471,22 @@ Opponent sequencing:
 - accepts a complete pool rebuild only when league-wide opponent sequencing improves
   and no protected hard Audit rule worsens;
 - bounded to about 10 seconds total and yields to Chrome.
+
+## v11.11.68 — Source Opponent-Sequence Planning
+
+Built from the stable v67 production line.
+
+Generation changes:
+- fixes opponent sequencing at the source matchup-plan stage, before court/time placement;
+- odd pools receive a deeper degree-preserving edge-swap cleanup (36 passes vs 10);
+- source planner strongly penalizes chronological immediate rematches;
+- source planner strongly penalizes repeating an opponent while unseen pool opponents remain;
+- candidate ordering considers the opponent's remaining unseen-opponent debt;
+- the 3-games-per-date guarantee remains the first priority and is never deleted to improve variety;
+- existing bounded browser-safety protections remain.
+
+Workflow feedback:
+- Audit Entire League retains v67's confirmed AUDIT RUNNING / AUDIT COMPLETE behavior.
+- Re-Optimize now ends with its own timestamped "Re-Optimize Complete — Final Audit"
+  confirmation, explicitly stating that the displayed FAIL/WARN counts are from the
+  fresh post-optimization Audit.

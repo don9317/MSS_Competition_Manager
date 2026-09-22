@@ -2004,14 +2004,32 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
       for(const b of ids)if(b!==a&&(pairCounts.get(pairKey(a,b))||0)===0)n++;
       return n;
     }
+    function lastPlannedOpponent(teamId){
+      for(let i=games.length-1;i>=0;i--){
+        const g=games[i];if(g.a===teamId)return g.b;if(g.b===teamId)return g.a;
+      }
+      for(let di=dateIndex-1;di>=0;di--){
+        const prior=byDate.get(dates[di])?.games||[];
+        for(let i=prior.length-1;i>=0;i--){
+          const g=prior[i];if(g.a===teamId)return g.b;if(g.b===teamId)return g.a;
+        }
+      }
+      return null;
+    }
     function candidatesFor(a){
+      const lastA=lastPlannedOpponent(a);
       return ids.filter(b=>b!==a&&remaining[b]>0).sort((b,c)=>{
         const pb=pairCounts.get(pairKey(a,b))||0, pc=pairCounts.get(pairKey(a,c))||0;
-        const ub=pb===0?1:0, uc=pc===0?1:0;
-        // Prefer unseen opponents first, but do not make it a hard rejection:
-        // a hard rejection caused v11.11.36 to strand whole pools.
-        if(ub!==uc)return uc-ub;
+        const unseenB=pb===0,unseenC=pc===0;
+        if(unseenB!==unseenC)return unseenB?-1:1;
+        // Source-level sequence protection: when both choices are repeats, prefer
+        // the opponent whose own rotation is more complete and never prefer an
+        // immediate chronological rematch when another candidate exists.
+        const immB=lastA===b?1:0,immC=lastA===c?1:0;
+        if(immB!==immC)return immB-immC;
         const needB=unseenCount(b),needC=unseenCount(c);
+        const bRepeatDebt=pb>0&&needB>0?1:0,cRepeatDebt=pc>0&&needC>0?1:0;
+        if(bRepeatDebt!==cRepeatDebt)return bRepeatDebt-cRepeatDebt;
         if(needB!==needC)return needC-needB;
         if(pb!==pc)return pb-pc;
         if(remaining[b]!==remaining[c])return remaining[c]-remaining[b];
@@ -2071,8 +2089,8 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
       const entry=byDate.get(date); if(!entry)continue;
       for(const g of entry.games){
         for(const [a,b] of [[g.a,g.b],[g.b,g.a]]){
-          if(lastOpp[a]===b)penalty+=8; // immediate-repeat proxy
-          if(seen[a].has(b)&&seen[a].size<ids.length-1)penalty+=5; // repeat before full rotation
+          if(lastOpp[a]===b)penalty+=1000; // exact chronological immediate-rematch priority
+          if(seen[a].has(b)&&seen[a].size<ids.length-1)penalty+=100; // opponent repeat before full rotation
           lastOpp[a]=b; seen[a].add(b);
           if(seen[a].size===ids.length-1)seen[a]=new Set(); // start a new rotation cycle
         }
@@ -2082,7 +2100,9 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
   }
 
   let bestPenalty=rotationPenalty();
-  const SWAP_PASSES=10;
+  // v11.11.68: odd pools get a deeper SOURCE-level sequence cleanup before any
+  // court/time assignment. This is cheap because it operates only on matchup edges.
+  const SWAP_PASSES=ids.length%2===1?36:10;
   for(let pass=0;pass<SWAP_PASSES&&bestPenalty>0;pass++){
     let improved=false;
     for(const date of dates){
@@ -3023,8 +3043,9 @@ async function optimizeSchedule(){
     await optimizeSchedule_v56core();
     await yieldToBrowser();
     const after=runScheduleAudit(true),af=after?.fails||0,aw=after?.warns||0;
-    setOptimizationStatus('RE-OPTIMIZE COMPLETE','Finished',`FAIL ${bf} → ${af} • WARN ${bw} → ${aw}`,100);
-    setOptimizationResults(`<div class="status ok"><b>Re-Optimize Schedule complete.</b><br>FAIL rules: ${bf} → ${af}<br>Warnings: ${bw} → ${aw}</div>`,true);
+    const reoptStamp=new Date().toLocaleTimeString();
+    setOptimizationStatus('RE-OPTIMIZE COMPLETE','Final Audit',`Completed ${reoptStamp} • FAIL ${bf} → ${af} • WARN ${bw} → ${aw}`,100);
+    setOptimizationResults(`<div class="status ${af?'warn':'ok'}"><b>Re-Optimize Complete — Final Audit</b><br>Completed: ${esc(reoptStamp)}<br>Failed hard rules: ${bf} → ${af}<br>Warnings: ${bw} → ${aw}<br><span class="hint">This is a fresh Audit of the schedule after Re-Optimize.</span></div>`,true);
   }catch(err){
     console.error('v56 Re-Optimize error',err);
     setOptimizationStatus('RE-OPTIMIZE FAILED','Stopped',err?.message||String(err),100);
