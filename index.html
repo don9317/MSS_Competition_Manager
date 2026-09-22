@@ -310,7 +310,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.69</b> — Exact odd-pool season sequence + confirmed Audit.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.69</b> — v67 Stable Baseline + rollback-safe opponent repair.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -1971,83 +1971,7 @@ function roundRobinRounds(teamIds){
 function exactGamesRequiredForDate(teamCount,minimum){
   return Math.ceil(teamCount*minimum/2);
 }
-
-function exactOpponentSequenceViolations(plan,ids,dates){
-  const byDate=plan?.byDate||plan,perTeam=Object.fromEntries(ids.map(id=>[id,[]]));
-  for(const date of dates)for(const g of (byDate.get(date)?.games||[])){
-    perTeam[g.a]?.push(g.b);perTeam[g.b]?.push(g.a);
-  }
-  let immediate=0,coverage=0;
-  for(const id of ids){
-    const seen=new Set();let prev=null;
-    for(const opp of perTeam[id]){
-      if(prev===opp)immediate++;
-      if(seen.has(opp)&&ids.some(x=>x!==id&&!seen.has(x)))coverage++;
-      seen.add(opp);prev=opp;
-    }
-  }
-  return {immediate,coverage,total:immediate+coverage};
-}
-function oddPoolExactSeasonPlan(ids,dates,minimum,maxPerDate){
-  if(ids.length<3||ids.length%2===0)return null;
-  const gamesPerDate=Math.ceil(ids.length*minimum/2),extras=gamesPerDate*2-ids.length*minimum;
-  if(extras<0||extras>ids.length*(maxPerDate-minimum))return null;
-  const idx=new Map(ids.map((id,i)=>[id,i])),key=(a,b)=>idx.get(a)<idx.get(b)?`${a}|${b}`:`${b}|${a}`;
-  const start=performance.now(),MAX_MS=6500,MAX_NODES=180000;
-
-  // Try each deterministic rotation of which team receives the parity-required extra.
-  for(let rotation=0;rotation<ids.length;rotation++){
-    const pairCounts=new Map(),seen=new Map(ids.map(id=>[id,new Set()])),last=new Map(),byDate=new Map();
-    const counts=Object.fromEntries(ids.map(id=>[id,0]));let nodes=0,failed=false;
-
-    for(let di=0;di<dates.length;di++){
-      const targets=Object.fromEntries(ids.map(id=>[id,minimum]));
-      for(let e=0;e<extras;e++)targets[ids[(rotation+di+e)%ids.length]]++;
-      const remaining={...targets},games=[];
-      function rec(){
-        nodes++;if(nodes>MAX_NODES||performance.now()-start>MAX_MS)return false;
-        if(Object.values(remaining).every(v=>v===0))return true;
-        const active=ids.filter(id=>remaining[id]>0).sort((a,b)=>remaining[b]-remaining[a]||idx.get(a)-idx.get(b));
-        const a=active[0];if(!a)return false;
-        const cand=ids.filter(b=>b!==a&&remaining[b]>0).map(b=>{
-          const pc=pairCounts.get(key(a,b))||0;
-          const premature=pc>0&&(seen.get(a).size<ids.length-1||seen.get(b).size<ids.length-1);
-          const imm=last.get(a)===b||last.get(b)===a;
-          return {b,pc,premature,imm};
-        }).sort((x,y)=>(x.imm-y.imm)||(x.premature-y.premature)||(x.pc-y.pc)||idx.get(x.b)-idx.get(y.b));
-        for(const c of cand){
-          const b=c.b;
-          // These are hard constraints, not preferences.
-          if(c.imm||c.premature)continue;
-          remaining[a]--;remaining[b]--;
-          const k=key(a,b),oldPc=pairCounts.get(k)||0,oldLa=last.get(a),oldLb=last.get(b);
-          const hadA=seen.get(a).has(b),hadB=seen.get(b).has(a);
-          pairCounts.set(k,oldPc+1);seen.get(a).add(b);seen.get(b).add(a);last.set(a,b);last.set(b,a);games.push({a,b});
-          if(rec())return true;
-          games.pop();remaining[a]++;remaining[b]++;
-          if(oldPc)pairCounts.set(k,oldPc);else pairCounts.delete(k);
-          if(!hadA)seen.get(a).delete(b);if(!hadB)seen.get(b).delete(a);
-          if(oldLa===undefined)last.delete(a);else last.set(a,oldLa);
-          if(oldLb===undefined)last.delete(b);else last.set(b,oldLb);
-        }
-        return false;
-      }
-      if(!rec()){failed=true;break}
-      games.forEach(g=>{counts[g.a]++;counts[g.b]++});
-      byDate.set(dates[di],{games:[...games],targets:{...targets},targetGames:gamesPerDate});
-    }
-    if(!failed){
-      const out={byDate,counts,roundsPerDate:gamesPerDate};
-      if(exactOpponentSequenceViolations(out,ids,dates).total===0)return out;
-    }
-    if(performance.now()-start>MAX_MS)break;
-  }
-  return null;
-}
-
 function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
-  const exactOdd=oddPoolExactSeasonPlan(ids,dates,minimum,maxPerDate);
-  if(exactOdd)return exactOdd;
   if(ids.length<2)return {byDate:new Map(),counts:{},roundsPerDate:0};
   const byDate=new Map(),counts=Object.fromEntries(ids.map(id=>[id,0]));
   const pairCounts=new Map();
@@ -2507,10 +2431,6 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     let plan;
     try{plan=buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate)}
     catch(err){hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}: ${err.message||err}`);continue}
-    const sourceSequence=exactOpponentSequenceViolations(plan,ids,dates);
-    if(ids.length%2===1&&sourceSequence.total){
-      generationIssues.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}: exact sequence constraints could not be satisfied within the bounded source search; guarantee-first fallback used (${sourceSequence.immediate} immediate / ${sourceSequence.coverage} premature repeat issue(s) before placement).`);
-    }
 
     const placementStarted=performance.now();let placementChecks=0,lastPlacementYield=performance.now();
     const placementYield=async(detail,force=false)=>{
@@ -2919,10 +2839,7 @@ async function optimizeSchedule_v56core(){
   setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…','Core repair complete • starting bounded opponent cleanup',62);
   await yieldToBrowser();
   const oddPoolRepair=await oddPoolSequenceRepairBounded();
-  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Odd-pool cleanup complete • ${oddPoolRepair.accepted} accepted`,70);
-  await yieldToBrowser();
-  const deterministicRepair=await deterministicOddPoolRepair();
-  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Deterministic pool repair complete • ${deterministicRepair.accepted}/${deterministicRepair.examined} improved`,84);
+  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Safe opponent cleanup complete • ${oddPoolRepair.accepted} accepted`,78);
   await yieldToBrowser();
   const opponentRepair=await opponentCoverageRepairBounded();
   persist();
@@ -2933,8 +2850,8 @@ async function optimizeSchedule_v56core(){
   $('genSummary').innerHTML=
     `<div class="status ${afterAudit?.fails?'warn':'ok'}"><b>Re-optimization complete.</b> ${esc(txt)}`+
     `<br><b>Final Audit:</b> ${esc(afterAudit?.overall||'PASS')}${afterAudit?.fails?` • ${afterAudit.fails} failed rule(s)`:''}${afterAudit?.warns?` • ${afterAudit.warns} warning(s)`:''}.`+
-    `<br><b>Opponent coverage:</b> ${oddPoolRepair.accepted} local + ${deterministicRepair.accepted} deterministic pool rebuild + ${opponentRepair.accepted} general safe repair(s) accepted • ${opponentRepair.opp} remaining opponent-rotation issue(s).`+
-    `<br><b>Deterministic pool solver:</b> ${deterministicRepair.examined}/${deterministicRepair.targets} affected odd pool(s) examined • ${(deterministicRepair.elapsed/1000).toFixed(1)} sec.`+
+    `<br><b>Opponent coverage:</b> ${oddPoolRepair.accepted} odd-pool + ${opponentRepair.accepted} general rollback-safe repair(s) accepted • ${opponentRepair.opp} remaining opponent-rotation issue(s).`+
+    `<br><b>Safety gate:</b> Dates, times, courts and game counts are preserved; any candidate that worsens a protected hard Audit rule is rejected.`+
     `<br><b>Performance guard:</b> ${oddPoolRepair.checks+opponentRepair.checks} candidate checks${oddPoolRepair.timedOut||opponentRepair.timedOut?' • bounded cleanup limit reached safely':''}.`+`<br><span class="hint">Only same-pool, same-date swaps were used, so each team's nightly game count was preserved. 🔒 Locked manual director changes were not altered.</span></div>`;
 
   setGenerationStage('Re-optimization complete');
@@ -3105,7 +3022,7 @@ async function optimizeSchedule(){
     const after=runScheduleAudit(true),af=after?.fails||0,aw=after?.warns||0;
     const reoptStamp=new Date().toLocaleTimeString();
     setOptimizationStatus('RE-OPTIMIZE COMPLETE','Final Audit',`Completed ${reoptStamp} • FAIL ${bf} → ${af} • WARN ${bw} → ${aw}`,100);
-    setOptimizationResults(`<div class="status ${af?'warn':'ok'}"><b>Re-Optimize Complete — Final Audit</b><br>Completed: ${esc(reoptStamp)}<br>Failed hard rules: ${bf} → ${af}<br>Warnings: ${bw} → ${aw}<br><span class="hint">This is a fresh Audit of the schedule after Re-Optimize.</span></div>`,true);
+    setOptimizationResults(`<div class="status ${af?'warn':'ok'}"><b>Re-Optimize Complete — Final Audit</b><br>Completed: ${esc(reoptStamp)}<br>Failed hard rules: ${bf} → ${af}<br>Warnings: ${bw} → ${aw}<br><span class="hint">Fresh post-optimization Audit. Protected hard rules cannot be worsened by accepted opponent repairs.</span></div>`,true);
   }catch(err){
     console.error('v56 Re-Optimize error',err);
     setOptimizationStatus('RE-OPTIMIZE FAILED','Stopped',err?.message||String(err),100);

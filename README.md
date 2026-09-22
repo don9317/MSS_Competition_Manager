@@ -472,15 +472,11 @@ Opponent sequencing:
   and no protected hard Audit rule worsens;
 - bounded to about 10 seconds total and yields to Chrome.
 
-## v11.11.69 — Exact Odd-Pool Season Sequence
-
-Built from v67; v68 source weighting is not included.
-
-- Odd pools first attempt a bounded season-level matchup construction.
-- Immediate chronological rematches are hard-rejected during construction.
-- Repeats before either team has completed its first opponent rotation are hard-rejected.
-- Exact nightly minimum/maximum degree targets are preserved, including rotating parity extras.
-- A candidate plan is validated before court/time placement and is used only with zero source-sequence violations.
-- If the exact bounded search cannot solve a pool, the proven v67 guarantee-first planner is used and a generation warning explains the fallback.
-- Audit confirmation from v67 remains.
-- Re-Optimize ends with a timestamped fresh Final Audit confirmation.
+## v11.11.69 SAFE — v67 Baseline + Hard Regression Gate
+This replaces the earlier experimental v69.
+- Built from v67; Generate Schedule retains v67 guarantee-first behavior.
+- No v68 source weighting and no earlier v69 exact pre-placement solver.
+- Re-Optimize opponent repairs preserve date/time/court/game-count structure.
+- Candidates are rejected if protected hard Audit rules worsen.
+- Minimum games per playing date and calculated season minimum remain protected.
+- Direct Audit confirmation remains; Re-Optimize ends with a timestamped Final Audit.
