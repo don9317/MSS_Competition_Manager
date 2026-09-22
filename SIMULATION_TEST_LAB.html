@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS Simulation Test Lab — MSS League Scheduler v11.11.61</title>
+<title>MSS League Scheduler v11.11.62</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -41,11 +41,9 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 
 </style>
 </head>
-<body><style>body>header,body>nav,body>main,body>.topbar,body>.tabs,body>.subtabs{display:none!important} #simulationLabPanel{display:block!important;max-width:1500px;margin:14px auto!important}</style>
-
-<div id="simulationLabPanel" class="card" style="margin:14px;padding:16px;border:2px solid #1f2937">
-  <h2 style="margin-top:0">MSS Simulation Test Lab — v11.11.61</h2>
-  <p class="hint">Isolated test mode. This page does <b>not</b> save simulation data to the league IndexedDB.</p>
+<body><div id="simulationLabPanel" class="card" style="margin:14px;padding:16px;border:2px solid #1f2937">
+  <h2 style="margin-top:0">MSS Simulation Test Lab — v11.11.62</h2>
+  <p class="hint">Isolated test mode. This page does <b>not</b> save simulation data to the league IndexedDB. v62 target: fix S02/S06 while preserving all 12 v61 passes.</p>
   <div class="toolbar">
     <button class="primary" id="runSimulationSuiteBtn" type="button" onclick="runSimulationSuite()">Run Regression Suite</button>
     <button type="button" onclick="location.href='index.html'">Return to League Scheduler</button>
@@ -61,7 +59,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.61</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.62</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -217,7 +215,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <section id="admin-settings" class="panel">
   <div class="card">
     <h2>Resources & Scheduling Setup</h2>
-    <div class="status info" style="margin:8px 0"><b>v11.11.61:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
+    <div class="status info" style="margin:8px 0"><b>v11.11.62:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
     <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
   </div>
 
@@ -305,7 +303,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>  </div>
 
   <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
-    <h2>🔎 Scheduling Diagnostics — v11.11.61</h2>
+    <h2>🔎 Scheduling Diagnostics — v11.11.62</h2>
     <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
     <div id="schedulingDiagnosticsContent"></div>
   </div>
@@ -327,7 +325,401 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.61</b> — Production Readiness + isolated Simulation Test Lab.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.62</b> — Production Readiness + isolated Simulation Test Lab.</div>
+<div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
+  <div class="card">
+    <div class="toolbar">
+      <button class="secondary" id="productionPreflightBtn" type="button" onclick="runProductionPreflight()">Production Preflight</button>
+      <button class="primary" id="generateBtn">Generate Schedule</button>
+      <button id="optimizeBtn" class="primary">Re-Optimize Schedule</button>
+      <button id="courtOptimizeBtn" type="button" onclick="optimizeCourtUseSafely()">Optimize Selected Date</button>
+      <button id="courtOptimizeAllBtn" type="button" onclick="optimizeAllPlayingDates()">Optimize All Playing Dates</button>
+      <button class="secondary" id="auditScopeBtn" type="button" onclick="safeRunScheduleAudit(false)">Audit Selected Scope</button>
+      <button class="secondary" id="auditAllBtn" type="button" onclick="safeRunScheduleAudit(true)">Audit Entire League</button>
+      <button class="secondary" id="exportScheduleBtn">Export CSV</button>
+      <button class="secondary" id="exportScheduleBackupBtn">Export Schedule Backup</button>
+      <label class="secondary" style="display:inline-flex;align-items:center;cursor:pointer">Restore Schedule
+        <input id="scheduleRestoreFile" type="file" accept=".csv,.json,text/csv,application/json" class="hidden">
+      </label>
+      <button class="secondary" id="exportDivisionSeasonBtn">Export Division Season</button>
+      <button class="secondary" id="exportDivisionWeekBtn">Export Division Week</button>
+      <button class="secondary" id="printBtn">Print</button>
+      <label style="margin:0;min-width:260px">Schedule / Display Scope<select id="scheduleFilter"></select></label>
+    </div>
+    <div class="hint" style="margin-bottom:4px"><b>Version upgrade safety:</b> Export Schedule Backup saves the exact game objects. Restore Schedule accepts either that JSON backup or the standard Export CSV.</div>
+    <div class="status info" style="margin-bottom:8px"><b>Production workflow:</b> 1) <b>Import registrations</b> → 2) <b>Production Preflight</b> → 3) <b>Export Schedule Backup</b> → 4) <b>Generate Schedule</b> → 5) <b>Re-Optimize Schedule</b> → 6) <b>Audit Entire League</b> → 7) <b>Optimize All Playing Dates</b> → 8) <b>Final Audit</b> → 9) <b>Publish</b>.<br><span class="hint">Manual director changes are locked by default. Re-Optimize and Court/Time optimization work around those locked games instead of undoing them.</span></div>
+    <div class="hint" style="margin-bottom:8px">For multi-pool divisions, choose <b>Entire Division</b> to schedule all pools together. Pools may use different Court Groups through Pool Court Overrides. Use <b>Export Division Season</b> for the full division schedule or <b>Export Division Week</b> for one playing date. Schedule generation follows the League Scheduling Rules configured under Resources.</div><div id="productionPreflightSummary" class="card" style="margin:10px 0;padding:12px;border:1px solid #d5dde8;background:#fbfcfe">
+  <b>Production Preflight</b>
+  <div class="hint">Not run yet. Use this after importing the real registration file and before generating the official schedule.</div>
+</div>
+<div id="optimizationStatusPanel" class="card" style="margin:10px 0;padding:12px;border:1px solid #b8c6d9;background:#f8fbff">
+  <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap">
+    <div><b>Optimization Status</b><div id="optimizationStatusText" class="hint">No optimization run yet.</div></div>
+    <div class="hint" id="optimizationLastCompleted">Last completed: —</div>
+  </div>
+  <div id="optimizationProgressWrap" style="margin-top:8px;display:none">
+    <div style="height:10px;background:#e8eef6;border-radius:6px;overflow:hidden"><div id="optimizationProgressBar" style="height:100%;width:0%;background:#18345f;transition:width .15s ease"></div></div>
+    <div id="optimizationProgressDetail" class="hint" style="margin-top:5px"></div>
+  </div>
+  <div id="optimizationResults" style="margin-top:8px"></div>
+</div>
+<div id="genSummary"></div><div id="scheduleAudit" style="margin-top:12px"></div>
+    <div class="table-wrap"><table id="scheduleTable"></table></div>
+  </div>
+</section>
+
+<section id="admin-calendar" class="panel">
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:start">
+      <div><h2 style="margin-bottom:4px">Court Calendar</h2><div class="hint">Visual court/time grid for scheduled games. Red cells indicate more than one game assigned to the same court and time.</div></div>
+      <div class="toolbar" style="margin:0">
+        <label style="margin:0;min-width:210px">Playing Date<select id="calendarDate"></select></label>
+        <label style="margin:0;min-width:260px">Division / Pool<select id="calendarScope"></select></label>
+        <button class="secondary" id="calendarPrintBtn" type="button">Print</button>
+      </div>
+    </div>
+    <div id="calendarSummary" class="calendar-summary"></div>
+    <div class="table-wrap"><table id="calendarTable" class="calendar-table"></table></div>
+  </div>
+</section>
+
+<section id="admin-management" class="panel">
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:start">
+      <div><h2 style="margin-bottom:4px">Schedule Management</h2><div id="managementScopeTitle" class="hint">Choose a division to review and manage its games.</div></div>
+      <div class="toolbar" style="margin:0"><button class="primary" id="publishChangesBtn">Publish Schedule Changes</button><button class="secondary" id="restorePublishedBtn">Restore Published Schedule</button></div>
+    </div>
+    <div class="grid" style="margin-top:12px">
+      <div class="field"><label>Division / Pool</label><select id="managementDivision"></select></div>
+      <div class="field"><label>Playing Date</label><select id="managementWeek"><option value="ALL">All playing dates</option></select></div>
+      <div class="field"><label>Status</label><select id="managementStatus"><option value="ALL">All statuses</option><option>Scheduled</option><option>Rescheduled</option><option>Postponed</option><option>Cancelled</option><option>Completed</option><option value="NEEDS_SCORE">Needs score</option><option value="UNPUBLISHED">Unpublished changes</option></select></div>
+      <div class="field"><label>Court</label><select id="managementCourt"><option value="ALL">All courts</option></select></div>
+    </div>
+    <div id="publishStatus"></div>
+    <div class="table-wrap"><table id="managementTable"></table></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h2>Schedule Change History</h2>
+    <div id="changeHistory" class="change-log"></div>
+  </div>
+</section>
+
+<section id="admin-results" class="panel"><div class="card"><div class="toolbar"><button class="secondary" id="sampleScoresBtn">Create Sample Scores</button><button class="danger" id="clearScoresBtn">Clear All Scores</button></div><h2>Score Entry</h2><p class="hint">Enter final scores. Pool standings update automatically.</p><div class="table-wrap"><table id="resultsTable"></table></div></div></section>
+<section id="admin-standings" class="panel"><div id="standingsAdmin"></div></section>
+
+<section id="coach-view" class="panel">
+  <div class="card"><div class="public-title">Coach View</div><div class="row"><div class="field"><label>Coach</label><select id="coachSelect"></select></div><div class="field"><label>Team</label><select id="coachTeamSelect"></select></div></div></div>
+  <div class="card" style="margin-top:14px"><div id="coachSchedule"></div></div>
+  <div class="card" style="margin-top:14px"><div id="coachStandings"></div></div>
+</section>
+
+<section id="public-view" class="panel">
+  <div class="card"><div id="publicHeader"></div><div class="toolbar"><select id="publicDivision"></select><button class="secondary" id="publicPrintBtn">Print</button></div></div>
+  <div class="card" style="margin-top:14px"><h2>Standings</h2><p class="hint">Select a team to see its complete schedule, court assignments, results, and record.</p><div id="publicStandings"></div></div>
+  <div class="card" style="margin-top:14px"><h2>League Schedule & Results</h2><div id="publicSchedule"></div></div>
+</section>
+</main>
+<div id="teamModal" class="hidden" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1000;padding:24px;overflow:auto">
+  <div class="card" style="max-width:760px;margin:40px auto">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div><h2 id="teamModalTitle" style="margin:0"></h2><div id="teamModalSubtitle" class="hint"></div></div>
+      <button type="button" class="secondary" id="closeTeamModal">Close</button>
+    </div>
+    <div id="teamModalBody" style="margin-top:14px"></div>
+  </div>
+</div>
+
+<div id="editGameModal" class="hidden" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1100;padding:24px;overflow:auto">
+  <div class="card" style="max-width:760px;margin:30px auto">
+    <div class="row" style="justify-content:space-between"><h2 id="editGameTitle" style="margin:0">Edit Scheduled Game</h2><button class="secondary" id="closeEditGame">Close</button></div>
+    <div id="editModeNotice"></div>
+    <input type="hidden" id="editGameId"><input type="hidden" id="editMode">
+    <div class="grid" style="margin-top:12px">
+      <div class="field"><label>Date</label><input type="date" id="editDate"></div>
+      <div class="field"><label>Time</label><input type="time" id="editTime"></div>
+      <div class="field"><label>Court</label><select id="editCourt"></select></div>
+      <div class="field"><label>Status</label><select id="editStatus"><option>Scheduled</option><option>Rescheduled</option><option>Postponed</option><option>Cancelled</option><option>Completed</option></select></div>
+      <div class="field"><label>Team A</label><select id="editTeamA"></select></div>
+      <div class="field"><label>Team B</label><select id="editTeamB"></select></div>
+    </div>
+    <label>Reason / Notes</label><textarea id="editReason" rows="3" placeholder="Weather, coach request, facility conflict, etc."></textarea>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:10px"><input type="checkbox" id="editLockManual" checked style="width:auto"><b>Lock this director change</b></label>
+    <div class="hint">Recommended. Locked games are preserved by Re-Optimize Schedule and Court/Time optimization. Uncheck only if you want MSS to be allowed to move this game again.</div>
+    <div id="editWarnings"></div>
+    <div class="toolbar"><button class="primary" id="saveGameChange">Save Change</button><button class="danger" id="cancelGameBtn">Cancel Game</button></div>
+  </div>
+</div>
+
+<style>body>header,body>nav,body>main,body>.topbar,body>.tabs,body>.subtabs{display:none!important} #simulationLabPanel{display:block!important;max-width:1500px;margin:14px auto!important}</style>
+<header>
+  <img src="logo.png" alt="My Sport Space logo">
+  <div><h1>MSS League Scheduler v11.11.62</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
+</header>
+<div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
+<div class="viewbar">
+  <button data-view="admin">Admin View</button>
+  <button data-view="coach">Coach Tools</button>
+  <button data-view="public">League Portal</button>
+  <button id="resetStorageBtn" class="danger" type="button" title="Clear this version's saved league data and reload a clean league">Reset Saved League</button>
+</div>
+<div class="tabs admin-tabs">
+  <button data-tab="dashboard">Director Dashboard</button>
+  <button data-tab="registrations">Registrations</button>
+  <button data-tab="divisions">Division Setup</button>
+  <button data-tab="board">Division & Pool Board</button>
+  <button data-tab="settings">Resources</button>
+  <button data-tab="schedule">Schedule</button>
+  <button data-tab="calendar">Court Calendar</button>
+  <button data-tab="management">Schedule Management</button>
+  <button data-tab="results">Results</button>
+  <button data-tab="standings">Standings</button>
+</div>
+
+<main>
+<section id="admin-dashboard" class="panel">
+  <div class="card">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div><h2 style="margin-bottom:4px">Director Dashboard</h2><div class="hint">League setup, scheduling, publishing, and results at a glance.</div></div>
+      <div id="dashboardLeagueStatus"></div>
+    </div>
+  </div>
+  <div id="dashboardMetrics" class="grid" style="margin-top:14px"></div>
+  <div class="grid" style="margin-top:14px">
+    <div class="card">
+      <h2>Setup Progress</h2>
+      <div id="dashboardSetup"></div>
+    </div>
+    <div class="card">
+      <h2>Director Actions</h2>
+      <div class="toolbar">
+        <button class="primary" data-dashboard-tab="registrations">Manage Registrations</button>
+        <button class="secondary" data-dashboard-tab="divisions">Set Up Divisions</button>
+        <button class="secondary" data-dashboard-tab="board">Review Divisions & Pools</button>
+        <button class="secondary" data-dashboard-tab="settings">Configure Resources</button>
+        <button class="secondary" data-dashboard-tab="schedule">Review Schedule</button>
+        <button class="secondary" data-dashboard-tab="management">Manage Schedule Changes</button>
+        <button class="secondary" data-dashboard-tab="results">Enter Results</button>
+        <button class="secondary" data-dashboard-tab="standings">View Standings</button>
+      </div>
+    </div>
+  </div>
+  <div class="grid" style="margin-top:14px">
+    <div class="card"><h2>League Setup Wizard</h2><div class="hint" style="margin-bottom:8px">The next unfinished step is highlighted automatically.</div><div id="dashboardWizard"></div></div>
+    <div class="card"><h2>League Validation Center</h2><div class="hint" style="margin-bottom:8px">Resolve red items before generating the full league schedule.</div><div id="dashboardValidation"></div></div>
+  </div>
+  <div class="grid" style="margin-top:14px">
+    <div class="card"><h2>League Scheduling Rules</h2><div id="dashboardRules"></div><button class="secondary" data-dashboard-tab="settings" style="margin-top:8px">Edit League Rules</button></div>
+    <div class="card"><h2>Recent Activity</h2><div id="dashboardActivity"></div></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <div><h2 style="margin-bottom:4px">Division Status</h2><div class="hint">See which divisions are ready, scheduled, underway, complete, or still need attention.</div></div>
+      <button class="secondary" data-dashboard-tab="management">Open Schedule Management</button>
+    </div>
+    <div class="table-wrap" style="margin-top:10px;max-height:none"><table id="dashboardDivisionStatus"></table></div>
+  </div>
+  <div class="grid" style="margin-top:14px">
+    <div class="card"><h2>League Progress</h2><div id="dashboardScheduleStatus"></div></div>
+    <div class="card"><h2>Publishing Status</h2><div id="dashboardPublishStatus"></div></div>
+  </div>
+</section>
+
+<section id="admin-registrations" class="panel">
+  <div class="grid">
+    <div class="card">
+      <h2>Import Registered Teams</h2>
+      <p class="hint"><b>Supported imports:</b> MSS registration exports are recognized automatically (playerOrTeamName + registration division name), as well as standard Team Name / Coach / Gender / Grade / Skill CSV files. If the MSS export already contains registration divisions, those divisions are created automatically and every team is placed into its registered division.</p>
+      <input id="csvFile" type="file" accept=".csv">
+      <label>Import Behavior</label>
+      <select id="importMode">
+        <option value="replace" selected>Replace all existing registrations</option>
+        <option value="append">Append to existing registrations</option>
+      </select>
+      <button class="primary" id="importCsvBtn">Import CSV</button>
+      <button class="secondary" id="loadSampleBtn">Load Clean 3v3 Sample Teams</button>
+      <button class="success" id="loadDemoBtn">Load Complete Demo League</button>
+      <button class="danger" id="clearRegistrationsBtn">Clear Registrations & Schedule</button>
+      <div id="importStatus"></div><div id="duplicateNameStatus"></div>
+    </div>
+    <div class="card">
+      <h2>Add Team Manually</h2>
+      <div class="row">
+        <div class="field"><label>Team Name</label><input id="teamName" placeholder="Team name"></div>
+        <div class="field"><label>Coach</label><input id="coachName" placeholder="Coach name"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>Gender</label><select id="gender"><option>Girls</option><option>Boys</option><option>Co-Ed</option></select></div>
+        <div class="field"><label>Grade Group</label><select id="grade"><option>3rd/4th Grade</option><option>5th/6th Grade</option><option>7th/8th Grade</option><option>HS JV</option><option>HS Varsity</option></select></div>
+        <div class="field"><label>Level</label><select id="skill"><option>Open</option><option>Rec</option></select></div>
+      </div>
+      <label>Schedule Request</label><select id="request"><option value="">None</option><option value="no_sat_am">No Saturday morning</option><option value="no_sun">No Sunday</option><option value="no_am">No morning games</option><option value="no_pm">No afternoon/evening games</option></select>
+      <button class="primary" id="addTeamBtn">Add Team</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h2>Registration List</h2>
+    <input id="teamSearch" placeholder="Search team, coach, or division">
+    <div id="teamsList"></div>
+  </div>
+</section>
+
+<section id="admin-divisions" class="panel">
+  <div class="card">
+    <h2>Division Setup</h2>
+    <div class="section-note"><b>Two ways to work:</b> create the divisions you want before importing teams, or import teams first and let MSS create grade-based divisions. Before approval, you can rename, combine, or reassign teams.</div>
+    <div class="toolbar">
+      <button class="primary" id="detectDivisionsBtn">Build Divisions from Registrations</button>
+      <button class="secondary" id="autoAssignDivisionsBtn">Auto-Assign Teams</button>
+    </div>
+  </div>
+  <div class="grid" style="margin-top:14px">
+    <div class="card">
+      <h2>Create Division</h2>
+      <label>Division Name</label><input id="newDivisionName" placeholder="Example: 3rd/4th Girls or High School">
+      <div class="row"><div class="field"><label>Gender (matching hint)</label><select id="newDivisionGender"><option value="">Any</option><option>Girls</option><option>Boys</option><option>Co-Ed</option></select></div><div class="field"><label>Level (matching hint)</label><select id="newDivisionSkill"><option value="">Any</option><option>Open</option><option>Rec</option></select></div></div>
+      <label>Grades / Labels to Match <span class="hint">(comma separated)</span></label><input id="newDivisionGrades" placeholder="Example: 3rd, 4th or HS JV, HS Varsity">
+      <button class="primary" id="addDivisionBtn">Add Division</button>
+    </div>
+    <div class="card"><h2>How Auto-Assignment Works</h2><p class="hint">MSS compares each registration's grade, gender and level with your division matching hints. A confident match is assigned automatically. Anything ambiguous remains clearly marked Unassigned for the Director.</p><div id="divisionSetupStatus"></div></div>
+  </div>
+  <div class="card" style="margin-top:14px"><h2>Divisions</h2><div id="divisionList"></div></div>
+  <div class="card" style="margin-top:14px"><h2>Team-to-Division Assignments</h2><div class="hint">Use the dropdown to move a team up, down, or into a combined division before approving the Division & Pool Board.</div><div class="table-wrap"><table id="teamDivisionTable"></table></div></div>
+</section>
+
+<section id="admin-board" class="panel">
+  <div class="card">
+    <div class="approval-banner">
+      <div>
+        <h2 style="margin-bottom:4px">Division & Pool Big Board</h2>
+        <div class="hint">Divisions come from Division Setup. Oversized divisions can be split into pools here. Drag teams between pools, or use the Move control.</div>
+      </div>
+      <div class="toolbar" style="margin:0">
+        <button class="secondary" id="rebalanceBtn">Rebalance Pools</button>
+        <button class="success" id="approveBtn">Approve All Ready Divisions</button>
+        <button class="danger hidden" id="unlockBtn">Unlock Board</button>
+      </div>
+    </div>
+    <div id="boardStatus"></div>
+    <div class="board-nav"><button id="boardPrevBtn" class="secondary" type="button" title="Previous division">◀ Previous</button><span class="hint">Use arrows or scroll horizontally to move between divisions. Expand only the division you are working on.</span><button id="boardNextBtn" class="secondary" type="button" title="Next division">Next ▶</button></div>
+    <div class="board-wrap"><div id="bigBoard" class="board"></div></div>
+  </div>
+</section>
+
+<section id="admin-settings" class="panel">
+  <div class="card">
+    <h2>Resources & Scheduling Setup</h2>
+    <div class="status info" style="margin:8px 0"><b>v11.11.62:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
+    <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
+  </div>
+
+  <div class="grid" style="margin-top:14px">
+    <div class="card">
+      <h2>League Setup</h2>
+      <div class="row">
+        <div class="field"><label>League Name</label><input id="leagueName"></div>
+        <div class="field"><label>Game Length</label><select id="gameLength"><option value="10">10 minutes</option><option value="12">12 minutes</option><option value="15">15 minutes</option><option value="20">20 minutes</option><option value="25">25 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="75">75 minutes</option></select><span class="hint">Used to calculate every court/time slot and schedule-capacity check.</span></div>
+        <div class="field"><label>Calculated Season Minimum / Team</label><input id="seasonGuarantee" type="number" min="1" max="50" value="12" readonly></div>
+        <div class="field"><label>Minimum Games / Team / Playing Date</label><input id="gamesPerWeek" type="number" min="1" max="8" value="3"></div>
+        <div class="field"><label>Maximum Games / Team / Playing Date</label><input id="maxGamesPerDate" type="number" min="1" max="8" value="4"></div>
+        <div class="field"><label>Calculated Playing Dates</label><input id="seasonGameTotal" type="text" readonly></div>
+      </div>
+      <div class="section-note"><b>Scheduling priority:</b> the minimum games per playing date is a hard rule. The calculated season minimum equals Minimum Games × Playing Dates. Teams may receive additional games on a date up to the configured maximum.</div>
+      <div class="row">
+        <div class="field"><label>League Start Date</label><input id="seasonStart" type="date"></div>
+        <div class="field"><label>League End Date</label><input id="seasonEnd" type="date"></div>
+      </div>
+      <label>League Playing Days</label>
+      <details class="day-picker" id="leagueDaysPicker"><summary id="leagueDaysSummary">Select playing days</summary>
+        <div class="check-grid day-options">
+          <label><input class="dow" type="checkbox" value="1"> Monday</label>
+          <label><input class="dow" type="checkbox" value="2"> Tuesday</label>
+          <label><input class="dow" type="checkbox" value="3"> Wednesday</label>
+          <label><input class="dow" type="checkbox" value="4"> Thursday</label>
+          <label><input class="dow" type="checkbox" value="5"> Friday</label>
+          <label><input class="dow" type="checkbox" value="6"> Saturday</label>
+          <label><input class="dow" type="checkbox" value="0" checked> Sunday</label>
+        </div>
+      </details>
+      <div class="hint">Choose any combination of league days. The scheduler will use only these days between the start and end dates.</div>
+      <label>Exception / Off Date</label>
+      <div class="row">
+        <div class="field"><input id="exceptionDate" type="date"></div>
+        <div class="field"><input id="exceptionReason" placeholder="Optional reason — holiday, facility event, etc."></div>
+        <button class="secondary" id="addExceptionBtn">Add Off Date</button>
+      </div>
+      <div id="exceptions"></div>
+    </div>
+
+    <div class="card">
+      <h2>Playing Surfaces</h2>
+      <p class="hint">Add each physical court once. If a court is available in more than one time block, add the same court name again with the additional hours; MSS will combine those windows automatically and keep the court list sorted.</p>
+      <div class="row">
+        <div class="field"><label>Surface Name</label><input id="courtName" placeholder="Court 1 West"></div>
+        <div class="field"><label>Available From</label><input id="courtStart" type="time" value="17:00"></div>
+        <div class="field"><label>Available Until</label><input id="courtEnd" type="time" value="22:00"></div>
+      </div>
+      <button class="primary" id="addCourtBtn">Add Playing Surface</button>
+      <div id="courtsList"></div>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:14px">
+    <div class="card">
+      <h2>Court Groups</h2>
+      <p class="hint">Court groups are reusable sets of playing surfaces. Multiple divisions can use the same group at different times. A group named “All Courts” automatically includes every current playing surface.</p>
+      <label>Court Group Name</label><input id="courtGroupName" placeholder="Elementary Courts">
+      <label>Assign to Division</label><select id="courtGroupDivision"><option value="">Select division</option></select>
+      <p class="hint" style="margin-top:4px">When divisions exist, choose the division that will use this court group. The assignment is saved automatically into Division Scheduling. The same court group can still be assigned to additional divisions later.</p>
+      <label>Playing Surfaces in This Group</label>
+      <div id="courtGroupSurfaceChoices" class="check-grid"></div>
+      <button class="primary" id="addCourtGroupBtn">Add Court Group</button>
+      <div id="courtGroupsList"></div>
+    </div>
+
+    <div class="card">
+      <h2>League Scheduling Rules</h2>
+      <p class="hint">These rules are used by the schedule generator and conflict checker. Toggle the basic policies on or off for this league.</p>
+      <div class="row">
+        <div class="field"><label>Additional Minimum Rest</label><select id="minRest"><option value="0">No extra rest beyond Back-to-Back rule</option><option value="1">One additional game slot</option><option value="2">Two additional game slots</option></select></div>
+        <div class="field"><label>Default Max Teams / Pool</label><input id="defaultPoolMax" type="number" min="2" max="16" value="8"></div>
+      </div>
+      <div class="rule-grid" style="margin-top:12px">
+        <div class="rule-row"><div><b>Allow Back-to-Back Games</b><span class="hint">YES permits a team to play again in the immediately following time slot.</span></div><label class="toggle" title="Allow Back-to-Back Games"><input id="allowBackToBack" type="checkbox"><span></span></label></div>
+        <div class="rule-row"><div><b>Play Every Pool Opponent Before Repeats</b><span class="hint">Prioritizes playing all available teams at least once before repeat matchups.</span></div><label class="toggle"><input id="playAllTeamsOnce" type="checkbox" checked><span></span></label></div>
+        <div class="rule-row"><div><b>Avoid Immediate Rematches</b><span class="hint">A team’s next chronological game may not be against the same opponent as its previous game, regardless of elapsed time or date.</span></div><label class="toggle"><input id="avoidImmediateRematches" type="checkbox" checked><span></span></label></div>
+        <div class="rule-row"><div><b>Protect Shared Coaches</b><span class="hint">Prevents teams with the same coach from being scheduled at the same time.</span></div><label class="toggle"><input id="protectSharedCoaches" type="checkbox" checked><span></span></label></div>
+        <div class="rule-row"><div><b>Honor Team Schedule Requests</b><span class="hint">Uses imported restrictions such as no Sunday or no morning games.</span></div><label class="toggle"><input id="honorScheduleRequests" type="checkbox" checked><span></span></label></div>
+        <div class="rule-row"><div><b>Keep Teams in Assigned Pool</b><span class="hint">League games are generated within the approved pool unless this rule is changed in a future advanced format.</span></div><label class="toggle"><input id="keepPoolPlay" type="checkbox" checked disabled><span></span></label></div>
+      </div>
+      <div class="resource-summary"><b>Always enforced:</b> no team can play itself; a court cannot host two games at the same time; a team cannot be in two games at the same time.</div>
+      <hr><div id="capacity"></div>
+    </div>  </div>
+
+  <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
+    <h2>🔎 Scheduling Diagnostics — v11.11.62</h2>
+    <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
+    <div id="schedulingDiagnosticsContent"></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h2>Division Scheduling</h2>
+    <p class="hint">Every division is created automatically from registrations. Assign the court group, recurring start/end time, and games each team should play on each league playing date. These settings are enforced by the schedule generator.</p>
+    <div id="divisionAssignments"></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <div class="toolbar">
+      <button class="primary" id="saveBtn">Save Progress</button>
+      <button class="secondary" id="exportSetupBtn">Export Setup</button>
+      <label class="secondary" style="margin:0">Import Setup<input id="setupFile" type="file" accept=".json" class="hidden"></label>
+      <button class="danger" id="resetBtn">Reset Everything</button>
+    </div>
+  </div>
+</section>
+
+<section id="admin-schedule" class="panel">
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.62</b> — Odd-Pool Sequence Repair (5/9-team focus).</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -453,10 +845,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </div>
 
 <script>
-window.__MSS_SIMULATION_MODE=true;
-window.alert=(msg)=>{console.log('SIMULATION ALERT:',msg);};
-window.confirm=(msg)=>true;
-window.prompt=(msg,def='')=>def;
+window.__MSS_SIMULATION_MODE=true;window.alert=(m)=>console.log('SIM ALERT',m);window.confirm=()=>true;window.prompt=(m,d='')=>d;
 
 const DB_NAME='MSSLeagueSchedulerDB';
 const LEGACY_DB_NAMES=[];
@@ -1843,7 +2232,7 @@ async function autoRepairGeneratedSchedule(newGames,retainedGames,targets){
   const touchedPools=targets.map(t=>({division:t.division,pool:t.pool}));
   let before=repairScoreForSchedule([...retainedGames,...newGames],touchedPools),current=before,iterations=0;
 
-  // v11.11.61: every candidate move swaps endpoints between two games in the
+  // v11.11.62: every candidate move swaps endpoints between two games in the
   // SAME pool on the SAME playing date. Therefore each team's nightly and
   // season game count is preserved exactly. The 3-games-per-night guarantee
   // cannot be damaged by optimization.
@@ -2000,7 +2389,7 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
   const pairKey=(a,b)=>[a,b].sort().join('|');
   const teamOrder=new Map(ids.map((id,i)=>[id,i]));
 
-  // v11.11.61 — GUARANTEE-FIRST, VARIETY-SECOND.
+  // v11.11.62 — GUARANTEE-FIRST, VARIETY-SECOND.
   // This intentionally preserves the v11.11.35 exact nightly degree planner:
   // every team receives the configured minimum on every playing date, with only
   // the mathematically required extra game for odd team-game totals.
@@ -2170,7 +2559,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   const games=plannedGames.map((g,i)=>({...g,_idx:i}));
   if(!games.length)return {ok:true,placed:0,total:0,attempts:0};
 
-  // v11.11.61 — bounded asynchronous constraint solver.
+  // v11.11.62 — bounded asynchronous constraint solver.
   // The earlier greedy placer could finish quickly but strand guaranteed games.
   // This solver uses "most constrained game first" backtracking, yields frequently
   // to Chrome, and falls back through controlled rule tiers only when necessary.
@@ -2192,7 +2581,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
       if(chronologicalImmediateRematchAtCandidate(b,a,sl,newGames,placements))return false;
     }
 
-    // v11.11.61 — preserve the opponent-coverage sequence created by the matchup planner.
+    // v11.11.62 — preserve the opponent-coverage sequence created by the matchup planner.
     // The Audit rule is chronological, so a repeat that is intentionally planned AFTER a
     // first-time opponent must not be moved earlier merely because that slot is convenient.
     // This constraint is relaxed only after higher-priority guarantee/capacity attempts fail.
@@ -2474,7 +2863,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
         hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): the 3-game guarantee was preserved only by allowing an immediate-rematch fallback after all no-rematch placements were exhausted. Review the Immediate Rematches audit.`);
       }
       if(!result.ok){
-        // v11.11.61: retain the best valid partial placement for this date and continue.
+        // v11.11.62: retain the best valid partial placement for this date and continue.
         // The Audit is responsible for flagging any unmet league guarantees, matching the
         // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
         const partial=result.placements||[];
@@ -2501,11 +2890,11 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.61: save the best valid schedule even when a guaranteed matchup could not be placed.
+  // v11.11.62: save the best valid schedule even when a guaranteed matchup could not be placed.
   // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
   // preventing the director from reviewing the rest of the generated league schedule.
 
-  // v11.11.61 workflow:
+  // v11.11.62 workflow:
   // Generate -> Save -> Audit -> Auto-Optimize fixable failures -> Audit again.
   // Optimization only uses same-date swaps, so the nightly game guarantee is
   // preserved exactly.
@@ -2596,6 +2985,90 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   setTab('schedule');
   resetRuntimeOverflowPlan();
 }
+function opponentCoverageScore(){
+  const a=runScheduleAudit(true),opp=(a?.results||[]).find(r=>r.label==='All opponents before repeats'),rem=(a?.results||[]).find(r=>r.label==='Immediate rematches');
+  return {fails:a?.fails||0,opp:opp?.violations?.length||0,rem:rem?.violations?.length||0};
+}
+function opponentCoverageProtectedVector(){
+  const labels=['No self-matchups','No team double-booking','No court double-booking','Division time windows','Assigned court groups','Team schedule requests','Minimum games per playing date','Calculated season minimum','Maximum games per playing date','Immediate rematches','Rest / back-to-back rule'];
+  const a=runScheduleAudit(true),out={};(a?.results||[]).forEach(r=>{if(labels.includes(r.label))out[r.label]=r.violations?.length||0});return out;
+}
+function opponentCoverageWorsened(a,b){return Object.keys(a).some(k=>(b[k]||0)>(a[k]||0))}
+
+function chronologicalOpponentIssueCountForTeam(teamId){
+  const games=state.games.filter(g=>g.status!=='Cancelled'&&(g.aId===teamId||g.bId===teamId))
+    .slice().sort((x,y)=>`${x.date} ${x.time}`.localeCompare(`${y.date} ${y.time}`));
+  const seen=new Set(),poolTeamIds=new Set(),team=state.teams.find(t=>t.id===teamId);
+  if(team){const d=divisionKey(team),p=teamPool(d,teamId);((state.pools?.[d]?.lists?.[p])||[]).forEach(id=>{if(id!==teamId)poolTeamIds.add(id)})}
+  let issues=0,prev=null;
+  for(const g of games){
+    const opp=g.aId===teamId?g.bId:g.aId;
+    if(prev===opp)issues++;
+    if(seen.has(opp)&&[...poolTeamIds].some(id=>!seen.has(id)))issues++;
+    seen.add(opp);prev=opp;
+  }
+  return issues;
+}
+function oddPoolSequenceRepair(){
+  let accepted=0;
+  for(let sweep=0;sweep<10;sweep++){
+    let improved=false;
+    const teamIds=(state.teams||[]).map(t=>t.id);
+    outer:
+    for(const teamId of teamIds){
+      const team=state.teams.find(t=>t.id===teamId);if(!team)continue;
+      const d=divisionKey(team),p=teamPool(d,teamId),poolIds=(state.pools?.[d]?.lists?.[p]||[]);
+      if(poolIds.length%2===0)continue;
+      const beforeTeam=chronologicalOpponentIssueCountForTeam(teamId);if(!beforeTeam)continue;
+      const tg=state.games.filter(g=>g.status!=='Cancelled'&&!g.lockedManual&&(g.aId===teamId||g.bId===teamId))
+        .slice().sort((a,b)=>`${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
+      const seen=new Set();let prev=null;
+      for(const bad of tg){
+        const badOpp=bad.aId===teamId?bad.bId:bad.aId;
+        const offending=(prev===badOpp)||(seen.has(badOpp)&&poolIds.some(id=>id!==teamId&&!seen.has(id)));
+        if(!offending){seen.add(badOpp);prev=badOpp;continue}
+        const candidates=state.games.filter(g=>g.status!=='Cancelled'&&!g.lockedManual&&g.id!==bad.id&&g.date===bad.date&&g.division===bad.division&&g.pool===bad.pool&&g.aId!==teamId&&g.bId!==teamId);
+        for(const other of candidates)for(const side of ['aId','bId']){
+          const newOpp=other[side];if(newOpp===teamId||newOpp===badOpp||seen.has(newOpp))continue;
+          const badSide=bad.aId===teamId?'bId':'aId',ob=bad[badSide],oo=other[side];
+          const bp=opponentCoverageProtectedVector(),bs=opponentCoverageScore();
+          bad[badSide]=newOpp;other[side]=ob;
+          const ap=opponentCoverageProtectedVector(),as=opponentCoverageScore(),ta=chronologicalOpponentIssueCountForTeam(teamId);
+          if(bad.aId!==bad.bId&&other.aId!==other.bId&&!opponentCoverageWorsened(bp,ap)&&ta<beforeTeam&&(as.opp<bs.opp||(as.opp===bs.opp&&as.rem<bs.rem))){
+            accepted++;improved=true;break outer;
+          }
+          bad[badSide]=ob;other[side]=oo;
+        }
+        seen.add(badOpp);prev=badOpp;
+      }
+    }
+    if(!improved)break;
+  }
+  return {accepted,...opponentCoverageScore()};
+}
+
+async function opponentCoverageRepair(){
+  let accepted=0;
+  for(let pass=0;pass<12;pass++){
+    let improved=false;const dates=[...new Set(state.games.filter(g=>g.status!=='Cancelled').map(g=>g.date))].sort();
+    outer: for(const date of dates){
+      const groups=new Map();state.games.forEach((g,idx)=>{if(g.status==='Cancelled'||g.date!==date||g.lockedManual)return;const k=`${g.division||''}|${g.pool||''}`;if(!groups.has(k))groups.set(k,[]);groups.get(k).push(idx)});
+      for(const idxs of groups.values())for(let x=0;x<idxs.length;x++)for(let y=x+1;y<idxs.length;y++){
+        const g1=state.games[idxs[x]],g2=state.games[idxs[y]];if(g1.lockedManual||g2.lockedManual)continue;
+        if(new Set([g1.aId,g1.bId,g2.aId,g2.bId]).size!==4)continue;
+        const o1={aId:g1.aId,bId:g1.bId},o2={aId:g2.aId,bId:g2.bId},beforeP=opponentCoverageProtectedVector(),beforeS=opponentCoverageScore();
+        const candidates=[[[o1.aId,o2.aId],[o1.bId,o2.bId]],[[o1.aId,o2.bId],[o1.bId,o2.aId]]];let keep=false;
+        for(const c of candidates){g1.aId=c[0][0];g1.bId=c[0][1];g2.aId=c[1][0];g2.bId=c[1][1];const afterP=opponentCoverageProtectedVector(),afterS=opponentCoverageScore();
+          if(!opponentCoverageWorsened(beforeP,afterP)&&(afterS.opp<beforeS.opp||(afterS.opp===beforeS.opp&&afterS.rem<beforeS.rem))){keep=true;accepted++;improved=true;break}
+          Object.assign(g1,o1);Object.assign(g2,o2)}
+        if(keep)break outer;
+      }
+    }
+    if(!improved)break;await yieldToBrowser();
+  }
+  return {accepted,...opponentCoverageScore()};
+}
+
 async function optimizeSchedule_v56core(){
   syncSettings();
   const scope=$('scheduleFilter').value||'ALL';
@@ -2631,6 +3104,8 @@ async function optimizeSchedule_v56core(){
   }
 
   state.games=[...retainedGames,...working].map(g=>({...g,status:g.status||'Scheduled',pending:true}));
+  const oddPoolRepair=oddPoolSequenceRepair();
+  const opponentRepair=await opponentCoverageRepair();
   persist();
   renderAll();
 
@@ -2639,7 +3114,7 @@ async function optimizeSchedule_v56core(){
   $('genSummary').innerHTML=
     `<div class="status ${afterAudit?.fails?'warn':'ok'}"><b>Re-optimization complete.</b> ${esc(txt)}`+
     `<br><b>Final Audit:</b> ${esc(afterAudit?.overall||'PASS')}${afterAudit?.fails?` • ${afterAudit.fails} failed rule(s)`:''}${afterAudit?.warns?` • ${afterAudit.warns} warning(s)`:''}.`+
-    `<br><span class="hint">Only same-pool, same-date swaps were used, so each team's nightly game count was preserved. 🔒 Locked manual director changes were not altered.</span></div>`;
+    `<br><b>Opponent coverage:</b> ${oddPoolRepair.accepted} odd-pool + ${opponentRepair.accepted} general safe repair(s) accepted • ${opponentRepair.opp} remaining opponent-rotation issue(s).`+`<br><span class="hint">Only same-pool, same-date swaps were used, so each team's nightly game count was preserved. 🔒 Locked manual director changes were not altered.</span></div>`;
 
   setGenerationStage('Re-optimization complete');
   setTab('schedule');
@@ -3278,7 +3753,7 @@ async function optimizeCourtUseSafely(){
 
     setGenerationStage(`Court + time optimization complete for ${targetDate}`);
   }catch(err){
-    console.error('v11.11.61 Court + Time optimizer error',err);
+    console.error('v11.11.62 Court + Time optimizer error',err);
     if(original){
       state.games=original;
       try{persist()}catch(_){}
@@ -3651,7 +4126,6 @@ function renderAll(){
   }
 }
 
-
 function simulationBaseState(opts={}){
   const teamCount=opts.teamCount||6;
   const poolSizes=opts.poolSizes||[teamCount];
@@ -3797,7 +4271,7 @@ async function runSimulationSuite(){
     status.className=`status ${failed?'warn':'ok'}`;
     status.innerHTML=`<b>Regression suite complete:</b> ${passed}/${rows.length} passed • ${failed} failed • ${elapsed}s`;
     $('simulationSuiteSummary').innerHTML=`<div class="metrics" style="margin-top:10px"><div class="card"><div class="hint">Scenarios</div><div class="kpi">${rows.length}</div></div><div class="card"><div class="hint">Passed</div><div class="kpi">${passed}</div></div><div class="card"><div class="hint">Failed</div><div class="kpi">${failed}</div></div><div class="card"><div class="hint">Elapsed</div><div class="kpi">${elapsed}s</div></div></div>`;
-    const report={version:'v11.11.61',passed,failed,total:rows.length,elapsedSeconds:+elapsed,results:rows};
+    const report={version:'v11.11.62',passed,failed,total:rows.length,elapsedSeconds:+elapsed,results:rows};
     $('simulationResultsJson').textContent=JSON.stringify(report,null,2);
     const failedRows=rows.filter(x=>!x.pass);
     $('simulationFailureSummary').innerHTML=failedRows.length?`<div class="status warn" style="margin-top:10px"><b>${failedRows.length} FAILED SCENARIO(S) — exact reasons</b><br>${failedRows.map(r=>`<b>${esc(r.id)} — ${esc(r.name)}</b>: ${esc(r.detail)}${(r.audit?.hard||[]).length?`<br>${r.audit.hard.map(x=>'• '+esc(x)).join('<br>')}`:''}`).join('<br><br>')}</div>`:`<div class="status ok" style="margin-top:10px"><b>ALL REGRESSION SCENARIOS PASSED.</b> No unexplained failures.</div>`;
@@ -3819,6 +4293,7 @@ async function simulationLabBoot(){
   setSaveStatus('saved','Simulation mode','No IndexedDB writes');
   if(new URLSearchParams(location.search).get('autorun')==='1')setTimeout(()=>runSimulationSuite(),50);
 }
+
 
 window.addEventListener('error',e=>{reportRuntimeIssue('JavaScript error',e.error||new Error(e.message||'Unknown error'))});
 window.addEventListener('unhandledrejection',e=>{reportRuntimeIssue('Background task error',e.reason||new Error('Unknown promise rejection'))});
