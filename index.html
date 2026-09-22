@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.66</title>
+<title>MSS League Scheduler v11.11.67</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.66</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.67</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -200,7 +200,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <section id="admin-settings" class="panel">
   <div class="card">
     <h2>Resources & Scheduling Setup</h2>
-    <div class="status info" style="margin:8px 0"><b>v11.11.66:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
+    <div class="status info" style="margin:8px 0"><b>v11.11.67:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
     <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
   </div>
 
@@ -288,7 +288,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>  </div>
 
   <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
-    <h2>🔎 Scheduling Diagnostics — v11.11.66</h2>
+    <h2>🔎 Scheduling Diagnostics — v11.11.67</h2>
     <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
     <div id="schedulingDiagnosticsContent"></div>
   </div>
@@ -310,7 +310,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.66</b> — Production Re-Optimize Hotfix + runtime guard.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.67</b> — Production Re-Optimize Hotfix + runtime guard.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -319,8 +319,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <button id="optimizeBtn" class="primary">Re-Optimize Schedule</button>
       <button id="courtOptimizeBtn" type="button" onclick="optimizeCourtUseSafely()">Optimize Selected Date</button>
       <button id="courtOptimizeAllBtn" type="button" onclick="optimizeAllPlayingDates()">Optimize All Playing Dates</button>
-      <button class="secondary" id="auditScopeBtn" type="button" onclick="safeRunScheduleAudit(false)">Audit Selected Scope</button>
-      <button class="secondary" id="auditAllBtn" type="button" onclick="safeRunScheduleAudit(true)">Audit Entire League</button>
+      <button class="secondary" id="auditScopeBtn" type="button" onclick="runAuditWithConfirmation(false)">Audit Selected Scope</button>
+      <button class="secondary" id="auditAllBtn" type="button" onclick="runAuditWithConfirmation(true)">Audit Entire League</button>
       <button class="secondary" id="exportScheduleBtn">Export CSV</button>
       <button class="secondary" id="exportScheduleBackupBtn">Export Schedule Backup</button>
       <label class="secondary" style="display:inline-flex;align-items:center;cursor:pointer">Restore Schedule
@@ -1821,7 +1821,7 @@ async function autoRepairGeneratedSchedule(newGames,retainedGames,targets){
   const touchedPools=targets.map(t=>({division:t.division,pool:t.pool}));
   let before=repairScoreForSchedule([...retainedGames,...newGames],touchedPools),current=before,iterations=0;
 
-  // v11.11.66: every candidate move swaps endpoints between two games in the
+  // v11.11.67: every candidate move swaps endpoints between two games in the
   // SAME pool on the SAME playing date. Therefore each team's nightly and
   // season game count is preserved exactly. The 3-games-per-night guarantee
   // cannot be damaged by optimization.
@@ -1978,7 +1978,7 @@ function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
   const pairKey=(a,b)=>[a,b].sort().join('|');
   const teamOrder=new Map(ids.map((id,i)=>[id,i]));
 
-  // v11.11.66 — GUARANTEE-FIRST, VARIETY-SECOND.
+  // v11.11.67 — GUARANTEE-FIRST, VARIETY-SECOND.
   // This intentionally preserves the v11.11.35 exact nightly degree planner:
   // every team receives the configured minimum on every playing date, with only
   // the mathematically required extra game for odd team-game totals.
@@ -2148,7 +2148,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   const games=plannedGames.map((g,i)=>({...g,_idx:i}));
   if(!games.length)return {ok:true,placed:0,total:0,attempts:0};
 
-  // v11.11.66 — bounded asynchronous constraint solver.
+  // v11.11.67 — bounded asynchronous constraint solver.
   // The earlier greedy placer could finish quickly but strand guaranteed games.
   // This solver uses "most constrained game first" backtracking, yields frequently
   // to Chrome, and falls back through controlled rule tiers only when necessary.
@@ -2170,7 +2170,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
       if(chronologicalImmediateRematchAtCandidate(b,a,sl,newGames,placements))return false;
     }
 
-    // v11.11.66 — preserve the opponent-coverage sequence created by the matchup planner.
+    // v11.11.67 — preserve the opponent-coverage sequence created by the matchup planner.
     // The Audit rule is chronological, so a repeat that is intentionally planned AFTER a
     // first-time opponent must not be moved earlier merely because that slot is convenient.
     // This constraint is relaxed only after higher-priority guarantee/capacity attempts fail.
@@ -2452,7 +2452,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
         hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): the 3-game guarantee was preserved only by allowing an immediate-rematch fallback after all no-rematch placements were exhausted. Review the Immediate Rematches audit.`);
       }
       if(!result.ok){
-        // v11.11.66: retain the best valid partial placement for this date and continue.
+        // v11.11.67: retain the best valid partial placement for this date and continue.
         // The Audit is responsible for flagging any unmet league guarantees, matching the
         // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
         const partial=result.placements||[];
@@ -2479,11 +2479,11 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.66: save the best valid schedule even when a guaranteed matchup could not be placed.
+  // v11.11.67: save the best valid schedule even when a guaranteed matchup could not be placed.
   // Minimum-games and season-guarantee shortfalls remain highly visible in the Audit instead of
   // preventing the director from reviewing the rest of the generated league schedule.
 
-  // v11.11.66 workflow:
+  // v11.11.67 workflow:
   // Generate -> Save -> Audit -> Auto-Optimize fixable failures -> Audit again.
   // Optimization only uses same-date swaps, so the nightly game guarantee is
   // preserved exactly.
@@ -2655,8 +2655,8 @@ async function oddPoolSequenceRepairBounded(){
   return {accepted,opp:baseline.opp,rem:baseline.rem,checks,timedOut};
 }
 
-function opponentFailingPoolKeys(){
-  const keys=new Set(),audit=runScheduleAudit(true);
+function failedOpponentPoolKeys(){
+  const audit=runScheduleAudit(true),keys=new Set();
   for(const r of (audit?.results||[])){
     if(r.label!=='Immediate rematches'&&r.label!=='All opponents before repeats')continue;
     for(const v of (r.violations||[])){
@@ -2669,93 +2669,97 @@ function opponentFailingPoolKeys(){
   }
   return [...keys];
 }
-function poolSequenceScore(d,pool){
-  const ids=state.pools?.[d]?.lists?.[pool]||[];
-  let rem=0,coverage=0;
-  for(const teamId of ids){
-    const games=state.games.filter(g=>g.status!=='Cancelled'&&(g.aId===teamId||g.bId===teamId))
-      .slice().sort((a,b)=>`${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
-    const seen=new Set();let prev=null;
-    for(const g of games){
-      const opp=g.aId===teamId?g.bId:g.aId;
-      if(prev===opp)rem++;
-      if(seen.has(opp)&&ids.some(id=>id!==teamId&&!seen.has(id)))coverage++;
-      seen.add(opp);prev=opp;
+function circleRounds(ids){
+  const arr=[...ids],BYE='__BYE__';if(arr.length%2)arr.push(BYE);
+  const n=arr.length,rounds=[];
+  let a=[...arr];
+  for(let r=0;r<n-1;r++){
+    const pairs=[];
+    for(let i=0;i<n/2;i++){
+      const x=a[i],y=a[n-1-i];if(x!==BYE&&y!==BYE)pairs.push([x,y]);
     }
+    rounds.push(pairs);
+    a=[a[0],a[n-1],...a.slice(1,n-1)];
   }
-  return {rem,coverage,total:rem*1000+coverage};
+  return rounds;
 }
-async function rebuildFailingOpponentPools(){
-  const MAX_POOL_MS=4500,MAX_TOTAL_MS=12000,MAX_ATTEMPTS=180,YIELD_EVERY=6;
-  const totalStart=performance.now(),targets=opponentFailingPoolKeys();
-  let accepted=0,attempts=0,timedOut=false;
-  const details=[];
-  let baseline=opponentCoverageSnapshot();
-
+function degreeMapForGames(games,ids){
+  const m=Object.fromEntries(ids.map(id=>[id,0]));
+  games.forEach(g=>{if(g.status!=='Cancelled'){if(g.aId in m)m[g.aId]++;if(g.bId in m)m[g.bId]++}});
+  return m;
+}
+function degreeMapForPairs(pairs,ids){
+  const m=Object.fromEntries(ids.map(id=>[id,0]));pairs.forEach(([a,b])=>{m[a]++;m[b]++});return m;
+}
+function sameDegree(a,b,ids){return ids.every(id=>(a[id]||0)===(b[id]||0))}
+function poolSequenceCounts(d,pool){
+  const ids=state.pools?.[d]?.lists?.[pool]||[];let rem=0,cov=0;
+  for(const id of ids){
+    const gs=state.games.filter(g=>g.status!=='Cancelled'&&(g.aId===id||g.bId===id)).slice().sort((x,y)=>`${x.date} ${x.time}`.localeCompare(`${y.date} ${y.time}`));
+    const seen=new Set();let prev=null;
+    for(const g of gs){const o=g.aId===id?g.bId:g.aId;if(prev===o)rem++;if(seen.has(o)&&ids.some(x=>x!==id&&!seen.has(x)))cov++;seen.add(o);prev=o}
+  }
+  return {rem,cov,total:rem*1000+cov};
+}
+async function deterministicOddPoolRepair(){
+  const targets=failedOpponentPoolKeys(),started=performance.now(),MAX_MS=10000;
+  let accepted=0,examined=0;const details=[];let baseline=opponentCoverageSnapshot();
   for(let ti=0;ti<targets.length;ti++){
-    if(performance.now()-totalStart>=MAX_TOTAL_MS){timedOut=true;break}
+    if(performance.now()-started>MAX_MS)break;
     const [d,pool]=targets[ti].split('|'),ids=state.pools?.[d]?.lists?.[pool]||[];
-    if(ids.length<3)continue;
-    const slots=state.games.filter(g=>g.status!=='Cancelled'&&g.division===d&&g.pool===pool);
-    if(!slots.length||slots.some(g=>g.lockedManual)){details.push({d,pool,skipped:'locked game'});continue}
+    if(ids.length<3||ids.length%2===0)continue;
+    const pg=state.games.filter(g=>g.status!=='Cancelled'&&g.division===d&&g.pool===pool);
+    if(!pg.length||pg.some(g=>g.lockedManual)){details.push({d,pool,skipped:'locked'});continue}
+    examined++;
+    const dates=[...new Set(pg.map(g=>g.date))].sort(),rounds=circleRounds(ids),before=poolSequenceCounts(d,pool);
+    const original=pg.map(g=>({g,aId:g.aId,bId:g.bId}));
+    let best=null;
 
-    const poolStart=performance.now(),before=poolSequenceScore(d,pool);
-    const original=slots.map(g=>({g,aId:g.aId,bId:g.bId}));
-    let best=before,bestPairs=null;
-
-    // Preserve every existing slot. Search complete pool assignments via repeated
-    // round-robin-biased pair selection; accept only a complete candidate after full Audit.
-    const teamGameTarget={};
-    ids.forEach(id=>teamGameTarget[id]=slots.reduce((n,g)=>n+(g.aId===id||g.bId===id?1:0),0));
-
-    for(let a=0;a<MAX_ATTEMPTS&&performance.now()-poolStart<MAX_POOL_MS&&performance.now()-totalStart<MAX_TOTAL_MS;a++){
-      attempts++;
-      const remaining={...teamGameTarget},seenPairs=new Map(ids.map(id=>[id,new Map()])),pairs=[];
-      let ok=true;
-      for(let si=0;si<slots.length;si++){
-        const slot=slots[si],candidates=[];
-        for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
-          const A=ids[i],B=ids[j];if(remaining[A]<=0||remaining[B]<=0)continue;
-          // Prevent team double booking at this exact slot against already assigned pool games.
-          const busy=pairs.some((pr,k)=>slots[k].date===slot.date&&slots[k].time===slot.time&&(pr[0]===A||pr[1]===A||pr[0]===B||pr[1]===B));
-          if(busy)continue;
-          const used=(seenPairs.get(A).get(B)||0)+(seenPairs.get(B).get(A)||0);
-          const need=remaining[A]+remaining[B];
-          candidates.push({A,B,score:used*10000-need*10+((a+si+i+j)%7)});
+    // For each date, combine circle-method rounds until the exact existing per-team
+    // nightly game-count vector is matched. Try round offsets/rotations deterministically.
+    for(let offset=0;offset<rounds.length;offset++){
+      const candidateByDate=new Map();let valid=true,roundCursor=offset;
+      for(const date of dates){
+        const dg=pg.filter(g=>g.date===date).slice().sort((a,b)=>String(a.time).localeCompare(String(b.time)));
+        const targetDeg=degreeMapForGames(dg,ids),needGames=dg.length;
+        let found=null;
+        // Search combinations of up to 5 successive RR rounds; this naturally handles
+        // odd-pool parity extras while keeping the exact date-level degree vector.
+        for(let take=1;take<=5&&!found;take++){
+          let pairs=[];
+          for(let k=0;k<take;k++)pairs=pairs.concat(rounds[(roundCursor+k)%rounds.length]);
+          if(pairs.length!==needGames)continue;
+          if(sameDegree(degreeMapForPairs(pairs,ids),targetDeg,ids))found={pairs,take};
         }
-        if(!candidates.length){ok=false;break}
-        candidates.sort((x,y)=>x.score-y.score);
-        const pick=candidates[Math.min(candidates.length-1,(a+si)%Math.min(4,candidates.length))];
-        pairs.push([pick.A,pick.B]);remaining[pick.A]--;remaining[pick.B]--;
-        seenPairs.get(pick.A).set(pick.B,(seenPairs.get(pick.A).get(pick.B)||0)+1);
-        seenPairs.get(pick.B).set(pick.A,(seenPairs.get(pick.B).get(pick.A)||0)+1);
+        if(!found){valid=false;break}
+        candidateByDate.set(date,found.pairs);roundCursor=(roundCursor+found.take)%rounds.length;
       }
-      if(ok&&Object.values(remaining).every(n=>n===0)){
+      if(!valid)continue;
+
+      // Map date pairings onto the existing chronological slots.
+      for(const date of dates){
+        const slots=pg.filter(g=>g.date===date).slice().sort((a,b)=>`${a.time}|${a.courtId||a.court||''}`.localeCompare(`${b.time}|${b.courtId||b.court||''}`));
+        const pairs=candidateByDate.get(date);
         pairs.forEach((pr,i)=>{slots[i].aId=pr[0];slots[i].bId=pr[1]});
-        const score=poolSequenceScore(d,pool);
-        if(score.total<best.total){best=score;bestPairs=pairs.map(x=>[...x])}
+      }
+      const score=poolSequenceCounts(d,pool);
+      const audit=opponentCoverageSnapshot();
+      if(!opponentCoverageWorsened(baseline.protected,audit.protected)&&
+         (audit.opp<baseline.opp||(audit.opp===baseline.opp&&audit.rem<baseline.rem))&&
+         (!best||score.total<best.score.total)){
+        best={score,audit,assign:pg.map(g=>({g,aId:g.aId,bId:g.bId}))};
       }
       original.forEach(o=>{o.g.aId=o.aId;o.g.bId=o.bId});
-      if(attempts%YIELD_EVERY===0){
-        setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Pool-level opponent solver ${ti+1}/${targets.length} • ${attempts} attempts`,80);
-        await yieldToBrowser();
-      }
-      if(best.total===0)break;
+      await yieldToBrowser();
     }
-
-    if(bestPairs){
-      bestPairs.forEach((pr,i)=>{slots[i].aId=pr[0];slots[i].bId=pr[1]});
-      const after=opponentCoverageSnapshot();
-      if(!opponentCoverageWorsened(baseline.protected,after.protected)&&
-         (after.opp<baseline.opp||(after.opp===baseline.opp&&after.rem<baseline.rem))){
-        accepted++;baseline=after;
-      }else original.forEach(o=>{o.g.aId=o.aId;o.g.bId=o.bId});
+    if(best){
+      best.assign.forEach(o=>{o.g.aId=o.aId;o.g.bId=o.bId});baseline=best.audit;accepted++;
     }
-    details.push({d,pool,before,after:poolSequenceScore(d,pool),attempts});
+    details.push({d,pool,before,after:poolSequenceCounts(d,pool),accepted:!!best});
+    setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Deterministic pool repair ${ti+1}/${targets.length} • ${accepted} improved`,80);
     await yieldToBrowser();
   }
-  if(performance.now()-totalStart>=MAX_TOTAL_MS)timedOut=true;
-  return {accepted,attempts,timedOut,targets:targets.length,opp:baseline.opp,rem:baseline.rem,details};
+  return {targets:targets.length,examined,accepted,opp:baseline.opp,rem:baseline.rem,details,elapsed:performance.now()-started};
 }
 
 async function opponentCoverageRepairBounded(){
@@ -2837,8 +2841,8 @@ async function optimizeSchedule_v56core(){
   const oddPoolRepair=await oddPoolSequenceRepairBounded();
   setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Odd-pool cleanup complete • ${oddPoolRepair.accepted} accepted`,70);
   await yieldToBrowser();
-  const poolRebuild=await rebuildFailingOpponentPools();
-  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Pool-level opponent solver complete • ${poolRebuild.accepted}/${poolRebuild.targets} pool(s) improved`,84);
+  const deterministicRepair=await deterministicOddPoolRepair();
+  setOptimizationStatus('RE-OPTIMIZING SCHEDULE','Working…',`Deterministic pool repair complete • ${deterministicRepair.accepted}/${deterministicRepair.examined} improved`,84);
   await yieldToBrowser();
   const opponentRepair=await opponentCoverageRepairBounded();
   persist();
@@ -2849,36 +2853,56 @@ async function optimizeSchedule_v56core(){
   $('genSummary').innerHTML=
     `<div class="status ${afterAudit?.fails?'warn':'ok'}"><b>Re-optimization complete.</b> ${esc(txt)}`+
     `<br><b>Final Audit:</b> ${esc(afterAudit?.overall||'PASS')}${afterAudit?.fails?` • ${afterAudit.fails} failed rule(s)`:''}${afterAudit?.warns?` • ${afterAudit.warns} warning(s)`:''}.`+
-    `<br><b>Opponent coverage:</b> ${oddPoolRepair.accepted} odd-pool + ${poolRebuild.accepted} pool-level rebuild + ${opponentRepair.accepted} general safe repair(s) accepted • ${opponentRepair.opp} remaining opponent-rotation issue(s).`+
-    `<br><b>Pool solver:</b> ${poolRebuild.targets} failing pool(s) examined • ${poolRebuild.attempts} bounded assignment attempts.`+
-    `<br><b>Performance guard:</b> ${oddPoolRepair.checks+opponentRepair.checks} candidate checks${oddPoolRepair.timedOut||poolRebuild.timedOut||opponentRepair.timedOut?' • bounded cleanup limit reached safely':''}.`+`<br><span class="hint">Opponent cleanup preserves the existing schedule slots and protected Audit rules. 🔒 Locked manual director changes are not altered.</span></div>`;
+    `<br><b>Opponent coverage:</b> ${oddPoolRepair.accepted} local + ${deterministicRepair.accepted} deterministic pool rebuild + ${opponentRepair.accepted} general safe repair(s) accepted • ${opponentRepair.opp} remaining opponent-rotation issue(s).`+
+    `<br><b>Deterministic pool solver:</b> ${deterministicRepair.examined}/${deterministicRepair.targets} affected odd pool(s) examined • ${(deterministicRepair.elapsed/1000).toFixed(1)} sec.`+
+    `<br><b>Performance guard:</b> ${oddPoolRepair.checks+opponentRepair.checks} candidate checks${oddPoolRepair.timedOut||opponentRepair.timedOut?' • bounded cleanup limit reached safely':''}.`+`<br><span class="hint">Only same-pool, same-date swaps were used, so each team's nightly game count was preserved. 🔒 Locked manual director changes were not altered.</span></div>`;
 
   setGenerationStage('Re-optimization complete');
   setTab('schedule');
 }
-function safeRunScheduleAudit(allLeague=false){
-  const out=$('scheduleAudit'),btn=$(allLeague?'auditAllBtn':'auditScopeBtn');
-  const started=performance.now(),originalText=btn?.textContent||'';
+
+async function runAuditWithConfirmation(allLeague=false){
+  const btn=$(allLeague?'auditAllBtn':'auditScopeBtn');
+  const original=btn?.textContent||'',scopeLabel=allLeague?'Entire League':'Selected Scope';
+  const started=performance.now();
   try{
     if(btn){btn.disabled=true;btn.textContent='Auditing…'}
+    setOptimizationStatus('AUDIT RUNNING','Working…',`Fresh ${scopeLabel} audit started`,15);
+    setOptimizationResults(`<div class="status info"><b>Audit running — ${scopeLabel}…</b><br>Checking the current saved schedule now.</div>`,true);
+    setGenerationStage(`Audit running — ${scopeLabel}`);
+    await yieldToBrowser();
     const result=runScheduleAudit(allLeague);
-    const elapsed=performance.now()-started,stamp=new Date().toLocaleTimeString();
-    const scopeLabel=allLeague?'Entire League':'Selected Scope';
-    setOptimizationStatus('AUDIT COMPLETE',scopeLabel,`Completed ${stamp} • Runtime ${elapsed<1000?elapsed.toFixed(0)+' ms':(elapsed/1000).toFixed(2)+' sec'} • FAIL ${result?.fails||0} • WARN ${result?.warns||0}`,100);
-    setOptimizationResults(`<div class="status ${result?.fails?'warn':'ok'}"><b>Audit Complete — ${scopeLabel}.</b><br>Completed: ${esc(stamp)} • Runtime: ${elapsed<1000?elapsed.toFixed(0)+' ms':(elapsed/1000).toFixed(2)+' sec'}<br>Failed hard rules: ${result?.fails||0} • Warnings: ${result?.warns||0}</div>`,true);
+    await yieldToBrowser();
+    const ms=performance.now()-started,stamp=new Date().toLocaleTimeString();
+    const runtime=ms<1000?`${ms.toFixed(0)} ms`:`${(ms/1000).toFixed(2)} sec`;
+    setOptimizationStatus('AUDIT COMPLETE',scopeLabel,`Completed ${stamp} • Runtime ${runtime} • FAIL ${result?.fails||0} • WARN ${result?.warns||0}`,100);
+    setOptimizationResults(`<div class="status ${result?.fails?'warn':'ok'}"><b>Audit Complete — ${scopeLabel}</b><br>Completed: ${esc(stamp)}<br>Runtime: ${esc(runtime)}<br>Failed hard rules: ${result?.fails||0}<br>Warnings: ${result?.warns||0}</div>`,true);
     setGenerationStage(`Audit complete — ${scopeLabel} • ${result?.fails||0} failed rule(s) • ${result?.warns||0} warning(s)`);
+    $('scheduleAudit')?.scrollIntoView({behavior:'smooth',block:'start'});
+    return result;
+  }catch(err){
+    console.error('Confirmed audit failed',err);
+    setOptimizationStatus('AUDIT FAILED','Stopped',err?.message||String(err),100);
+    setOptimizationResults(`<div class="status warn"><b>Audit failed.</b><br>${esc(err?.message||String(err))}</div>`,true);
+    return null;
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=original}
+  }
+}
+
+function safeRunScheduleAudit(allLeague=false){
+  const out=$('scheduleAudit');
+  try{
+    const result=runScheduleAudit(allLeague);
     if(out) out.scrollIntoView({behavior:'smooth',block:'start'});
     return result;
   }catch(err){
     console.error('Schedule audit failed',err);
-    setOptimizationStatus('AUDIT FAILED','Stopped',err&&err.message?err.message:String(err),100);
     if(out){
       out.innerHTML=`<div class="status warn"><b>Audit could not run.</b><br>${esc(err&&err.message?err.message:String(err))}</div>`;
       out.scrollIntoView({behavior:'smooth',block:'start'});
     }
     return null;
-  }finally{
-    if(btn){btn.disabled=false;btn.textContent=originalText}
   }
 }
 function auditResult(label,status,detail,violations=[]){return {label,status,detail,violations}}
@@ -3500,7 +3524,7 @@ async function optimizeCourtUseSafely(){
 
     setGenerationStage(`Court + time optimization complete for ${targetDate}`);
   }catch(err){
-    console.error('v11.11.66 Court + Time optimizer error',err);
+    console.error('v11.11.67 Court + Time optimizer error',err);
     if(original){
       state.games=original;
       try{persist()}catch(_){}
