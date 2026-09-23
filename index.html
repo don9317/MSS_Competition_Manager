@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.79</title>
+<title>MSS League Scheduler v11.11.80</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.79</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.80</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -329,7 +329,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.79</b> — Court Operations: date-specific court availability, court/game-number printouts, and team replacement.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.80</b> — Court Operations: full-window Court Calendar, visible Court/Game # printing, date-specific court availability, and team replacement.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -342,8 +342,6 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <button class="secondary" id="auditAllBtn" type="button" onclick="runAuditWithConfirmation(true)">Audit Entire League</button>
       <button class="secondary" id="exportScheduleBtn">Export CSV</button>
       <button class="secondary" id="exportScheduleBackupBtn">Export Schedule Backup</button>
-      <button class="secondary" id="printCourtGameBtn">Print by Court / Game #</button>
-      <button class="secondary" id="exportCourtGameBtn">Export Court / Game # CSV</button>
       <label class="secondary" style="display:inline-flex;align-items:center;cursor:pointer">Restore Schedule
         <input id="scheduleRestoreFile" type="file" accept=".csv,.json,text/csv,application/json" class="hidden">
       </label>
@@ -393,7 +391,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <div class="card">
     <div class="row" style="justify-content:space-between;align-items:start">
       <div><h2 style="margin-bottom:4px">Schedule Management</h2><div id="managementScopeTitle" class="hint">Choose a division to review and manage its games.</div></div>
-      <div class="toolbar" style="margin:0"><button class="primary" id="publishChangesBtn">Publish Schedule Changes</button><button class="secondary" id="restorePublishedBtn">Restore Published Schedule</button></div>
+      <div class="toolbar" style="margin:0"><button class="secondary" id="printCourtGameBtn">Print by Court / Game #</button><button class="secondary" id="exportCourtGameBtn">Export Court / Game # CSV</button><button class="primary" id="publishChangesBtn">Publish Schedule Changes</button><button class="secondary" id="restorePublishedBtn">Restore Published Schedule</button></div>
     </div>
     <div class="grid" style="margin-top:12px">
       <div class="field"><label>Division / Pool</label><select id="managementDivision"></select></div>
@@ -3978,7 +3976,28 @@ function renderCourtCalendar(){
   const date=dateSel.value,scope=scopeSel.value||'ALL';
   const games=state.games.filter(g=>g.date===date&&scopeMatchesGame(scope,g)).sort((a,b)=>(a.time+a.court).localeCompare(b.time+b.court));
   const courts=[...new Set((state.courts||[]).map(c=>c.name).concat(games.map(g=>g.court)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
-  const times=[...new Set(games.map(g=>g.time).filter(Boolean))].sort();
+  // v11.11.79.1: Court Calendar must show the full configured scheduling window,
+  // not only rows that already contain games. This lets directors see/scroll to open
+  // 4:00 PM slots even when the first scheduled game is later in the window.
+  const calendarWindowTimes=[];
+  const addWindowTimes=(win)=>{
+    if(!win?.effectiveStart||!win?.effectiveEnd)return;
+    const step=Math.max(1,Number(state.settings.gameLength||15));
+    for(let m=minutes(win.effectiveStart),end=minutes(win.effectiveEnd);m<end;m+=step){
+      calendarWindowTimes.push(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
+    }
+  };
+  if(scope.startsWith('DIV::')){
+    const d=scope.slice(5),pools=Object.keys(state.pools?.[d]?.lists||{});
+    if(state.divisionConfig?.[d]?.usePoolAssignments&&pools.length>1)pools.forEach(p=>addWindowTimes(effectivePoolWindow(d,p)));
+    else addWindowTimes(effectiveDivisionWindow(d));
+  }else if(scope!=='ALL'){
+    const split=scope.indexOf('::');
+    if(split>0)addWindowTimes(effectivePoolWindow(scope.slice(0,split),scope.slice(split+2)));
+  }else{
+    Object.entries(state.pools||{}).forEach(([d,p])=>Object.keys(p.lists||{}).forEach(pool=>addWindowTimes(effectivePoolWindow(d,p))));
+  }
+  const times=[...new Set(calendarWindowTimes.concat(games.map(g=>g.time).filter(Boolean)))].sort();
   const slotMap={};games.forEach(g=>{const k=`${g.time}|${g.court}`;(slotMap[k]??=[]).push(g)});
   const duplicateSlots=Object.values(slotMap).filter(arr=>arr.length>1).length;
   const teamSlot={};let teamConflicts=0;games.forEach(g=>{[g.aId,g.bId].forEach(id=>{const k=`${g.time}|${id}`;teamSlot[k]=(teamSlot[k]||0)+1;if(teamSlot[k]===2)teamConflicts++})});
@@ -4241,13 +4260,17 @@ function replaceTeamKeepSchedule(){
  (state.publishedGames||[]).forEach(g=>{if(g.teamA===id||g.teamAId===id)g.teamAName=name;if(g.teamB===id||g.teamBId===id)g.teamBName=name});
  state.activity=state.activity||[];state.activity.unshift({at:new Date().toISOString(),text:`${old} replaced by ${name} — schedule slot retained.`});persist();renderAll();$('replaceTeamName').value='';$('replaceTeamCoach').value='';$('replaceTeamStatus').innerHTML=`<div class="status ok"><b>${esc(old)}</b> replaced by <b>${esc(name)}</b>. Division, pool, dates, opponents, courts and schedule slots were retained.</div>`;showActionFeedback(`${old} replaced by ${name}; schedule retained.`,true,'replaceTeamBtn');
 }
+function managementFilteredGames(){
+ const divisionValue=$('managementDivision')?.value||'ALL',week=$('managementWeek')?.value||'ALL',status=$('managementStatus')?.value||'ALL',court=$('managementCourt')?.value||'ALL';
+ return state.games.filter(g=>(divisionValue==='ALL'||poolKey(g.division,g.pool)===divisionValue)&&(week==='ALL'||String(g.week||'')===week)&&(court==='ALL'||g.court===court)&&(status==='ALL'||(status==='NEEDS_SCORE'?(g.status!=='Cancelled'&&(g.sa==null||g.sb==null)):status==='UNPUBLISHED'?g.pending:(g.status||'Scheduled')===status)));
+}
 function courtGameRows(games=state.games){
  const sorted=(games||[]).filter(g=>g.status!=='Cancelled').slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.court||'').localeCompare(String(b.court||''),undefined,{numeric:true})||String(a.time||'').localeCompare(String(b.time||'')));
  const counters={};return sorted.map(g=>{const key=`${g.date}|${g.court}`;counters[key]=(counters[key]||0)+1;return {date:g.date,court:g.court||'',gameNo:counters[key],division:divisionLabel(g.division),pool:g.pool?poolDisplayName(g.division,g.pool):'',teamA:teamById(g.teamA||g.teamAId).name,teamB:teamById(g.teamB||g.teamBId).name,time:g.time||''}})
 }
-function exportCourtGameSchedule(){const rows=courtGameRows();if(!rows.length)return alert('No scheduled games to export.');const data=[['Date','Court','Game #','Division','Pool','Team A','Team B'],...rows.map(r=>[r.date,r.court,`Game ${r.gameNo}`,r.division,r.pool,r.teamA,r.teamB])];download(data.map(r=>r.map(csv).join(',')).join('\n'),'court-game-number-schedule.csv','text/csv');showActionFeedback('Court / Game # schedule exported.')}
+function exportCourtGameSchedule(){const rows=courtGameRows(managementFilteredGames());if(!rows.length)return alert('No scheduled games to export.');const data=[['Date','Court','Game #','Division','Pool','Team A','Team B'],...rows.map(r=>[r.date,r.court,`Game ${r.gameNo}`,r.division,r.pool,r.teamA,r.teamB])];download(data.map(r=>r.map(csv).join(',')).join('\n'),'court-game-number-schedule.csv','text/csv');showActionFeedback('Court / Game # schedule exported.')}
 function printCourtGameSchedule(){
- const rows=courtGameRows();if(!rows.length)return alert('No scheduled games to print.');let body='',last='';rows.forEach(r=>{const key=r.date+'|'+r.court;if(key!==last){body+=`<h2>${esc(r.date)} — ${esc(r.court)}</h2><table><thead><tr><th>Game #</th><th>Division / Pool</th><th>Matchup</th></tr></thead><tbody>`;last=key}body+=`<tr><td><b>Game ${r.gameNo}</b></td><td>${esc(r.division)}${r.pool?' — '+esc(r.pool):''}</td><td>${esc(r.teamA)} vs ${esc(r.teamB)}</td></tr>`;const next=rows[rows.indexOf(r)+1];if(!next||`${next.date}|${next.court}`!==key)body+='</tbody></table>'});
+ const rows=courtGameRows(managementFilteredGames());if(!rows.length)return alert('No scheduled games to print.');let body='',last='';rows.forEach(r=>{const key=r.date+'|'+r.court;if(key!==last){body+=`<h2>${esc(r.date)} — ${esc(r.court)}</h2><table><thead><tr><th>Game #</th><th>Division / Pool</th><th>Matchup</th></tr></thead><tbody>`;last=key}body+=`<tr><td><b>Game ${r.gameNo}</b></td><td>${esc(r.division)}${r.pool?' — '+esc(r.pool):''}</td><td>${esc(r.teamA)} vs ${esc(r.teamB)}</td></tr>`;const next=rows[rows.indexOf(r)+1];if(!next||`${next.date}|${next.court}`!==key)body+='</tbody></table>'});
  const w=window.open('','_blank');if(!w)return alert('Please allow pop-ups to print the court schedule.');w.document.write(`<!doctype html><html><head><title>Court / Game # Schedule</title><style>body{font-family:Arial,sans-serif;margin:24px}h1{margin-bottom:4px}h2{margin-top:26px;border-bottom:2px solid #111;padding-bottom:5px}table{width:100%;border-collapse:collapse;margin-bottom:18px}th,td{border:1px solid #999;padding:8px;text-align:left}th{background:#eee}@media print{h2{break-before:auto}table{break-inside:avoid}}</style></head><body><h1>${esc(state.settings.leagueName||'League')} — Court / Game # Schedule</h1><p>Game numbers restart at Game 1 for each court on each playing date.</p>${body}<script>window.onload=()=>window.print()<\/script></body></html>`);w.document.close();
 }
 function exportDivisionSeason(){const d=selectedExportDivision();if(!d)return;const games=state.games.filter(g=>g.division===d);if(!games.length)return alert('No scheduled games exist for that division.');const rows=scheduleRows(games);download(rows.map(r=>r.map(csv).join(',')).join('\n'),`${divisionLabel(d).replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'')}-season-schedule.csv`,'text/csv');showActionFeedback(`${divisionLabel(d)} full-season schedule exported.`)}
