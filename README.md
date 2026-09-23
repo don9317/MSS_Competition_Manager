@@ -505,3 +505,10 @@ Opponent balance is now included in the protected rollback vector for all oppone
 
 ## v11.11.77
 Adds a final targeted same-date opponent repair with a strict opponent-balance ceiling and full rollback safety. Generate Schedule is unchanged.
+
+
+## v11.11.79 Court Operations
+- Date-specific court blackouts and custom availability windows.
+- Court/Game # print and CSV export; game numbers restart per court per playing date and times remain internal.
+- Replace Team / Keep Schedule retains the dropped team ID, pool and exact schedule slot while updating team identity.
+- Matchup generation logic remains unchanged from v11.11.78.
