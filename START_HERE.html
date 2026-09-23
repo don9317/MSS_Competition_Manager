@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.80</title>
+<title>MSS League Scheduler v11.11.80.1</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.80</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.80.1</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -329,7 +329,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.80</b> — Court Operations: full-window Court Calendar, visible Court/Game # printing, date-specific court availability, and team replacement.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.80.1</b> — Court/Game # team-name hotfix; v80 Court Operations retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -4266,7 +4266,7 @@ function managementFilteredGames(){
 }
 function courtGameRows(games=state.games){
  const sorted=(games||[]).filter(g=>g.status!=='Cancelled').slice().sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.court||'').localeCompare(String(b.court||''),undefined,{numeric:true})||String(a.time||'').localeCompare(String(b.time||'')));
- const counters={};return sorted.map(g=>{const key=`${g.date}|${g.court}`;counters[key]=(counters[key]||0)+1;return {date:g.date,court:g.court||'',gameNo:counters[key],division:divisionLabel(g.division),pool:g.pool?poolDisplayName(g.division,g.pool):'',teamA:teamById(g.teamA||g.teamAId).name,teamB:teamById(g.teamB||g.teamBId).name,time:g.time||''}})
+ const counters={};return sorted.map(g=>{const key=`${g.date}|${g.court}`;counters[key]=(counters[key]||0)+1;return {date:g.date,court:g.court||'',gameNo:counters[key],division:divisionLabel(g.division),pool:g.pool?poolDisplayName(g.division,g.pool):'',teamA:teamById(g.aId||g.teamAId||g.teamA).name,teamB:teamById(g.bId||g.teamBId||g.teamB).name,time:g.time||''}})
 }
 function exportCourtGameSchedule(){const rows=courtGameRows(managementFilteredGames());if(!rows.length)return alert('No scheduled games to export.');const data=[['Date','Court','Game #','Division','Pool','Team A','Team B'],...rows.map(r=>[r.date,r.court,`Game ${r.gameNo}`,r.division,r.pool,r.teamA,r.teamB])];download(data.map(r=>r.map(csv).join(',')).join('\n'),'court-game-number-schedule.csv','text/csv');showActionFeedback('Court / Game # schedule exported.')}
 function printCourtGameSchedule(){
