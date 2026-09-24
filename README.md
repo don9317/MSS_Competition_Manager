@@ -1,13 +1,10 @@
-# MSS League Scheduler v11.11.82 — Multi-Court Availability
+# MSS League Scheduler v11.11.82.1
 
-Built from v11.11.81.
+Startup hotfix for v11.11.82.
 
-- Replaces the single-court date-exception dropdown with multi-select court checkboxes.
-- Select several courts and apply Unavailable All Day in one action.
-- Select several courts and apply the same Special Availability Hours in one action.
-- Saved exceptions are grouped by date/type/hours and list all affected courts.
-- Individual court exceptions can still be removed.
-- Retains the same courtExceptions data structure used by the scheduling slot engine.
-- Court exceptions remain hard constraints for schedule generation and court/time placement.
-- Retains v81 Publishing Controls and v80.1 Court/Game print fix.
-- No opponent-generation or Audit-rule changes.
+- Fixes a JavaScript syntax error in League Portal publishing controls that prevented the application body from rendering.
+- Retains v82 multi-court date-specific availability checkboxes and batch exception saving.
+- Retains hard court-exception scheduling constraints.
+- Retains v81 publishing controls and v80.1 Court/Game print fix.
+- No scheduling, opponent-generation, Re-Optimize, court optimizer, or Audit logic changes.
+- JavaScript syntax checked for both index.html and START_HERE.html.
