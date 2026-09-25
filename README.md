@@ -1,3 +1,10 @@
+MSS League Scheduler v11.11.85 — Save/Persistence Hotfix
+
+- Save & Verify Progress captures Division Scheduling and Court Group assignment controls before saving.
+- Verifies stored counts by reading IndexedDB back after save.
+- Maintains a stable resource-assignment backup keyed to division identity and can recover assignments after division IDs are reconstructed.
+- Retains v84 registration hotfixes and prior scheduling logic unchanged.
+
 # MSS League Scheduler v11.11.83 — New League Setup + Editable Courts
 
 - Adds Start New League. Recommended path keeps playing surfaces, normal availability, Court Groups and general scheduling-rule defaults while clearing league-specific data.
