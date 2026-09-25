@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.85</title>
+<title>MSS League Scheduler v11.11.84</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.85</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.84</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -324,7 +324,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 
   <div class="card" style="margin-top:14px">
     <div class="toolbar">
-      <button class="primary" id="saveBtn">Save & Verify Progress</button>
+      <button class="primary" id="saveBtn">Save Progress</button>
       <button class="secondary" id="exportSetupBtn">Export Setup</button>
       <label class="secondary" style="margin:0">Import Setup<input id="setupFile" type="file" accept=".json" class="hidden"></label>
       <button class="danger" id="resetBtn">Reset Everything</button>
@@ -333,7 +333,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.85</b> — SAVE/PERSISTENCE HOTFIX — Division Scheduling + Court Group assignments are captured, verified, and recoverable; v84 registration fixes retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.84</b> — New League Setup + Editable Court Names; v82.1 court availability and publishing controls retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -473,7 +473,7 @@ let lastSavedAt=null;
 let state={
   teams:[],courts:[],courtGroups:[],courtExceptions:[],divisionConfig:{},divisions:[],
   settings:{leagueName:'MSS 3v3 League',seasonStart:'',seasonEnd:'',gamesPerWeek:3,gameLength:20,minRest:0,defaultPoolMax:8,days:[0],exceptions:[],exceptionNotes:{},allowBackToBack:false,playAllTeamsOnce:true,avoidImmediateRematches:true,protectSharedCoaches:true,honorScheduleRequests:true,keepPoolPlay:true},
-  pools:{},resourceAssignmentBackup:{},approved:false,games:[],publishedGames:[],hasPublishedSchedule:false,scheduleChanges:[],activity:[]
+  pools:{},approved:false,games:[],publishedGames:[],hasPublishedSchedule:false,scheduleChanges:[],activity:[]
 };
 const $=id=>document.getElementById(id),uid=p=>p+'_'+Math.random().toString(36).slice(2,9);
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
@@ -626,68 +626,11 @@ async function deleteStateFromDB(){
     tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error||new Error('Could not clear saved league.'));
   });
 }
-function stableDivisionIdentity(d){
-  const rec=(state.divisions||[]).find(x=>x.id===d)||{};
-  return String(rec.sourceRegistrationName||rec.name||divisionLabel(d)||d).trim().toLowerCase();
-}
-function captureResourceInputsFromDOM(){
-  ensureDivisionConfig();
-  document.querySelectorAll('[data-div-field]').forEach(e=>{
-    const d=e.dataset.div,field=e.dataset.divField;if(!d||!field)return;
-    state.divisionConfig[d]=state.divisionConfig[d]||{};
-    state.divisionConfig[d][field]=e.type==='number'?Number(e.value):e.value;
-    if(field==='start'||field==='end')state.divisionConfig[d].timeWindowSource='custom';
-  });
-  document.querySelectorAll('[data-pool-resource]').forEach(e=>{
-    const d=e.dataset.poolResource,pool=e.dataset.pool,field=e.dataset.poolField;if(!d||!pool||!field||!state.pools?.[d])return;
-    const ovs=ensurePoolResourceOverrides(d);ovs[pool]=ovs[pool]||{};ovs[pool][field]=e.value;
-    if(field==='start'||field==='end')ovs[pool].timeWindowSource='custom';
-  });
-  document.querySelectorAll('[data-group-division]').forEach(sel=>{
-    const gid=sel.dataset.groupDivision,val=sel.value;if(!gid||!val||val==='__MULTIPLE__')return;
-    if(val.startsWith('D::')){const d=val.slice(3);state.divisionConfig[d]=state.divisionConfig[d]||{};state.divisionConfig[d].courtGroupId=gid;}
-    if(val.startsWith('P::')){const parts=val.split('::'),d=parts[1],pool=parts.slice(2).join('::');if(state.pools?.[d]?.lists?.[pool]){const ovs=ensurePoolResourceOverrides(d);ovs[pool]=ovs[pool]||{};ovs[pool].courtGroupId=gid;}}
-  });
-}
-function refreshResourceAssignmentBackup(){
-  const backup={};
-  allDivisionKeys().forEach(d=>{
-    const key=stableDivisionIdentity(d),cfg=state.divisionConfig?.[d]||{},p=state.pools?.[d]||{};
-    backup[key]={divisionLabel:divisionLabel(d),config:JSON.parse(JSON.stringify(cfg)),poolOverrides:JSON.parse(JSON.stringify(p.resourceOverrides||{})),poolNames:JSON.parse(JSON.stringify(p.names||{}))};
-  });
-  state.resourceAssignmentBackup=backup;
-}
-function recoverResourceAssignmentsFromBackup(){
-  const backup=state.resourceAssignmentBackup||{};let changed=false;
-  allDivisionKeys().forEach(d=>{
-    const b=backup[stableDivisionIdentity(d)];if(!b)return;
-    const cur=state.divisionConfig?.[d]||{};
-    const missing=!cur.courtGroupId&&!cur.start&&!cur.end;
-    if(missing&&b.config&&(b.config.courtGroupId||b.config.start||b.config.end)){
-      state.divisionConfig[d]={...cur,...JSON.parse(JSON.stringify(b.config))};changed=true;
-    }
-    if(state.pools?.[d]&&b.poolOverrides&&Object.keys(b.poolOverrides).length&&!Object.keys(state.pools[d].resourceOverrides||{}).length){
-      state.pools[d].resourceOverrides=JSON.parse(JSON.stringify(b.poolOverrides));changed=true;
-    }
-  });
-  return changed;
-}
-function resourceSaveSummary(st=state){
-  const divs=allDivisionKeys(),assigned=divs.filter(d=>!!st.divisionConfig?.[d]?.courtGroupId||!!st.divisionConfig?.[d]?.usePoolAssignments).length;
-  let poolAssigned=0;Object.values(st.pools||{}).forEach(p=>Object.values(p.resourceOverrides||{}).forEach(o=>{if(o?.courtGroupId)poolAssigned++}));
-  return {teams:(st.teams||[]).length,divisions:divs.length,courts:(st.courts||[]).length,courtGroups:(st.courtGroups||[]).length,divisionAssignments:assigned,poolAssignments:poolAssigned};
-}
-async function verifySavedResources(expected){
-  const saved=await readStateFromDB();if(!saved)throw new Error('No saved league record was found after Save Progress.');
-  const got={teams:(saved.teams||[]).length,divisions:(saved.divisions||[]).length,courts:(saved.courts||[]).length,courtGroups:(saved.courtGroups||[]).length,divisionAssignments:Object.values(saved.divisionConfig||{}).filter(c=>!!c?.courtGroupId||!!c?.usePoolAssignments).length,poolAssignments:Object.values(saved.pools||{}).reduce((n,p)=>n+Object.values(p.resourceOverrides||{}).filter(o=>!!o?.courtGroupId).length,0)};
-  for(const k of ['teams','courts','courtGroups','divisionAssignments','poolAssignments'])if(got[k]!==expected[k])throw new Error(`Save verification failed for ${k}: expected ${expected[k]}, stored ${got[k]}.`);
-  return got;
-}
 function snapshotState(){return JSON.parse(JSON.stringify(state))}
 function queueSave(immediate=false){
   if(saveTimer){clearTimeout(saveTimer);saveTimer=null}
   const run=()=>{
-    captureResourceInputsFromDOM();refreshResourceAssignmentBackup();const snapshot=snapshotState();setSaveStatus('saving','Saving progress…');
+    const snapshot=snapshotState();setSaveStatus('saving','Saving progress…');
     saveQueue=saveQueue.catch(()=>{}).then(()=>writeStateToDB(snapshot)).then(()=>{lastSavedAt=new Date();setSaveStatus('saved','League saved',`IndexedDB • ${lastSavedAt.toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'})}`)}).catch(err=>{console.error(err);setSaveStatus('error','Save failed',err.message||String(err));throw err});
     return saveQueue;
   };
@@ -697,21 +640,14 @@ function queueSave(immediate=false){
   return saveQueue;
 }
 function persist(){queueSave(false);return true}
-async function save(){
-  try{
-    captureResourceInputsFromDOM();syncSettings();ensureDivisionConfig();refreshResourceAssignmentBackup();
-    const expected=resourceSaveSummary();await queueSave(true);const got=await verifySavedResources(expected);renderAll();
-    const msg=`Progress Saved & Verified — ${got.teams} teams • ${got.divisions} divisions • ${got.courts} courts • ${got.courtGroups} Court Groups • ${got.divisionAssignments} division assignments${got.poolAssignments?` • ${got.poolAssignments} pool assignments`:''}`;
-    setSaveStatus('saved','Progress Saved & Verified',msg);showActionFeedback(msg,true,'saveBtn');
-  }catch(e){setSaveStatus('error','SAVE NOT VERIFIED',e.message||String(e));alert('The league could not be safely verified as saved. Do not close or refresh this page. '+(e.message||e))}
-}
+async function save(){syncSettings();renderAll();try{await queueSave(true)}catch(e){alert('The league could not be saved: '+(e.message||e))}}
 async function load(){
   // Render a usable clean application FIRST. Saved data restoration is secondary.
   try{normalizeLoadedState();hydrate();ensurePools();ensureDivisionConfig();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin')}catch(e){console.error('Initial clean render failed',e)}
   setSaveStatus('saving','Loading saved league…','IndexedDB • safe startup');
   try{
     const saved=await withTimeout(readStateFromDB(),STORAGE_TIMEOUT_MS,'Saved league load');
-    if(saved){state=Object.assign(state,saved);normalizeLoadedState();synchronizeDivisionState();hydrate();ensurePools();ensureDivisionConfig();const recovered=recoverResourceAssignmentsFromBackup();if(recovered){refreshResourceAssignmentBackup();await queueSave(true)}renderAll();setView(new URLSearchParams(location.search).get('view')||'admin');setSaveStatus('saved',recovered?'League loaded — resource assignments recovered':'League loaded','IndexedDB • saved progress restored');scheduleDeferredCourtMigration()}
+    if(saved){state=Object.assign(state,saved);normalizeLoadedState();synchronizeDivisionState();hydrate();ensurePools();ensureDivisionConfig();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin');setSaveStatus('saved','League loaded','IndexedDB • saved progress restored');scheduleDeferredCourtMigration()}
     else{setSaveStatus('saved','Ready — new league','IndexedDB');try{await withTimeout(queueSave(true),STORAGE_TIMEOUT_MS,'Initial save')}catch(e){console.warn(e)}}
   }catch(e){
     console.error(e);
