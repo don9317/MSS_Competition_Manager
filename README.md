@@ -1,4 +1,4 @@
-# MSS League Scheduler v11.11.86.29 — Block-Local Session Compression
+# MSS League Scheduler v11.11.86.30 — Block-Local Session Compression
 
 Court optimizer correction:
 - Optimize This Date remains on Court Calendar and uses the visible date.
@@ -9,3 +9,7 @@ Court optimizer correction:
 - Protected schedule audit and final whole-date rollback gate remain in place.
 
 Do not Generate Schedule to test this fix. On Court Calendar choose 2026-09-27 and click Optimize This Date.
+
+
+## v86.30 fix
+Optimizer comparison now prioritizes each division/pool earliest legal session start before horizontal compression. A move from 4:50 to 4:30 (or 7:20 to 7:00) is accepted even when the number of distinct block times is unchanged, subject to the protected Audit.
