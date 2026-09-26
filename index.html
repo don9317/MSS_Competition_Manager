@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.11</title>
+<title>MSS League Scheduler v11.11.86.12</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.11</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.12</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -334,7 +334,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.11</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.12</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -1828,7 +1828,7 @@ function rotationAllowsAtSlot(a,b,ids,division,pool,slot,games){
   if(!state.settings.playAllTeamsOnce)return true;
   return opponentRotationAllows(a,b,ids,chronologicalPairCounts(games,division,pool,slot.date,slot.time))
 }
-// v11.11.86.11 — candidate-time immediate-rematch guard.
+// v11.11.86.12 — candidate-time immediate-rematch guard.
 // Tests the proposed game against the immediately adjacent chronological games
 // already committed or tentatively placed for the same team.
 function chronologicalImmediateRematchAtCandidate(teamId,opponentId,slot,committedGames=[],placements=[]){
@@ -1876,7 +1876,7 @@ const divisionScopeKey=d=>`DIV::${d}`;
 function scopeMatches(scope,d,pool){return scope==='ALL'||scope===divisionScopeKey(d)||scope===poolKey(d,pool)}
 function scopeMatchesGame(scope,g){return scope==='ALL'||scope===divisionScopeKey(g.division)||scope===poolKey(g.division,g.pool)}
 function selectedScheduleTargets(scopeOverride=null){
-  // v11.11.86.11: batch scheduling may pass an explicit scope so generation
+  // v11.11.86.12: batch scheduling may pass an explicit scope so generation
   // never depends on the visible dropdown while Schedule All is running.
   const scope=scopeOverride||$('scheduleFilter').value||'ALL',targets=[];
   Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{
@@ -2205,7 +2205,7 @@ async function scheduleAllReadyDivisions(){
       const explicitScope=divisionScopeKey(d);
       const beforeCount=state.games.length;
       try{
-        // v11.11.86.11: pass the division directly. Do not drive batch generation
+        // v11.11.86.12: pass the division directly. Do not drive batch generation
         // through the UI dropdown; that can be reset to Entire League during renders.
         await generateSchedule(explicitScope);
         const afterCount=state.games.length;
@@ -2268,7 +2268,7 @@ function exactGamesRequiredForDate(teamCount,minimum){
   return Math.ceil(teamCount*minimum/2);
 }
 async function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate,onStage){
-  // v11.11.86.11 — deterministic bounded matchup constructor.
+  // v11.11.86.12 — deterministic bounded matchup constructor.
   // The former recursive backtracking search could expand combinatorially on certain
   // league shapes (especially odd/small pools) and monopolize Chrome's main thread.
   // This constructor builds the exact nightly degree sequence directly. It evaluates
@@ -2524,9 +2524,95 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     );
   }
 
+  // v11.11.86.12 — HARD-MINIMUM COMPLETION PASS.
+  // If the preference-aware solver times out one game short, solve the SAME planned
+  // matchup set using only immutable production constraints:
+  //   valid court/time + team availability + no team double-booking + no court double-booking.
+  // Coach protection, rest preference, opponent sequence and rematch avoidance are softer than
+  // the configured nightly minimum. This pass may relax those preferences, but never invents
+  // a self-match and never exceeds the matchup plan's configured max-games-per-date.
+  {
+    const hardStarted=performance.now(),hardNodeLimit=120000;
+    let hardNodes=0,lastHardYield=performance.now();
+    const hUsed=new Set(),hTeamTimes={},hPlacements=[];
+    let hBest=[];
+
+    function hCandidate(game,sl){
+      const ta=teamById(game.a),tb=teamById(game.b),sk=`${sl.date}|${sl.time}|${sl.court}`;
+      if(used.has(sk)||hUsed.has(sk)||!allowed(ta,sl)||!allowed(tb,sl))return false;
+      const extA=teamTimes[game.a]||new Set(),extB=teamTimes[game.b]||new Set();
+      if(extA.has(sl.stamp)||extB.has(sl.stamp))return false;
+      if((hTeamTimes[game.a]||[]).includes(sl.stamp)||(hTeamTimes[game.b]||[]).includes(sl.stamp))return false;
+      return true;
+    }
+    function hCandidates(game){
+      const out=baseSlots.filter(sl=>hCandidate(game,sl));
+      // Least disruptive first: prefer slots furthest from each team's already assigned games.
+      out.sort((a,b)=>{
+        const score=sl=>{
+          const stamps=[...(teamTimes[game.a]||new Set()),...(teamTimes[game.b]||new Set()),
+                        ...(hTeamTimes[game.a]||[]),...(hTeamTimes[game.b]||[])];
+          return stamps.length?Math.min(...stamps.map(t=>Math.abs(sl.stamp-t))):1e15;
+        };
+        return score(b)-score(a)||a.stamp-b.stamp;
+      });
+      return out;
+    }
+    async function hYield(force=false){
+      const now=performance.now();
+      if(force||hardNodes%250===0||now-lastHardYield>20){
+        await placementYield(`Playing Date ${dateIndex+1} • hard-minimum completion ${hPlacements.length}/${games.length} • ${hardNodes} checks`,true);
+        lastHardYield=performance.now();
+      }
+    }
+    async function hSearch(remaining){
+      hardNodes++;totalNodes++;
+      if(hPlacements.length>hBest.length)hBest=hPlacements.map(q=>({game:q.game,sl:q.sl}));
+      if(!remaining.length)return true;
+      if(hardNodes>hardNodeLimit||performance.now()-hardStarted>12000)return false;
+      await hYield(false);
+      let pick=0,cands=null;
+      for(let i=0;i<remaining.length;i++){
+        const c=hCandidates(remaining[i]);
+        if(!c.length)return false;
+        if(cands===null||c.length<cands.length){pick=i;cands=c;if(c.length===1)break}
+      }
+      const game=remaining[pick],next=remaining.slice(0,pick).concat(remaining.slice(pick+1));
+      // In this final pass capacity is more important than a small branch cap.
+      for(const sl of cands){
+        const sk=`${sl.date}|${sl.time}|${sl.court}`;
+        hUsed.add(sk);(hTeamTimes[game.a]??=[]).push(sl.stamp);(hTeamTimes[game.b]??=[]).push(sl.stamp);
+        hPlacements.push({game,sl});
+        if(await hSearch(next))return true;
+        hPlacements.pop();hUsed.delete(sk);hTeamTimes[game.a].pop();hTeamTimes[game.b].pop();
+        if(hardNodes>hardNodeLimit||performance.now()-hardStarted>12000)break;
+      }
+      return false;
+    }
+
+    await hYield(true);
+    const hardSolved=await hSearch(games);
+    if(hardSolved){
+      for(const {game,sl} of hPlacements){
+        const {a,b}=game,ta=teamById(a),tb=teamById(b),sk=`${sl.date}|${sl.time}|${sl.court}`;
+        used.add(sk);(teamTimes[a]??=new Set()).add(sl.stamp);(teamTimes[b]??=new Set()).add(sl.stamp);
+        if(ta?.coach)(coachTimes[ta.coach]??=new Set()).add(sl.stamp);
+        if(tb?.coach)(coachTimes[tb.coach]??=new Set()).add(sl.stamp);
+        newGames.push({id:uid('g'),division,pool,aId:a,bId:b,date:sl.date,time:sl.time,court:sl.court,sa:null,sb:null,week:dateIndex+1,plannedRound:game.rotationRound});
+      }
+      return {
+        ok:true,placed:hPlacements.length,total:games.length,attempts:totalNodes,
+        relaxedRules:'hard-minimum-completion',
+        hardMinimumCompletion:true,
+        immediateRematchRelaxed:true
+      };
+    }
+    if(hBest.length>overallBest.length){overallBest=hBest;overallBestTier='hard-minimum-completion';}
+  }
+
   return {
     ok:false,placed:overallBest.length,total:games.length,attempts:totalNodes,
-    reason:`bounded solver exhausted safe search limits (best ${overallBest.length}/${games.length}, ${overallBestTier})`,
+    reason:`all preference tiers plus hard-minimum completion exhausted safe search limits (best ${overallBest.length}/${games.length}, ${overallBestTier})`,
     placements:overallBest
   };
 }
@@ -2646,8 +2732,10 @@ This approval will be saved. Click Generate Schedule again to build the schedule
       let result;
       try{result=await placeGuaranteeDatePlan({division:d,pool,date,dateIndex,plannedGames:entry.games,available,used,teamTimes,coachTimes,newGames,placementYield})}
       catch(err){hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, ${date}: ${err.message||err}`);break}
-      if(result.ok&&result.immediateRematchRelaxed){
-        hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): the 3-game guarantee was preserved only by allowing an immediate-rematch fallback after all no-rematch placements were exhausted. Review the Immediate Rematches audit.`);
+      if(result.ok&&result.hardMinimumCompletion){
+        warnings.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): hard-minimum completion pass was used to preserve every team's ${minimum}-game nightly minimum. Soft coach/rest/opponent preferences may have been relaxed; review WARN rules after generation.`);
+      }else if(result.ok&&result.immediateRematchRelaxed){
+        warnings.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): the ${minimum}-game guarantee required an immediate-rematch fallback after stricter placements were exhausted. Review the Immediate Rematches audit.`);
       }
       if(!result.ok){
         // v11.11.79: retain the best valid partial placement for this date and continue.
@@ -2677,7 +2765,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.86.11: a partial placement may be retained for director diagnosis, but it is NEVER
+  // v11.11.86.12: a partial placement may be retained for director diagnosis, but it is NEVER
   // considered a valid production result. Nightly minimum and calculated season minimum remain
   // hard FAIL rules. The Audit now reports Division / Pool / Team / Playing Date / actual-required.
 
@@ -2690,7 +2778,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   await yieldToBrowser();
   state.games=[...retainedGames,...newGames].map(g=>({...g,status:g.status||'Scheduled',pending:true}));
   persist();
-  // v11.11.86.11: Do NOT synchronously render the entire application after generation.
+  // v11.11.86.12: Do NOT synchronously render the entire application after generation.
   // renderAll() rebuilds Dashboard, Resources, Calendar, Management, Results, Standings,
   // Coach Tools and League Portal even while the user is on Schedule. With a large generated
   // schedule that can monopolize Chrome's main thread after the green completion state appears.
@@ -2777,7 +2865,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     `<details><summary>Capacity & feasibility</summary><div class="hint">${feasibilityNotes.map(esc).join('<br>')}</div></details>`+
     `${generationIssues.length?`<details><summary>Generation warnings (${generationIssues.length})</summary><div class="hint">${generationIssues.map(esc).join('<br>')}</div></details>`:''}`;
 
-  // v11.11.86.11: preserve the detailed generation summary instead of overwriting it with a generic stage line.
+  // v11.11.86.12: preserve the detailed generation summary instead of overwriting it with a generic stage line.
   setTab('schedule');
   resetRuntimeOverflowPlan();
 }
@@ -3271,7 +3359,7 @@ async function targetedFinalRepairV78(balanceCeilingOverride=null){
 }
 
 
-// v11.11.86.11 — HARD MINIMUM SAFETY GATE.
+// v11.11.86.12 — HARD MINIMUM SAFETY GATE.
 // Nightly minimum and calculated season minimum are inviolable production rules.
 function hardMinimumSnapshot(games){
   const active=(games||[]).filter(g=>g.status!=='Cancelled');
@@ -3510,7 +3598,7 @@ function nightlyCapacityDiagnostic(d,pool,date,ids,minimum,maxPerDate,games){
 
 function runScheduleAudit(allLeague=false){
   syncSettings();const selected=allLeague?'ALL':($('scheduleFilter').value||'ALL');
-  // v11.11.86.11: production audits exclude Draft / unapproved divisions.
+  // v11.11.86.12: production audits exclude Draft / unapproved divisions.
   // A deliberately unapproved one-team division must not create false hard-rule failures.
   const productionDivision=d=>state.pools?.[d]?.approved===true;
   const games=state.games.filter(g=>g.status!=='Cancelled'&&scopeMatchesGame(selected,g)&&(!allLeague||productionDivision(g.division)));
