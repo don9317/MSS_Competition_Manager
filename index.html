@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.7</title>
+<title>MSS League Scheduler v11.11.86.8</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.7</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.8</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -334,7 +334,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.7</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.8</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -1828,7 +1828,7 @@ function rotationAllowsAtSlot(a,b,ids,division,pool,slot,games){
   if(!state.settings.playAllTeamsOnce)return true;
   return opponentRotationAllows(a,b,ids,chronologicalPairCounts(games,division,pool,slot.date,slot.time))
 }
-// v11.11.86.7 — candidate-time immediate-rematch guard.
+// v11.11.86.8 — candidate-time immediate-rematch guard.
 // Tests the proposed game against the immediately adjacent chronological games
 // already committed or tentatively placed for the same team.
 function chronologicalImmediateRematchAtCandidate(teamId,opponentId,slot,committedGames=[],placements=[]){
@@ -2165,16 +2165,68 @@ function blockedDivisionDetails(){
   });
 }
 async function scheduleAllReadyDivisions(){
-  syncSettings();synchronizePoolWindowsFromGroups();persist();renderAll();
+  syncSettings();
+  synchronizePoolWindowsFromGroups();
+  persist();
+
   const ready=readyDivisionKeys(),blocked=blockedDivisionDetails();
-  if(!ready.length){alert(`No divisions are ready to schedule.${blocked.length?'\n\n'+blocked.join('\n'):''}`);return}
-  const original=$('scheduleFilter').value||'ALL';let scheduled=0;
-  for(const d of ready){
-    $('scheduleFilter').value=divisionScopeKey(d);
-    try{await generateSchedule();scheduled++;await yieldToBrowser()}catch(err){console.error(err);showActionFeedback(`${divisionLabel(d)} could not be scheduled: ${err.message||err}`,false)}
+  if(!ready.length){
+    alert(`No divisions are ready to schedule.${blocked.length?'\n\n'+blocked.join('\n'):''}`);
+    return;
   }
-  $('scheduleFilter').value=original;renderAll();
-  $('genSummary').innerHTML=`<div class="status ok"><b>Scheduled ${scheduled} ready division(s).</b>${blocked.length?`<br><span class="hint">Skipped ${blocked.length} blocked division(s): ${blocked.map(esc).join(' • ')}</span>`:''}</div>`;
+
+  const original=$('scheduleFilter').value||'ALL';
+  const btn=$('generateReadyBtn');
+  const oldBtnText=btn?btn.textContent:'';
+  let scheduled=0,failed=0,totalGames=0;
+  const results=[];
+
+  if(btn){btn.disabled=true;btn.textContent=`Scheduling 0 of ${ready.length}…`;}
+  setTab('schedule');
+  $('genSummary').innerHTML=`<div class="status warn"><b>Schedule All starting…</b><br>0 of ${ready.length} ready divisions completed.${blocked.length?`<br><span class="hint">${blocked.length} blocked division(s) will be skipped.</span>`:''}</div>`;
+  await yieldToBrowser();
+
+  try{
+    for(let i=0;i<ready.length;i++){
+      const d=ready[i];
+      const label=divisionLabel(d);
+      if(btn)btn.textContent=`Scheduling ${i+1} of ${ready.length}…`;
+      $('genSummary').innerHTML=`<div class="status warn"><b>Scheduling ${i+1} of ${ready.length}: ${esc(label)}</b><br>${scheduled} completed${failed?` • ${failed} failed`:''}. Please leave this page open.</div>`;
+      await yieldToBrowser();
+
+      $('scheduleFilter').value=divisionScopeKey(d);
+      const beforeCount=state.games.length;
+      try{
+        await generateSchedule();
+        const afterCount=state.games.length;
+        const delta=Math.max(0,afterCount-beforeCount);
+        totalGames+=delta;
+        scheduled++;
+        results.push(`✓ ${label}${delta?` — ${delta} game(s) added`:''}`);
+      }catch(err){
+        failed++;
+        console.error(err);
+        results.push(`⚠ ${label} — ${err.message||err}`);
+      }
+
+      // Critical v86.8 behavior: let Chrome process paint/input between divisions.
+      await yieldToBrowser();
+      await new Promise(resolve=>setTimeout(resolve,25));
+    }
+  }finally{
+    $('scheduleFilter').value=original;
+    if(btn){btn.disabled=false;btn.textContent=oldBtnText||'Schedule All Approved / Ready Divisions';}
+  }
+
+  // Do NOT call renderAll() here.  v86.7 proved full-app rendering after a
+  // large generation can monopolize the browser. Refresh only the schedule
+  // surface and dashboard data needed for the current view.
+  try{renderSchedule()}catch(err){console.error('Schedule refresh:',err)}
+  try{renderDashboard()}catch(err){console.error('Dashboard refresh:',err)}
+  await yieldToBrowser();
+
+  const resultLines=results.map(esc).join('<br>');
+  $('genSummary').innerHTML=`<div class="status ${failed?'warn':'ok'}"><b>Schedule All complete: ${scheduled}/${ready.length} ready division(s) scheduled.</b>${totalGames?`<br>${totalGames} game(s) added during this batch.`:''}${failed?`<br><b>${failed} division(s) reported an error.</b>`:''}${blocked.length?`<br><span class="hint">Skipped ${blocked.length} blocked division(s): ${blocked.map(esc).join(' • ')}</span>`:''}<details style="margin-top:6px"><summary>Division-by-division results</summary>${resultLines}</details><br><b>Next step:</b> run Audit Entire League before optimizing or publishing.</div>`;
   setTab('schedule');
 }
 
@@ -2205,7 +2257,7 @@ function exactGamesRequiredForDate(teamCount,minimum){
   return Math.ceil(teamCount*minimum/2);
 }
 async function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate,onStage){
-  // v11.11.86.7 — deterministic bounded matchup constructor.
+  // v11.11.86.8 — deterministic bounded matchup constructor.
   // The former recursive backtracking search could expand combinatorially on certain
   // league shapes (especially odd/small pools) and monopolize Chrome's main thread.
   // This constructor builds the exact nightly degree sequence directly. It evaluates
@@ -2626,7 +2678,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   await yieldToBrowser();
   state.games=[...retainedGames,...newGames].map(g=>({...g,status:g.status||'Scheduled',pending:true}));
   persist();
-  // v11.11.86.7: Do NOT synchronously render the entire application after generation.
+  // v11.11.86.8: Do NOT synchronously render the entire application after generation.
   // renderAll() rebuilds Dashboard, Resources, Calendar, Management, Results, Standings,
   // Coach Tools and League Portal even while the user is on Schedule. With a large generated
   // schedule that can monopolize Chrome's main thread after the green completion state appears.
@@ -2669,9 +2721,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
       repair=await autoRepairGeneratedSchedule(working,retained,touched);
       state.games=[...retained,...working].map(g=>({...g,status:g.status||'Scheduled',pending:true}));
       persist();
-      // v11.11.86.7: keep post-repair refresh bounded to the active Schedule surface.
-      renderSchedule();
-      await yieldToBrowser();
+      renderAll();
     }catch(err){
       console.error('Automatic optimization stopped safely',err);
       generationIssues.push(`Automatic optimization stopped safely: ${err.message||err}`);
@@ -2712,7 +2762,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     `<details><summary>Capacity & feasibility</summary><div class="hint">${feasibilityNotes.map(esc).join('<br>')}</div></details>`+
     `${generationIssues.length?`<details><summary>Generation warnings (${generationIssues.length})</summary><div class="hint">${generationIssues.map(esc).join('<br>')}</div></details>`:''}`;
 
-  // v11.11.86.7: preserve the detailed generation summary instead of overwriting it with a generic stage line.
+  // v11.11.86.8: preserve the detailed generation summary instead of overwriting it with a generic stage line.
   setTab('schedule');
   resetRuntimeOverflowPlan();
 }
