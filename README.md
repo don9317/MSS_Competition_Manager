@@ -1,15 +1,9 @@
-# MSS League Scheduler v11.11.86.30 — Block-Local Session Compression
+# MSS League Scheduler v11.11.86.31 — Physical Court Order
 
-Court optimizer correction:
-- Optimize This Date remains on Court Calendar and uses the visible date.
-- Each division/pool is evaluated against its own current time/court layout, so useful moves are not rejected merely because another division still occupies an old start time.
-- Each division/pool is anchored to its earliest legal configured session time (for this league, 4:30 PM or 7:00 PM) when legally possible.
-- Legal courts are filled horizontally at a time before advancing.
-- Matchups are unchanged; manual locks are preserved.
-- Protected schedule audit and final whole-date rollback gate remain in place.
+Court optimizer refinement only.
 
-Do not Generate Schedule to test this fix. On Court Calendar choose 2026-09-27 and click Optimize This Date.
-
-
-## v86.30 fix
-Optimizer comparison now prioritizes each division/pool earliest legal session start before horizontal compression. A move from 4:50 to 4:30 (or 7:20 to 7:00) is accepted even when the number of distinct block times is unchanged, subject to the protected Audit.
+- Preserves v86.30 session-start anchoring and horizontal time compression.
+- Adds deterministic physical court preference among otherwise legal placements: 1A, 1B, 2A, 2B, 3A, 3B, etc.
+- On A-only dates, this naturally becomes 1A, 2A, 3A, etc.
+- Hard court availability, court-group assignments, team/rest rules, manual locks, matchups, and protected Audit remain authoritative.
+- START_HERE.html now redirects to the current index.html instead of embedding an obsolete build.
