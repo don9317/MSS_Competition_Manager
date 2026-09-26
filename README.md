@@ -17,3 +17,4 @@ Multi-pass late-session compaction. Optimize This Date now repeats division/pool
 
 ## v11.11.86.36
 Print/export-only change. Court/Game # numbering restarts at Game 1 for each court at 7:00 PM (High School session). Printed court sheets show Elementary and High School section labels but no time column. CSV includes Session and Game # but no game time. Scheduler and optimizer logic are unchanged from v86.35.
+\n\n## v11.11.86.37\nFixes Director Dashboard Edit League Rules navigation so it opens and scrolls to the League Setup/Game Length control. Adds alternating latest-game-first optimizer cleanup sweeps to reconsider games stranded late after earlier legal slots open. Matchups/opponents are unchanged by court/time optimization.\n
