@@ -2291,17 +2291,13 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     {name:'coach-relaxed',relaxCoach:true,relaxRest:false,relaxSequence:false,relaxRematch:false,timeMs:5500,nodeLimit:22000},
     {name:'rest-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:false,relaxRematch:false,timeMs:5000,nodeLimit:20000},
     {name:'sequence-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:true,relaxRematch:false,timeMs:4000,nodeLimit:16000},
-    {name:'rematch-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:true,relaxRematch:true,relaxRequests:false,timeMs:3000,nodeLimit:12000},
-    // v11.11.86.19 HARD RULE #1: if necessary, team schedule requests yield to the
-    // 3-games-per-team-per-playing-date guarantee. Court/time legality and double-booking never yield.
-    {name:'minimum-guarantee',relaxCoach:true,relaxRest:true,relaxSequence:true,relaxRematch:true,relaxRequests:true,timeMs:7000,nodeLimit:40000}
+    {name:'rematch-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:true,relaxRematch:true,timeMs:3000,nodeLimit:12000}
   ];
   let overallBest=[],overallBestTier='strict',totalNodes=0;
 
   function hardCandidate(game,sl,localUsed,localTeamTimes,localCoachTimes,tier,placements){
     const {a,b}=game,ta=teamById(a),tb=teamById(b),sk=`${sl.date}|${sl.time}|${sl.court}`;
-    if(used.has(sk)||localUsed.has(sk))return false;
-    if(!tier.relaxRequests&&(!allowed(ta,sl)||!allowed(tb,sl)))return false;
+    if(used.has(sk)||localUsed.has(sk)||!allowed(ta,sl)||!allowed(tb,sl))return false;
 
     if(state.settings.avoidImmediateRematches&&!tier.relaxRematch){
       if(chronologicalImmediateRematchAtCandidate(a,b,sl,newGames,placements))return false;
@@ -2593,9 +2589,17 @@ This approval will be saved. Click Generate Schedule again to build the schedule
         // v11.11.79: retain the best valid partial placement for this date and continue.
         // The Audit is responsible for flagging any unmet league guarantees, matching the
         // earlier scheduler behavior while preserving v11.11.32's bounded/non-freezing placer.
+        const partial=result.placements||[];
+        for(const {game,sl} of partial){
+          const {a,b}=game,ta=teamById(a),tb=teamById(b),sk=`${sl.date}|${sl.time}|${sl.court}`;
+          if(used.has(sk))continue;
+          used.add(sk);(teamTimes[a]??=new Set()).add(sl.stamp);(teamTimes[b]??=new Set()).add(sl.stamp);
+          if(ta?.coach)(coachTimes[ta.coach]??=new Set()).add(sl.stamp);if(tb?.coach)(coachTimes[tb.coach]??=new Set()).add(sl.stamp);
+          newGames.push({id:uid('g'),division:d,pool,aId:a,bId:b,date:sl.date,time:sl.time,court:sl.court,sa:null,sb:null,week:dateIndex+1,plannedRound:game.rotationRound});
+        }
         const missing=Math.max(0,result.total-result.placed);
-        hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): HARD MINIMUM FAILURE — only ${result.placed}/${result.total} required games could be placed; ${missing} remain. Reason: ${result.reason||'no legal slot found under current constraints'}. No partial games for this date were accepted.`);
-        await placementYield(`Playing Date ${dateIndex+1}: HARD MINIMUM not met; partial result rejected`,true);
+        hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): placed ${result.placed}/${result.total} planned games; ${missing} game(s) remain unplaced. Reason: ${result.reason||'no legal slot found under current constraints'}. The partial schedule was kept and the Audit will identify teams below the guaranteed minimum.`);
+        await placementYield(`Playing Date ${dateIndex+1}: kept ${result.placed}/${result.total}; continuing`,true);
       }
     }
 
@@ -3352,10 +3356,7 @@ function runScheduleAudit(allLeague=false){
   syncSettings();const selected=allLeague?'ALL':($('scheduleFilter').value||'ALL');
   const games=state.games.filter(g=>g.status!=='Cancelled'&&scopeMatchesGame(selected,g));
   if(!games.length){$('scheduleAudit').innerHTML='<div class="status warn">No scheduled games are available to audit for this scope.</div>';return}
-  const targetPools=[];Object.entries(state.pools).forEach(([d,p])=>{
-    if(allLeague&&!p?.approved)return;
-    Object.entries(p.lists).forEach(([pool,ids])=>{if(scopeMatches(selected,d,pool))targetPools.push({d,pool,ids})});
-  });
+  const targetPools=[];Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{if(scopeMatches(selected,d,pool))targetPools.push({d,pool,ids})}));
   const results=[],gameLen=Number(state.settings.gameLength||20),dates=seasonDates();
   let self=[],teamDouble=[],courtDouble=[],windowBad=[],courtBad=[],requestBad=[],coachBad=[],maxBad=[],guaranteeBad=[],minimumDateBad=[],overflowWarn=[],overflowCourtInfo=[],immediateBad=[],allBeforeRepeatBad=[],restBad=[],fairnessWarn=[];const immediateKeys=new Map();
   const slotCourt={},slotTeam={},slotCoach={};
@@ -3387,9 +3388,9 @@ function runScheduleAudit(allLeague=false){
   targetPools.forEach(({d,pool,ids})=>{
     const pg=games.filter(g=>g.division===d&&g.pool===pool).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));const cfg=state.divisionConfig[d]||{},minimum=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3),guarantee=minimum*Math.max(1,dates.length),max=Number(cfg.maxGamesPerDate||state.settings.maxGamesPerDate||4);
     ids.forEach(id=>{
-      const tg=pg.filter(g=>g.aId===id||g.bId===id),name=teamById(id).name,auditPrefix=`${divisionLabel(d)} — ${poolDisplayName(d,pool)} — `;if(tg.length<guarantee)guaranteeBad.push(`${auditPrefix}${name}: ${tg.length}/${guarantee} season games (minimum ${guarantee})`);
-      const byDate={};tg.forEach(g=>(byDate[g.date]??=[]).push(g));dates.forEach(date=>{const arr=byDate[date]||[];const hasAvailability=divisionSlots(d,date).some(sl=>allowed(teamById(id),sl));if(hasAvailability&&arr.length<minimum)minimumDateBad.push(`${auditPrefix}${name}: ${arr.length} games on ${date} (minimum ${minimum})`);if(arr.length>max)maxBad.push(`${auditPrefix}${name}: ${arr.length} games on ${date} (max ${max})`);else if(arr.length>minimum)overflowWarn.push(`${auditPrefix}${name}: ${arr.length} games on ${date} (minimum ${minimum}; max ${max})`)});
-      const seq=[...tg].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));let seen=new Set();for(let i=0;i<seq.length;i++){const g=seq[i],opp=g.aId===id?g.bId:g.aId;if(i&&opp===(seq[i-1].aId===id?seq[i-1].bId:seq[i-1].aId)&&state.settings.avoidImmediateRematches){const prev=seq[i-1],pair=[id,opp].sort().join('|'),boundary=`${prev.date}|${prev.time}|${g.date}|${g.time}`,k=`${d}|${pool}|${pair}|${boundary}`;const entry=immediateKeys.get(k)||{division:d,pool,a:id,b:opp,teams:new Set(),prev,next:g};entry.teams.add(id);entry.prev=prev;entry.next=g;immediateKeys.set(k,entry)}if(state.settings.playAllTeamsOnce&&seen.has(opp)){const possible=ids.filter(x=>x!==id),unplayed=possible.filter(x=>!seen.has(x)&&x!==opp);if(unplayed.length){const oppName=teamById(opp)?.name||opp;const unplayedNames=unplayed.map(x=>teamById(x)?.name||x).join(', ');allBeforeRepeatBad.push(`${auditPrefix}${name}: repeated ${oppName} on ${g.date} ${fmtTime(g.time)} before facing all pool opponents — not yet faced: ${unplayedNames}`)}}seen.add(opp)}
+      const tg=pg.filter(g=>g.aId===id||g.bId===id),name=teamById(id).name;if(tg.length<guarantee)guaranteeBad.push(`${name}: ${tg.length}/${guarantee}`);
+      const byDate={};tg.forEach(g=>(byDate[g.date]??=[]).push(g));dates.forEach(date=>{const arr=byDate[date]||[];const hasAvailability=divisionSlots(d,date).some(sl=>allowed(teamById(id),sl));if(hasAvailability&&arr.length<minimum)minimumDateBad.push(`${name}: ${arr.length} games on ${date} (minimum ${minimum})`);if(arr.length>max)maxBad.push(`${name}: ${arr.length} games on ${date} (max ${max})`);else if(arr.length>minimum)overflowWarn.push(`${name}: ${arr.length} games on ${date} (minimum ${minimum}; max ${max})`)});
+      const seq=[...tg].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));let seen=new Set();const auditPrefix=`${divisionLabel(d)} — ${poolDisplayName(d,pool)} — `;for(let i=0;i<seq.length;i++){const g=seq[i],opp=g.aId===id?g.bId:g.aId;if(i&&opp===(seq[i-1].aId===id?seq[i-1].bId:seq[i-1].aId)&&state.settings.avoidImmediateRematches){const prev=seq[i-1],pair=[id,opp].sort().join('|'),boundary=`${prev.date}|${prev.time}|${g.date}|${g.time}`,k=`${d}|${pool}|${pair}|${boundary}`;const entry=immediateKeys.get(k)||{division:d,pool,a:id,b:opp,teams:new Set(),prev,next:g};entry.teams.add(id);entry.prev=prev;entry.next=g;immediateKeys.set(k,entry)}if(state.settings.playAllTeamsOnce&&seen.has(opp)){const possible=ids.filter(x=>x!==id),unplayed=possible.filter(x=>!seen.has(x)&&x!==opp);if(unplayed.length){const oppName=teamById(opp)?.name||opp;const unplayedNames=unplayed.map(x=>teamById(x)?.name||x).join(', ');allBeforeRepeatBad.push(`${auditPrefix}${name}: repeated ${oppName} on ${g.date} ${fmtTime(g.time)} before facing all pool opponents — not yet faced: ${unplayedNames}`)}}seen.add(opp)}
       for(let i=1;i<seq.length;i++){if(seq[i].date!==seq[i-1].date)continue;const t1=new Date(`${seq[i-1].date}T${seq[i-1].time}:00`).getTime(),t2=new Date(`${seq[i].date}T${seq[i].time}:00`).getTime(),diff=(t2-t1)/60000;const minGap=(state.settings.allowBackToBack?Number(state.settings.minRest||0)+1:Math.max(2,Number(state.settings.minRest||0)+1))*gameLen;if(diff<minGap)restBad.push(`${name}: ${diff} min between games on ${seq[i].date}; requires ${minGap} min`)}
     })
   });
@@ -3525,9 +3526,7 @@ function runProductionPreflight(){
   if(!divisions.length)blocking.push('No divisions exist.');
   divisions.forEach(d=>{
     const pd=state.pools?.[d];
-    // v11.11.86.19: draft/unapproved divisions are outside production scope.
-    // They do not block Preflight, Schedule All, Re-Optimize, or Entire League Audit.
-    if(!pd?.approved)return;
+    if(!pd?.approved)blocking.push(`${divisionLabel(d)} is not approved on the Division / Pool Board.`);
     const lists=pd?.lists||{};
     Object.entries(lists).forEach(([pool,ids])=>{
       const label=`${divisionLabel(d)} — ${poolDisplayName(d,pool)}`;
