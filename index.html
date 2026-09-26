@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.14</title>
+<title>MSS League Scheduler v11.11.86.15</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.14</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.15</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -334,7 +334,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.14</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.15</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -1828,7 +1828,7 @@ function rotationAllowsAtSlot(a,b,ids,division,pool,slot,games){
   if(!state.settings.playAllTeamsOnce)return true;
   return opponentRotationAllows(a,b,ids,chronologicalPairCounts(games,division,pool,slot.date,slot.time))
 }
-// v11.11.86.14 — candidate-time immediate-rematch guard.
+// v11.11.86.15 — candidate-time immediate-rematch guard.
 // Tests the proposed game against the immediately adjacent chronological games
 // already committed or tentatively placed for the same team.
 function chronologicalImmediateRematchAtCandidate(teamId,opponentId,slot,committedGames=[],placements=[]){
@@ -1876,7 +1876,7 @@ const divisionScopeKey=d=>`DIV::${d}`;
 function scopeMatches(scope,d,pool){return scope==='ALL'||scope===divisionScopeKey(d)||scope===poolKey(d,pool)}
 function scopeMatchesGame(scope,g){return scope==='ALL'||scope===divisionScopeKey(g.division)||scope===poolKey(g.division,g.pool)}
 function selectedScheduleTargets(scopeOverride=null){
-  // v11.11.86.14: batch scheduling may pass an explicit scope so generation
+  // v11.11.86.15: batch scheduling may pass an explicit scope so generation
   // never depends on the visible dropdown while Schedule All is running.
   const scope=scopeOverride||$('scheduleFilter').value||'ALL',targets=[];
   Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{
@@ -2149,7 +2149,7 @@ function repairSummaryText(r){
   if(b.rest!==a.rest)bits.push(`rest conflicts ${b.rest}→${a.rest}`);
   return `Automatic repair: ${r.iterations} improvement(s)${bits.length?` • ${bits.join(' • ')}`:''}.`;
 }
-// v11.11.86.14 — single production-scope authority.
+// v11.11.86.15 — single production-scope authority.
 function isProductionDivision(d){
   return !!(d && state.pools?.[d]?.approved === true);
 }
@@ -2214,7 +2214,7 @@ async function scheduleAllReadyDivisions(){
       const explicitScope=divisionScopeKey(d);
       const beforeCount=state.games.length;
       try{
-        // v11.11.86.14: pass the division directly. Do not drive batch generation
+        // v11.11.86.15: pass the division directly. Do not drive batch generation
         // through the UI dropdown; that can be reset to Entire League during renders.
         await generateSchedule(explicitScope);
         const afterCount=state.games.length;
@@ -2277,7 +2277,7 @@ function exactGamesRequiredForDate(teamCount,minimum){
   return Math.ceil(teamCount*minimum/2);
 }
 async function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate,onStage){
-  // v11.11.86.14 — deterministic bounded matchup constructor.
+  // v11.11.86.15 — deterministic bounded matchup constructor.
   // The former recursive backtracking search could expand combinatorially on certain
   // league shapes (especially odd/small pools) and monopolize Chrome's main thread.
   // This constructor builds the exact nightly degree sequence directly. It evaluates
@@ -2320,7 +2320,9 @@ async function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate,onStage){
         remaining[a]++;remaining[b]++;
         if(!ok)continue;
         const k=pairKey(a,b),day= dailyPairCounts.get(k)||0,hist=pairCounts.get(k)||0;
-        // Strongly prefer a new opponent today, then the least-used season opponent.
+        // v11.11.86.15: small pools (especially 3 teams) must repeat opponents to satisfy
+        // the hard nightly minimum. Repeats remain a soft ordering preference only.
+        // Strongly prefer a new opponent today when feasible, then the least-used season opponent.
         // Higher remaining need breaks ties so constrained teams are consumed first.
         const score=[day,hist,-(remaining[a]+remaining[b]),-(Math.max(remaining[a],remaining[b])),teamOrder.get(a)+teamOrder.get(b)];
         if(!best||score.some((v,x)=>v<best.score[x]&&score.slice(0,x).every((q,y)=>q===best.score[y]))){best={a,b,k,score}}
@@ -2359,11 +2361,10 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   // This solver uses "most constrained game first" backtracking, yields frequently
   // to Chrome, and falls back through controlled rule tiers only when necessary.
   const tiers=[
-    {name:'strict',relaxCoach:false,relaxRest:false,relaxSequence:false,relaxRematch:false,timeMs:8500,nodeLimit:30000},
-    {name:'coach-relaxed',relaxCoach:true,relaxRest:false,relaxSequence:false,relaxRematch:false,timeMs:5500,nodeLimit:22000},
-    {name:'rest-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:false,relaxRematch:false,timeMs:5000,nodeLimit:20000},
-    {name:'sequence-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:true,relaxRematch:false,timeMs:4000,nodeLimit:16000},
-    {name:'rematch-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:true,relaxRematch:true,timeMs:3000,nodeLimit:12000}
+    {name:'strict-hard-counts',relaxCoach:true,relaxRest:false,relaxSequence:false,relaxRematch:false,timeMs:8500,nodeLimit:30000},
+    {name:'rest-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:false,relaxRematch:false,timeMs:5500,nodeLimit:24000},
+    {name:'sequence-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:true,relaxRematch:false,timeMs:5000,nodeLimit:22000},
+    {name:'rematch-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:true,relaxRematch:true,timeMs:4500,nodeLimit:22000}
   ];
   let overallBest=[],overallBestTier='strict',totalNodes=0;
 
@@ -2395,10 +2396,10 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     const locA=localTeamTimes[a]||[],locB=localTeamTimes[b]||[];
     if(extA.has(sl.stamp)||extB.has(sl.stamp)||locA.includes(sl.stamp)||locB.includes(sl.stamp))return false;
 
-    if(!tier.relaxCoach&&state.settings.protectSharedCoaches){
-      if(ta?.coach&&((coachTimes[ta.coach]||new Set()).has(sl.stamp)||(localCoachTimes[ta.coach]||[]).includes(sl.stamp)))return false;
-      if(tb?.coach&&((coachTimes[tb.coach]||new Set()).has(sl.stamp)||(localCoachTimes[tb.coach]||[]).includes(sl.stamp)))return false;
-    }
+    // v11.11.86.15 — shared-coach protection is intentionally non-controlling.
+    // League policy requires each team to have an additional coach, so a shared coach
+    // may not prevent a team from reaching the hard nightly/season game minimum.
+
 
     if(!tier.relaxRest&&effectiveRestSlots>0){
       if([...extA].some(x=>Math.abs(sl.stamp-x)<restMs)||[...extB].some(x=>Math.abs(sl.stamp-x)<restMs))return false;
@@ -2533,7 +2534,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     );
   }
 
-  // v11.11.86.14 — HARD-MINIMUM COMPLETION PASS.
+  // v11.11.86.15 — HARD-MINIMUM COMPLETION PASS.
   // If the preference-aware solver times out one game short, solve the SAME planned
   // matchup set using only immutable production constraints:
   //   valid court/time + team availability + no team double-booking + no court double-booking.
@@ -2774,7 +2775,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.86.14: a partial placement may be retained for director diagnosis, but it is NEVER
+  // v11.11.86.15: a partial placement may be retained for director diagnosis, but it is NEVER
   // considered a valid production result. Nightly minimum and calculated season minimum remain
   // hard FAIL rules. The Audit now reports Division / Pool / Team / Playing Date / actual-required.
 
@@ -2787,7 +2788,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   await yieldToBrowser();
   state.games=[...retainedGames,...newGames].map(g=>({...g,status:g.status||'Scheduled',pending:true}));
   persist();
-  // v11.11.86.14: Do NOT synchronously render the entire application after generation.
+  // v11.11.86.15: Do NOT synchronously render the entire application after generation.
   // renderAll() rebuilds Dashboard, Resources, Calendar, Management, Results, Standings,
   // Coach Tools and League Portal even while the user is on Schedule. With a large generated
   // schedule that can monopolize Chrome's main thread after the green completion state appears.
@@ -2874,7 +2875,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     `<details><summary>Capacity & feasibility</summary><div class="hint">${feasibilityNotes.map(esc).join('<br>')}</div></details>`+
     `${generationIssues.length?`<details><summary>Generation warnings (${generationIssues.length})</summary><div class="hint">${generationIssues.map(esc).join('<br>')}</div></details>`:''}`;
 
-  // v11.11.86.14: preserve the detailed generation summary instead of overwriting it with a generic stage line.
+  // v11.11.86.15: preserve the detailed generation summary instead of overwriting it with a generic stage line.
   setTab('schedule');
   resetRuntimeOverflowPlan();
 }
@@ -3368,7 +3369,7 @@ async function targetedFinalRepairV78(balanceCeilingOverride=null){
 }
 
 
-// v11.11.86.14 — HARD MINIMUM SAFETY GATE.
+// v11.11.86.15 — HARD MINIMUM SAFETY GATE.
 // Nightly minimum and calculated season minimum are inviolable production rules.
 function hardMinimumSnapshot(games){
   const active=(games||[]).filter(g=>g.status!=='Cancelled');
@@ -3607,12 +3608,16 @@ function nightlyCapacityDiagnostic(d,pool,date,ids,minimum,maxPerDate,games){
 
 function runScheduleAudit(allLeague=false){
   syncSettings();const selected=allLeague?'ALL':($('scheduleFilter').value||'ALL');
-  // v11.11.86.14: production audits exclude Draft / unapproved divisions.
-  // A deliberately unapproved one-team division must not create false hard-rule failures.
-  const productionDivision=d=>state.pools?.[d]?.approved===true;
-  const games=state.games.filter(g=>g.status!=='Cancelled'&&scopeMatchesGame(selected,g)&&(!allLeague||productionDivision(g.division)));
+  // v11.11.86.15: one production-scope authority. Draft/unapproved divisions are
+  // excluded from games, target pools, team minimums, season minimums and opponent audits.
+  const games=state.games.filter(g=>g.status!=='Cancelled'&&scopeMatchesGame(selected,g)&&(!allLeague||isProductionDivision(g.division)));
   if(!games.length){$('scheduleAudit').innerHTML='<div class="status warn">No scheduled games are available to audit for this scope.</div>';return}
-  const targetPools=[];Object.entries(state.pools).forEach(([d,p])=>{if(allLeague&&!isProductionDivision(d))return;Object.entries(p.lists).forEach(([pool,ids])=>{if(scopeMatches(selected,d,pool))targetPools.push({d,pool,ids})})});
+  const targetPools=[];Object.entries(state.pools).forEach(([d,p])=>{
+    if(allLeague&&!isProductionDivision(d))return;
+    Object.entries(p.lists).forEach(([pool,ids])=>{
+      if(scopeMatches(selected,d,pool))targetPools.push({d,pool,ids:[...new Set(ids||[])].filter(id=>teamById(id)?.divisionId===d)});
+    });
+  });
   const results=[],gameLen=Number(state.settings.gameLength||20),dates=seasonDates();
   let self=[],teamDouble=[],courtDouble=[],windowBad=[],courtBad=[],requestBad=[],coachBad=[],maxBad=[],guaranteeBad=[],minimumDateBad=[],overflowWarn=[],overflowCourtInfo=[],immediateBad=[],allBeforeRepeatBad=[],restBad=[],fairnessWarn=[];const immediateKeys=new Map();
   const slotCourt={},slotTeam={},slotCoach={};
@@ -3620,7 +3625,7 @@ function runScheduleAudit(allLeague=false){
     if(g.aId===g.bId)self.push(`${teamById(g.aId).name} on ${g.date}`);
     const sk=`${g.date}|${g.time}|${g.court}`;(slotCourt[sk]??=[]).push(g);
     for(const id of [g.aId,g.bId]){const tk=`${g.date}|${g.time}|${id}`;(slotTeam[tk]??=[]).push(g)}
-    if(state.settings.protectSharedCoaches)for(const id of [g.aId,g.bId]){const c=teamById(id).coach;if(c){const ck=`${g.date}|${g.time}|${c}`;(slotCoach[ck]??=[]).push(g)}}
+    // v11.11.86.15: shared-coach overlap is not a production scheduling constraint for this league.
     const cfg=poolResourceConfig(g.division,g.pool),grp=state.courtGroups.find(x=>x.id===cfg?.courtGroupId),approvedCourts=new Set((grp?groupSurfaceIds(grp):[]).map(id=>state.courts.find(c=>c.id===id)?.name).filter(Boolean));
     if(cfg&&(g.time<cfg.start||g.time>=cfg.end))windowBad.push(`${divisionLabel(g.division)}: ${g.date} ${fmtTime(g.time)} ${teamById(g.aId).name} vs ${teamById(g.bId).name}`);
     if(grp&&!approvedCourts.has(g.court)){const mode=cfg?.courtMode||'preferred',overflowOK=mode==='open'||(mode==='preferred'&&cfg?.overflowApproved);if(overflowOK)overflowCourtInfo.push(`${divisionLabel(g.division)}: ${g.date} ${fmtTime(g.time)} on ${g.court}`);else courtBad.push(`${divisionLabel(g.division)}: ${g.court}`)}
@@ -3662,7 +3667,7 @@ function runScheduleAudit(allLeague=false){
   });
   const row=(label,viol,detail,soft=false)=>results.push(auditResult(label,viol.length?(soft?'WARN':'FAIL'):'PASS',viol.length?`${viol.length} issue(s)`:detail,viol));
   immediateBad=[...immediateKeys.values()].map(x=>{const a=teamById(x.a)?.name||x.a,b=teamById(x.b)?.name||x.b;const both=x.teams.size>1?' — consecutive matchup for both teams':'';return `${divisionLabel(x.division)} — ${poolDisplayName(x.division,x.pool)} — ${a} vs ${b}${both} (${x.prev.date} ${x.prev.time} → ${x.next.date} ${x.next.time})`});
-  const courtExceptionBad=games.filter(g=>{const sid=g.courtId||state.courts.find(c=>c.name===g.court)?.id;return sid&&!courtExceptionAllows(sid,g.date,g.time,Number(state.settings.gameLength||20))}).map(g=>`${g.date} ${fmtTime(g.time)} — ${g.court}: ${teamById(g.teamA||g.teamAId).name} vs ${teamById(g.teamB||g.teamBId).name}`);row('Court availability exceptions',courtExceptionBad,'No games use a court during a date-specific blackout or outside its custom window');row('No self-matchups',self,'No self-games');row('No team double-booking',teamDouble,'No teams scheduled twice in the same slot');row('No court double-booking',courtDouble,'No courts double-booked');row('Division time windows',windowBad,'All games inside assigned division windows');row('Assigned court groups',courtBad,'All games use primary courts or Director-approved overflow courts');row('Overflow court usage',overflowCourtInfo,overflowCourtInfo.length?'Director-approved overflow courts were used':'No overflow courts used',true);row('Team schedule requests',requestBad,state.settings.honorScheduleRequests?'All requests honored':'Rule is OFF',false);row('Shared-coach conflicts',coachBad,state.settings.protectSharedCoaches?'No shared-coach conflicts':'Rule is OFF',true);row('Minimum games per playing date',minimumDateBad,'Every available team receives at least its minimum games on every playing date');row('Calculated season minimum',guaranteeBad,'Every team meets the calculated season minimum');row('Maximum games per playing date',maxBad,'No team exceeds its maximum');row('Immediate rematches',immediateBad,state.settings.avoidImmediateRematches?'No immediate rematches':'Rule is OFF',!state.settings.avoidImmediateRematches);row('All opponents before repeats',allBeforeRepeatBad,state.settings.playAllTeamsOnce?'Opponent rotation satisfied chronologically — future games never justify an earlier repeat':'Rule is OFF',!state.settings.playAllTeamsOnce);const opponentBalanceBad=opponentBalanceViolationsV71(games);row('Opponent balance',opponentBalanceBad,opponentBalanceBad.length?'Opponent meeting-count imbalance or same-date duplicate opponent found':'Opponent meeting counts are reasonably balanced and no same-date duplicate opponent was found',true);row('Rest / back-to-back rule',restBad,'Rest rule satisfied');row('Time-slot fairness',fairnessWarn,'Pools are reasonably balanced across early, middle, and late slots',true);
+  const courtExceptionBad=games.filter(g=>{const sid=g.courtId||state.courts.find(c=>c.name===g.court)?.id;return sid&&!courtExceptionAllows(sid,g.date,g.time,Number(state.settings.gameLength||20))}).map(g=>`${g.date} ${fmtTime(g.time)} — ${g.court}: ${teamById(g.teamA||g.teamAId).name} vs ${teamById(g.teamB||g.teamBId).name}`);row('Court availability exceptions',courtExceptionBad,'No games use a court during a date-specific blackout or outside its custom window');row('No self-matchups',self,'No self-games');row('No team double-booking',teamDouble,'No teams scheduled twice in the same slot');row('No court double-booking',courtDouble,'No courts double-booked');row('Division time windows',windowBad,'All games inside assigned division windows');row('Assigned court groups',courtBad,'All games use primary courts or Director-approved overflow courts');row('Overflow court usage',overflowCourtInfo,overflowCourtInfo.length?'Director-approved overflow courts were used':'No overflow courts used',true);row('Team schedule requests',requestBad,state.settings.honorScheduleRequests?'All requests honored':'Rule is OFF',false);row('Shared-coach conflicts',[],'Not enforced for this league — each team is required to have an additional coach.',true);row('Minimum games per playing date',minimumDateBad,'Every available team receives at least its minimum games on every playing date');row('Calculated season minimum',guaranteeBad,'Every team meets the calculated season minimum');row('Maximum games per playing date',maxBad,'No team exceeds its maximum');row('Immediate rematches',immediateBad,state.settings.avoidImmediateRematches?'No immediate rematches':'Rule is OFF',!state.settings.avoidImmediateRematches);row('All opponents before repeats',allBeforeRepeatBad,state.settings.playAllTeamsOnce?'Opponent rotation satisfied chronologically — future games never justify an earlier repeat':'Rule is OFF',!state.settings.playAllTeamsOnce);const opponentBalanceBad=opponentBalanceViolationsV71(games);row('Opponent balance',opponentBalanceBad,opponentBalanceBad.length?'Opponent meeting-count imbalance or same-date duplicate opponent found':'Opponent meeting counts are reasonably balanced and no same-date duplicate opponent was found',true);row('Rest / back-to-back rule',restBad,'Rest rule satisfied');row('Time-slot fairness',fairnessWarn,'Pools are reasonably balanced across early, middle, and late slots',true);
   // An odd-sized pool with an odd nightly minimum mathematically requires at least one
   // team to take an extra game. Report those expected overflow games as PASS rather than WARN.
   const unexpectedOverflow=overflowWarn.filter(msg=>{
@@ -3760,7 +3765,7 @@ function runProductionPreflight(){
   const blocking=[],warnings=[],passes=[];
   const dates=seasonDatesRaw();
   const teams=state.teams||[];
-  // v11.11.86.14 — Production Preflight must use the same production scope
+  // v11.11.86.15 — Production Preflight must use the same production scope
   // as Schedule All and Entire League Audit. Draft/unapproved divisions are
   // intentionally outside the production schedule and must not create blockers.
   const allDivisions=allDivisionKeys();
