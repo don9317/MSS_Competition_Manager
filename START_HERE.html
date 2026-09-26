@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.84</title>
+<title>MSS League Scheduler v11.11.86</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.84</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -53,7 +53,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <button data-view="coach">Coach Tools</button>
   <button data-view="public">League Portal</button>
   <button id="startNewLeagueBtn" class="secondary" type="button" title="Start a new league while optionally keeping facility courts and reusable settings">Start New League</button>
-  <button id="resetStorageBtn" class="danger" type="button" title="Clear this version's saved league data and reload a clean league">Reset Saved League</button>
+  <button id="resetStorageBtn" class="danger" type="button" title="PERMANENTLY erase ALL league data stored by this browser">⚠ ERASE ALL LEAGUE DATA</button>
 </div>
 <div class="tabs admin-tabs">
   <button data-tab="dashboard">Director Dashboard</button>
@@ -323,17 +323,18 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   </div>
 
   <div class="card" style="margin-top:14px">
+    <div class="status ok" style="margin-bottom:10px"><b>Storage Safety:</b> Resource changes autosave as you make them. Use <b>Save & Verify Progress</b> before leaving setup to confirm courts, Court Groups, and Division Scheduling are stored.</div>
     <div class="toolbar">
-      <button class="primary" id="saveBtn">Save Progress</button>
+      <button class="primary" id="saveBtn">Save & Verify Progress</button>
       <button class="secondary" id="exportSetupBtn">Export Setup</button>
       <label class="secondary" style="margin:0">Import Setup<input id="setupFile" type="file" accept=".json" class="hidden"></label>
-      <button class="danger" id="resetBtn">Reset Everything</button>
+      <button class="danger" id="resetBtn">⚠ ERASE ALL LEAGUE DATA</button>
     </div>
   </div>
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.84</b> — New League Setup + Editable Court Names; v82.1 court availability and publishing controls retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -640,7 +641,38 @@ function queueSave(immediate=false){
   return saveQueue;
 }
 function persist(){queueSave(false);return true}
-async function save(){syncSettings();renderAll();try{await queueSave(true)}catch(e){alert('The league could not be saved: '+(e.message||e))}}
+async function save(){
+  syncSettings();renderAll();
+  try{
+    await queueSave(true);
+    const saved=await withTimeout(readStateFromDB(),STORAGE_TIMEOUT_MS,'Save verification');
+    const live={
+      teams:(state.teams||[]).length,
+      courts:(state.courts||[]).length,
+      groups:(state.courtGroups||[]).length,
+      divisionConfigs:Object.values(state.divisionConfig||{}).filter(c=>c&&(c.courtGroupId||c.usePoolAssignments||c.start||c.end)).length
+    };
+    const stored={
+      teams:(saved?.teams||[]).length,
+      courts:(saved?.courts||[]).length,
+      groups:(saved?.courtGroups||[]).length,
+      divisionConfigs:Object.values(saved?.divisionConfig||{}).filter(c=>c&&(c.courtGroupId||c.usePoolAssignments||c.start||c.end)).length
+    };
+    const ok=JSON.stringify(live)===JSON.stringify(stored);
+    if(!ok){
+      setSaveStatus('error','SAVE VERIFICATION FAILED','Do not close or refresh this page');
+      alert('SAVE VERIFICATION FAILED.\n\nDo NOT close or refresh this page.\n\nOn screen: '+JSON.stringify(live)+'\nStored: '+JSON.stringify(stored));
+      return false;
+    }
+    setSaveStatus('saved','Progress saved & verified',`${stored.teams} teams • ${stored.courts} courts • ${stored.groups} Court Groups • ${stored.divisionConfigs} Division Scheduling configs`);
+    showActionFeedback(`Progress saved & verified: ${stored.teams} teams • ${stored.courts} courts • ${stored.groups} Court Groups • ${stored.divisionConfigs} Division Scheduling configs.`,true,'saveBtn');
+    return true;
+  }catch(e){
+    setSaveStatus('error','Save failed','Do not close or refresh if unsaved work is visible');
+    alert('The league could not be saved and verified: '+(e.message||e)+'\n\nDo NOT close or refresh if your work is still visible.');
+    return false;
+  }
+}
 async function load(){
   // Render a usable clean application FIRST. Saved data restoration is secondary.
   try{normalizeLoadedState();hydrate();ensurePools();ensureDivisionConfig();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin')}catch(e){console.error('Initial clean render failed',e)}
@@ -669,13 +701,16 @@ async function startNewLeague(){
   try{await queueSave(true);hydrate();ensurePools();ensureDivisionConfig();renderAll();setView('admin');setTab('settings');setSaveStatus('saved','New league ready','Facility setup retained');alert('New league started. Facility courts, normal availability, Court Groups, and general scheduling rules were retained. Enter the new league name/dates, then import registrations.')}catch(e){alert('Could not start the new league: '+(e.message||e))}
 }
 async function resetSavedLeagueStorage(){
-  if(!confirm('Clear the saved league data and reload a clean league? This cannot be undone unless you exported a setup backup.'))return;
-  setSaveStatus('saving','Resetting saved league…','IndexedDB');
+  const warning='DANGER — ERASE ALL LEAGUE DATA\n\nThis permanently deletes the saved league from this browser, including registrations, divisions/pools, courts, Court Groups, Division Scheduling, rules, schedules, results, published schedule, and settings.\n\nThis is NOT a reload, restore, or undo command.';
+  if(!confirm(warning+'\n\nContinue to final confirmation?'))return;
+  const typed=prompt('FINAL CONFIRMATION\n\nType ERASE ALL to permanently delete the entire saved league.\n\nAnything else cancels.');
+  if(String(typed||'').trim().toUpperCase()!=='ERASE ALL'){showActionFeedback('Erase cancelled. No league data was changed.',true);return}
+  setSaveStatus('saving','Erasing all league data…','IndexedDB');
   try{
     if(dbPromise){try{const db=await withTimeout(dbPromise,1000,'Database close');db&&db.close()}catch(e){}dbPromise=null}
-    await withTimeout(new Promise((resolve,reject)=>{const req=indexedDB.deleteDatabase(DB_NAME);req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error||new Error('Could not reset IndexedDB.'));req.onblocked=()=>reject(new Error('Reset is blocked by another open scheduler tab. Close other copies and try again.'))}),STORAGE_TIMEOUT_MS,'Storage reset');
+    await withTimeout(new Promise((resolve,reject)=>{const req=indexedDB.deleteDatabase(DB_NAME);req.onsuccess=()=>resolve();req.onerror=()=>reject(req.error||new Error('Could not erase IndexedDB.'));req.onblocked=()=>reject(new Error('Erase is blocked by another open scheduler tab. Close other copies and try again.'))}),STORAGE_TIMEOUT_MS,'Storage erase');
     location.reload();
-  }catch(e){setSaveStatus('error','Reset failed',e.message||String(e));alert('Saved league data could not be reset: '+(e.message||e))}
+  }catch(e){setSaveStatus('error','Erase failed',e.message||String(e));alert('League data could not be erased: '+(e.message||e))}
 }
 function addDaysISO(iso,days){const d=new Date(iso+'T00:00:00');if(isNaN(d))return'';d.setDate(d.getDate()+days);return d.toISOString().slice(0,10)}
 function updateLeagueDaysSummary(){const names=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],days=[...document.querySelectorAll('.dow:checked')].map(x=>+x.value);$('leagueDaysSummary').textContent=days.length?days.sort((a,b)=>(a+6)%7-(b+6)%7).map(d=>names[d]).join(', '):'Select playing days'}
@@ -4383,7 +4418,7 @@ function loadCompleteDemo(){
 }
 function minToClock(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
 
-async function resetAll(){if(confirm('Delete registrations, divisions, pools, schedule, scores, and saved progress for this league?')){try{await deleteStateFromDB();location.reload()}catch(e){alert('Could not clear saved league: '+(e.message||e))}}}
+async function resetAll(){return resetSavedLeagueStorage()}
 function renderDashboard(){
   const rows=divisionProgressRows(),divisions=rows.length;
   const completed=state.games.filter(g=>g.sa!=null&&g.sb!=null).length,pending=state.games.filter(g=>g.pending).length,cancelled=state.games.filter(g=>g.status==='Cancelled').length,activeGames=state.games.length-cancelled,published=(state.publishedGames||[]).length;
@@ -4444,7 +4479,7 @@ function safeBind(id,event,handler){try{const el=$(id);if(!el)return false;el.ad
 try{
 $('startNewLeagueBtn')&&$('startNewLeagueBtn').addEventListener('click',startNewLeague);$('resetStorageBtn')&&$('resetStorageBtn').addEventListener('click',resetSavedLeagueStorage);$('addTeamBtn').addEventListener('click',addTeam);$('loadDemoBtn').addEventListener('click',loadCompleteDemo);$('importCsvBtn').addEventListener('click',importCSV);$('csvFile').addEventListener('change',e=>previewCSVFile(e.target.files[0]));$('clearRegistrationsBtn').addEventListener('click',clearRegistrations);$('loadSampleBtn').addEventListener('click',()=>{const r=importCSVText(sampleCSV,'replace');$('importStatus').innerHTML=`<div class="status ok">${r.added} sample teams loaded into ${r.divisionCount} divisions, replacing prior registrations.</div>`;renderDuplicateNameStatus()});
 $('teamSearch').addEventListener('input',renderTeams);safeBind('replaceTeamBtn','click',replaceTeamKeepSchedule);$('boardPrevBtn')&&$('boardPrevBtn').addEventListener('click',()=>$('bigBoard').scrollBy({left:-460,behavior:'smooth'}));$('boardNextBtn')&&$('boardNextBtn').addEventListener('click',()=>$('bigBoard').scrollBy({left:460,behavior:'smooth'}));$('rebalanceBtn').addEventListener('click',rebalancePools);$('approveBtn').addEventListener('click',approveBoard);$('unlockBtn').addEventListener('click',unlockBoard);
-safeBind('addExceptionBtn','click',addException);safeBind('addCourtBtn','click',addCourt);safeBind('addCourtExceptionBtn','click',addCourtException);safeBind('addCourtGroupBtn','click',addCourtGroup);safeBind('saveBtn','click',()=>{save();showActionFeedback('League progress saved.',true,'saveBtn')});safeBind('exportSetupBtn','click',exportSetup);
+safeBind('addExceptionBtn','click',addException);safeBind('addCourtBtn','click',addCourt);safeBind('addCourtExceptionBtn','click',addCourtException);safeBind('addCourtGroupBtn','click',addCourtGroup);safeBind('saveBtn','click',async()=>{await save()});safeBind('exportSetupBtn','click',exportSetup);
 $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',generateSchedule);safeBind('optimizeBtn','click',optimizeSchedule);safeBind('generateReadyBtn','click',scheduleAllReadyDivisions);/* Audit buttons use inline safeRunScheduleAudit handlers so they remain functional even if another optional control binding fails. */
 ['managementDivision','managementWeek','managementStatus','managementCourt'].forEach(id=>$(id).addEventListener('change',renderManagement));
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
