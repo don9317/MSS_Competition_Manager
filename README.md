@@ -28,3 +28,11 @@ Schedule All Approved / Ready Divisions now runs sequentially, yields to the bro
 
 ## v11.11.86.17
 Schedule All now passes each division scope directly into the proven generator instead of changing/re-reading the Schedule dropdown. A re-entry guard prevents accidental recursive Schedule All calls.
+
+## v11.11.86.19 — Hard Minimum / Production Scope Fix
+Built directly from the known-running v11.11.86.17 baseline.
+- HARD RULE #1: approved production teams must receive at least 3 games on every playing date (or the configured minimum if changed).
+- Final bounded placement tier may relax soft scheduling preferences/requests before sacrificing the nightly minimum.
+- Partial nightly solver results are rejected rather than silently accepted as a completed schedule.
+- Draft/unapproved divisions are excluded from Production Preflight and Entire League production audit.
+- Minimum-games, season-minimum, maximum-games and overflow audit details identify Division / Pool / Team.
