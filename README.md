@@ -8,3 +8,23 @@
 - Duplicate court names are blocked. Published-schedule renames require confirmation.
 - Retains v82.1 multi-court availability, publishing controls, Court Calendar fix and Court/Game print fix.
 - No opponent-generation, Re-Optimize, court optimizer or Audit logic changes.
+
+
+## v11.11.86.17 generator fix
+Replaces recursive matchup backtracking with a deterministic bounded constructor to prevent combinatorial browser freezes. Storage schema and league setup data are unchanged.
+
+
+## v11.11.86.17 generator fix
+Fixes a scope regression in v86.4 where the deterministic matchup planner attempted to call a generation-stage UI function that was local to generateSchedule(). The resulting ReferenceError was caught as a generation warning, causing zero games to be saved while the final audit could misleadingly report success. v86.5 passes the stage callback explicitly and preserves the detailed generation summary. No storage schema or league setup fields were changed.
+
+
+## v11.11.86.17
+Post-generation responsiveness hotfix: schedule generation no longer calls full renderAll() after saving/auto-repair. Only the Schedule surface is refreshed during generation; other tabs render when opened. Storage schema unchanged.
+
+
+## v11.11.86.17
+Schedule All Approved / Ready Divisions now runs sequentially, yields to the browser between divisions, shows progress, and avoids full-app renderAll() calls during the batch.
+
+
+## v11.11.86.17
+Schedule All now passes each division scope directly into the proven generator instead of changing/re-reading the Schedule dropdown. A re-entry guard prevents accidental recursive Schedule All calls.

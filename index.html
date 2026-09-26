@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86</title>
+<title>MSS League Scheduler v11.11.86.17</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.17</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -334,7 +334,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.17</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -1041,7 +1041,24 @@ function refreshOverallApproval(){state.approved=allDivisionKeys().length>0&&all
 function approveDivision(d){const errors=divisionBoardErrors(d);if(errors.length){showActionFeedback(errors.join(' • '),false);return}state.pools[d].approved=true;refreshOverallApproval();logActivity(`${divisionLabel(d)} divisions/pools approved`);persist();renderAll();showActionFeedback(`${divisionLabel(d)} approved and locked.`)}
 function unlockDivision(d){if(state.games.some(g=>g.division===d)&&!confirm(`Unlock ${divisionLabel(d)}? Its current schedule may need to be regenerated.`))return;state.pools[d].approved=false;refreshOverallApproval();persist();renderAll()}
 function approveBoard(){
-  const ready=allDivisionKeys().filter(d=>!divisionBoardErrors(d).length);if(!ready.length)return alert('No divisions are ready for approval.');ready.forEach(d=>state.pools[d].approved=true);refreshOverallApproval();persist();renderAll();
+  const keys=allDivisionKeys();
+  const blocked=keys.map(d=>({d,errors:divisionBoardErrors(d)})).filter(x=>x.errors.length);
+  const ready=keys.filter(d=>!divisionBoardErrors(d).length);
+  if(!ready.length){
+    const detail=blocked.map(x=>`${divisionLabel(x.d)}: ${x.errors.join(' ')}`).join('\n\n');
+    alert('No divisions are ready for approval.\n\n'+detail);
+    return;
+  }
+  let newlyApproved=0;
+  ready.forEach(d=>{if(!state.pools[d].approved)newlyApproved++;state.pools[d].approved=true});
+  refreshOverallApproval();persist();renderAll();
+  const approvedNow=keys.filter(d=>state.pools[d]?.approved).length;
+  if(blocked.length){
+    const detail=blocked.map(x=>`• ${divisionLabel(x.d)} — ${x.errors.join(' ')}`).join('\n');
+    alert(`${approvedNow}/${keys.length} divisions are approved.\n\n${newlyApproved} division(s) were newly approved.\n\nThe following division(s) remain Draft and were NOT changed:\n${detail}\n\nFix only those listed issues, then click Approve All Ready Divisions again.`);
+  }else{
+    showActionFeedback(`All ${approvedNow} divisions are approved and locked.`,true);
+  }
 }
 function unlockBoard(){if(state.games.length&&!confirm('Unlock all divisions? Existing schedules may require regeneration. Continue?'))return;Object.values(state.pools).forEach(p=>p.approved=false);refreshOverallApproval();persist();renderAll()}
 function renderBoard(){
@@ -1811,6 +1828,34 @@ function rotationAllowsAtSlot(a,b,ids,division,pool,slot,games){
   if(!state.settings.playAllTeamsOnce)return true;
   return opponentRotationAllows(a,b,ids,chronologicalPairCounts(games,division,pool,slot.date,slot.time))
 }
+// v11.11.86.17 — candidate-time immediate-rematch guard.
+// Tests the proposed game against the immediately adjacent chronological games
+// already committed or tentatively placed for the same team.
+function chronologicalImmediateRematchAtCandidate(teamId,opponentId,slot,committedGames=[],placements=[]){
+  if(!teamId||!opponentId||!slot)return false;
+  const candidateStamp=Number(slot.stamp)||new Date(`${slot.date}T${slot.time}:00`).getTime();
+  const entries=[];
+  const add=(g,sl)=>{
+    if(!g)return;
+    const a=g.aId||g.a||g.teamAId||g.teamA;
+    const b=g.bId||g.b||g.teamBId||g.teamB;
+    if(a!==teamId&&b!==teamId)return;
+    const opp=a===teamId?b:a;
+    const date=(sl&&sl.date)||g.date,time=(sl&&sl.time)||g.time;
+    if(!date||!time)return;
+    const stamp=Number(sl&&sl.stamp)||new Date(`${date}T${time}:00`).getTime();
+    if(Number.isFinite(stamp))entries.push({stamp,opp});
+  };
+  (committedGames||[]).forEach(g=>add(g,null));
+  (placements||[]).forEach(p=>add(p.game||p,p.sl||null));
+  entries.sort((x,y)=>x.stamp-y.stamp);
+  let prev=null,next=null;
+  for(const e of entries){
+    if(e.stamp<=candidateStamp){if(!prev||e.stamp>prev.stamp)prev=e}
+    else {next=e;break}
+  }
+  return !!((prev&&prev.opp===opponentId)||(next&&next.opp===opponentId));
+}
 function candidatePairs(ids,scheduledCounts,target,pairCounts,lastOpponent){
   const candidates=[];
   for(let i=0;i<ids.length;i++)for(let j=i+1;j<ids.length;j++){
@@ -1830,8 +1875,10 @@ function allowed(team,slot){if(!state.settings.honorScheduleRequests)return true
 const divisionScopeKey=d=>`DIV::${d}`;
 function scopeMatches(scope,d,pool){return scope==='ALL'||scope===divisionScopeKey(d)||scope===poolKey(d,pool)}
 function scopeMatchesGame(scope,g){return scope==='ALL'||scope===divisionScopeKey(g.division)||scope===poolKey(g.division,g.pool)}
-function selectedScheduleTargets(){
-  const scope=$('scheduleFilter').value||'ALL',targets=[];
+function selectedScheduleTargets(scopeOverride=null){
+  // v11.11.86.17: batch scheduling may pass an explicit scope so generation
+  // never depends on the visible dropdown while Schedule All is running.
+  const scope=scopeOverride||$('scheduleFilter').value||'ALL',targets=[];
   Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{
     if(scopeMatches(scope,d,pool))targets.push({division:d,pool,ids})
   }));
@@ -2119,17 +2166,81 @@ function blockedDivisionDetails(){
     return `${divisionLabel(d)}: ${[...new Set(reasons)].join('; ')||'not ready'}`;
   });
 }
+let scheduleAllBatchRunning=false;
 async function scheduleAllReadyDivisions(){
-  syncSettings();synchronizePoolWindowsFromGroups();persist();renderAll();
-  const ready=readyDivisionKeys(),blocked=blockedDivisionDetails();
-  if(!ready.length){alert(`No divisions are ready to schedule.${blocked.length?'\n\n'+blocked.join('\n'):''}`);return}
-  const original=$('scheduleFilter').value||'ALL';let scheduled=0;
-  for(const d of ready){
-    $('scheduleFilter').value=divisionScopeKey(d);
-    try{await generateSchedule();scheduled++;await yieldToBrowser()}catch(err){console.error(err);showActionFeedback(`${divisionLabel(d)} could not be scheduled: ${err.message||err}`,false)}
+  if(scheduleAllBatchRunning){
+    console.warn('Schedule All re-entry blocked.');
+    return;
   }
-  $('scheduleFilter').value=original;renderAll();
-  $('genSummary').innerHTML=`<div class="status ok"><b>Scheduled ${scheduled} ready division(s).</b>${blocked.length?`<br><span class="hint">Skipped ${blocked.length} blocked division(s): ${blocked.map(esc).join(' • ')}</span>`:''}</div>`;
+  scheduleAllBatchRunning=true;
+  syncSettings();
+  synchronizePoolWindowsFromGroups();
+  persist();
+
+  const ready=readyDivisionKeys(),blocked=blockedDivisionDetails();
+  if(!ready.length){
+    alert(`No divisions are ready to schedule.${blocked.length?'\n\n'+blocked.join('\n'):''}`);
+    return;
+  }
+
+  const original=$('scheduleFilter').value||'ALL';
+  const btn=$('generateReadyBtn');
+  const oldBtnText=btn?btn.textContent:'';
+  let scheduled=0,failed=0,totalGames=0;
+  const results=[];
+
+  if(btn){btn.disabled=true;btn.textContent=`Scheduling 0 of ${ready.length}…`;}
+  // 86.17: never display a previous audit as if it belongs to the schedule now being built.
+  const opt=$('optimizationStatus'); if(opt) opt.innerHTML='<b>SCHEDULING IN PROGRESS</b> — Audit pending until all ready divisions finish.';
+  const audit=$('auditResults'); if(audit) audit.innerHTML='';
+  setTab('schedule');
+  $('genSummary').innerHTML=`<div class="status warn"><b>Schedule All starting…</b><br>0 of ${ready.length} ready divisions completed.${blocked.length?`<br><span class="hint">${blocked.length} blocked division(s) will be skipped.</span>`:''}</div>`;
+  await yieldToBrowser();
+
+  try{
+    for(let i=0;i<ready.length;i++){
+      const d=ready[i];
+      const label=divisionLabel(d);
+      if(btn)btn.textContent=`Scheduling ${i+1} of ${ready.length}…`;
+      $('genSummary').innerHTML=`<div class="status warn"><b>Scheduling ${i+1} of ${ready.length}: ${esc(label)}</b><br>${scheduled} completed${failed?` • ${failed} failed`:''}. Please leave this page open.</div>`;
+      await yieldToBrowser();
+
+      const explicitScope=divisionScopeKey(d);
+      const beforeCount=state.games.length;
+      try{
+        // v11.11.86.17: pass the division directly. Do not drive batch generation
+        // through the UI dropdown; that can be reset to Entire League during renders.
+        await generateSchedule(explicitScope);
+        const afterCount=state.games.length;
+        const delta=Math.max(0,afterCount-beforeCount);
+        totalGames+=delta;
+        scheduled++;
+        results.push(`✓ ${label}${delta?` — ${delta} game(s) added`:''}`);
+      }catch(err){
+        failed++;
+        console.error(err);
+        results.push(`⚠ ${label} — ${err.message||err}`);
+      }
+
+      // Critical v86.8 behavior: let Chrome process paint/input between divisions.
+      await yieldToBrowser();
+      await new Promise(resolve=>setTimeout(resolve,25));
+    }
+  }finally{
+    scheduleAllBatchRunning=false;
+    $('scheduleFilter').value=original;
+    if(btn){btn.disabled=false;btn.textContent=oldBtnText||'Schedule All Approved / Ready Divisions';}
+  }
+
+  // Do NOT call renderAll() here.  v86.7 proved full-app rendering after a
+  // large generation can monopolize the browser. Refresh only the schedule
+  // surface and dashboard data needed for the current view.
+  try{renderSchedule()}catch(err){console.error('Schedule refresh:',err)}
+  try{renderDashboard()}catch(err){console.error('Dashboard refresh:',err)}
+  await yieldToBrowser();
+
+  const resultLines=results.map(esc).join('<br>');
+  $('genSummary').innerHTML=`<div class="status ${failed?'warn':'ok'}"><b>Schedule All complete: ${scheduled}/${ready.length} ready division(s) scheduled.</b>${totalGames?`<br>${totalGames} game(s) added during this batch.`:''}${failed?`<br><b>${failed} division(s) reported an error.</b>`:''}${blocked.length?`<br><span class="hint">Skipped ${blocked.length} blocked division(s): ${blocked.map(esc).join(' • ')}</span>`:''}<details style="margin-top:6px"><summary>Division-by-division results</summary>${resultLines}</details><br><b>Next step:</b> run Audit Entire League before optimizing or publishing.</div>`;
   setTab('schedule');
 }
 
@@ -2159,194 +2270,72 @@ function roundRobinRounds(teamIds){
 function exactGamesRequiredForDate(teamCount,minimum){
   return Math.ceil(teamCount*minimum/2);
 }
-function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
+async function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate,onStage){
+  // v11.11.86.17 — deterministic bounded matchup constructor.
+  // The former recursive backtracking search could expand combinatorially on certain
+  // league shapes (especially odd/small pools) and monopolize Chrome's main thread.
+  // This constructor builds the exact nightly degree sequence directly. It evaluates
+  // only O(teamCount^2 * gamesNeeded) candidate pairs and yields between small chunks.
   if(ids.length<2)return {byDate:new Map(),counts:{},roundsPerDate:0};
   const byDate=new Map(),counts=Object.fromEntries(ids.map(id=>[id,0]));
   const pairCounts=new Map();
   const pairKey=(a,b)=>[a,b].sort().join('|');
   const teamOrder=new Map(ids.map((id,i)=>[id,i]));
 
-  // v11.11.79 — GUARANTEE-FIRST, VARIETY-SECOND.
-  // This intentionally preserves the v11.11.35 exact nightly degree planner:
-  // every team receives the configured minimum on every playing date, with only
-  // the mathematically required extra game for odd team-game totals.
-  //
-  // Opponent variety is optimized inside that fixed degree sequence. It is NEVER
-  // allowed to delete or skip guaranteed games. If perfect rotation is impossible,
-  // the full nightly guarantee still wins and the Audit reports the remaining repeat.
-  dates.forEach((date,dateIndex)=>{
+  const feasibleRemaining=(remaining)=>{
+    const vals=Object.values(remaining);
+    const sum=vals.reduce((a,b)=>a+b,0);
+    if(sum===0)return true;
+    if(sum%2)return false;
+    const max=Math.max(...vals);
+    return max<=sum-max;
+  };
+
+  for(const [dateIndex,date] of dates.entries()){
     const target=Object.fromEntries(ids.map(id=>[id,minimum]));
-    if((ids.length*minimum)%2===1){
-      const extra=ids[dateIndex%ids.length];
-      target[extra]++;
-    }
+    // Odd team-game totals cannot be paired. Preserve the configured minimum by
+    // assigning the mathematically required extra game to a rotating team.
+    if((ids.length*minimum)%2===1)target[ids[dateIndex%ids.length]]++;
     const over=ids.filter(id=>target[id]>maxPerDate);
     if(over.length)throw new Error(`The exact guarantee requires more than ${maxPerDate} games on ${date} for ${over.map(id=>teamById(id)?.name||id).join(', ')}.`);
+    if(!feasibleRemaining(target))throw new Error(`The configured nightly game guarantee cannot be paired without a self-match on ${date}.`);
 
-    const remaining={...target},games=[];
-    const dailyPairCounts=new Map();
+    const remaining={...target},games=[],dailyPairCounts=new Map();
     const totalNeeded=Object.values(target).reduce((a,b)=>a+b,0)/2;
-    let nodes=0;
+    let checks=0;
 
-    function unseenCount(a){
-      let n=0;
-      for(const b of ids)if(b!==a&&(pairCounts.get(pairKey(a,b))||0)===0)n++;
-      return n;
-    }
-    function candidatesFor(a,strictDaily=false){
-      return ids.filter(b=>b!==a&&remaining[b]>0&&(!strictDaily||(dailyPairCounts.get(pairKey(a,b))||0)===0)).sort((b,c)=>{
-        const kb=pairKey(a,b),kc=pairKey(a,c);
-        const db=dailyPairCounts.get(kb)||0, dc=dailyPairCounts.get(kc)||0;
-        const pb=pairCounts.get(kb)||0, pc=pairCounts.get(kc)||0;
-        // v11.11.79: same-date uniqueness first. In odd pools the parity-required
-        // fourth game should consume a different opponent whenever the degree
-        // sequence permits it. This remains a preference, not a hard rejection,
-        // so the nightly game guarantee can never be stranded.
-        if(db!==dc)return db-dc;
-        const ub=pb===0?1:0, uc=pc===0?1:0;
-        if(ub!==uc)return uc-ub;
-        const needB=unseenCount(b),needC=unseenCount(c);
-        if(needB!==needC)return needC-needB;
-        if(pb!==pc)return pb-pc;
-        if(remaining[b]!==remaining[c])return remaining[c]-remaining[b];
-        return (teamOrder.get(b)||0)-(teamOrder.get(c)||0);
-      });
-    }
-    function feasible(){
-      const vals=Object.values(remaining);
-      const sum=vals.reduce((a,b)=>a+b,0);
-      if(sum%2)return false;
-      const max=Math.max(...vals);
-      return max<=sum-max;
-    }
-    function solve(strictDaily=false){
-      nodes++;
-      if(nodes>420000)return false;
-      if(games.length===totalNeeded)return true;
-      if(!feasible())return false;
-
+    while(games.length<totalNeeded){
       const active=ids.filter(id=>remaining[id]>0);
-      // Work on the team with the highest remaining nightly degree. When tied,
-      // prioritize the team that still has the most unseen opponents, which gives
-      // the solver more chances to consume unique matchups before repeats.
-      active.sort((a,b)=>{
-        if(remaining[a]!==remaining[b])return remaining[b]-remaining[a];
-        const ua=unseenCount(a),ub=unseenCount(b);
-        if(ua!==ub)return ub-ua;
-        return (teamOrder.get(a)||0)-(teamOrder.get(b)||0);
-      });
-      const a=active[0];
-
-      for(const b of candidatesFor(a,strictDaily)){
-        const k=pairKey(a,b),old=pairCounts.get(k)||0,oldDay=dailyPairCounts.get(k)||0;
-        remaining[a]--;remaining[b]--;pairCounts.set(k,old+1);dailyPairCounts.set(k,oldDay+1);
-        games.push({a,b,roundOrder:games.length,rotationRound:old,date,dateIndex});
-        if(solve(strictDaily))return true;
-        games.pop();remaining[a]++;remaining[b]++;
-        if(old)pairCounts.set(k,old);else pairCounts.delete(k);
-        if(oldDay)dailyPairCounts.set(k,oldDay);else dailyPairCounts.delete(k);
+      let best=null;
+      for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){
+        const a=active[i],b=active[j];
+        remaining[a]--;remaining[b]--;
+        const ok=feasibleRemaining(remaining);
+        remaining[a]++;remaining[b]++;
+        if(!ok)continue;
+        const k=pairKey(a,b),day= dailyPairCounts.get(k)||0,hist=pairCounts.get(k)||0;
+        // Strongly prefer a new opponent today, then the least-used season opponent.
+        // Higher remaining need breaks ties so constrained teams are consumed first.
+        const score=[day,hist,-(remaining[a]+remaining[b]),-(Math.max(remaining[a],remaining[b])),teamOrder.get(a)+teamOrder.get(b)];
+        if(!best||score.some((v,x)=>v<best.score[x]&&score.slice(0,x).every((q,y)=>q===best.score[y]))){best={a,b,k,score}}
+        checks++;
       }
-      return false;
+      if(!best)throw new Error(`Could not construct the exact ${minimum}-game matchup guarantee for ${date} with the current max-games setting.`);
+      const {a,b,k}=best;
+      remaining[a]--;remaining[b]--;
+      const old=pairCounts.get(k)||0,oldDay=dailyPairCounts.get(k)||0;
+      pairCounts.set(k,old+1);dailyPairCounts.set(k,oldDay+1);
+      games.push({a,b,roundOrder:games.length,rotationRound:old,date,dateIndex,dailyRepeatFallback:oldDay>0});
+      if(games.length%8===0||games.length===totalNeeded){
+        if(typeof onStage==='function')onStage(`Planning matchups — playing date ${dateIndex+1}/${dates.length} • ${games.length}/${totalNeeded} games • deterministic`);
+        await yieldToBrowser();
+      }
     }
-
-    // v11.11.79: strict parity-extra construction. First require every pairing on this
-    // playing date to be unique. This directly prevents the parity-required fourth
-    // game from reusing an opponent already faced that day. If no exact degree plan
-    // exists under that condition, fall back to the guarantee-first solver so no team
-    // ever loses its required nightly games.
-    let usedDailyRepeatFallback=false;
-    if(!solve(true)){
-      // A failed search backtracks all degree/pair mutations. Reset only the node budget.
-      nodes=0;
-      usedDailyRepeatFallback=true;
-      if(!solve(false))throw new Error(`Could not construct the exact ${minimum}-game matchup guarantee for ${date} within the safe matchup-planning bound.`);
-    }
-    if(usedDailyRepeatFallback)games.forEach(g=>g.dailyRepeatFallback=true);
-
     games.forEach(g=>{counts[g.a]++;counts[g.b]++});
     byDate.set(date,{games,daily:{...target},requiredGames:totalNeeded});
-  });
-
-  // Safe local improvement pass. Every move is a same-date 2-game edge swap, so
-  // each team's number of games on that date is unchanged. This can improve
-  // opponent rotation without ever jeopardizing the 3-game nightly guarantee.
-  function rotationPenalty(){
-    const seen=Object.fromEntries(ids.map(id=>[id,new Set()]));
-    const lastOpp=Object.fromEntries(ids.map(id=>[id,null]));
-    let penalty=0;
-    for(const date of dates){
-      const entry=byDate.get(date); if(!entry)continue;
-      const dayPairs=new Set();
-      for(const g of entry.games){
-        const dk=pairKey(g.a,g.b);
-        if(dayPairs.has(dk))penalty+=40; // v73: same-day duplicate opponent is strongly undesirable
-        dayPairs.add(dk);
-        for(const [a,b] of [[g.a,g.b],[g.b,g.a]]){
-          if(lastOpp[a]===b)penalty+=8; // immediate-repeat proxy
-          if(seen[a].has(b)&&seen[a].size<ids.length-1)penalty+=5; // repeat before full rotation
-          lastOpp[a]=b; seen[a].add(b);
-          if(seen[a].size===ids.length-1)seen[a]=new Set(); // start a new rotation cycle
-        }
-      }
-    }
-    return penalty;
+    await yieldToBrowser();
   }
-
-  let bestPenalty=rotationPenalty();
-  const SWAP_PASSES=10;
-  for(let pass=0;pass<SWAP_PASSES&&bestPenalty>0;pass++){
-    let improved=false;
-    for(const date of dates){
-      const entry=byDate.get(date); if(!entry)continue;
-      const gs=entry.games;
-      outer:
-      for(let i=0;i<gs.length;i++)for(let j=i+1;j<gs.length;j++){
-        const g1=gs[i],g2=gs[j];
-        const a=g1.a,b=g1.b,c=g2.a,d=g2.b;
-        if(new Set([a,b,c,d]).size<4)continue;
-        const options=[
-          [{a,b:c},{a:b,b:d}],
-          [{a,b:d},{a:b,b:c}]
-        ];
-        for(const opt of options){
-          if(opt[0].a===opt[0].b||opt[1].a===opt[1].b)continue;
-          const old1={...g1},old2={...g2};
-          Object.assign(g1,{a:opt[0].a,b:opt[0].b});
-          Object.assign(g2,{a:opt[1].a,b:opt[1].b});
-          const p=rotationPenalty();
-          if(p<bestPenalty){
-            bestPenalty=p; improved=true;
-            break outer;
-          }
-          Object.assign(g1,old1);Object.assign(g2,old2);
-        }
-      }
-    }
-    if(!improved)break;
-  }
-
-  return {byDate,counts,roundsPerDate:null,rotationPenalty:bestPenalty};
-}
-
-function chronologicalImmediateRematchAtCandidate(teamId,oppId,slot,committedGames,localPlacements){
-  const rows=[];
-  for(const g of committedGames||[]){
-    if(g.status==='Cancelled')continue;
-    if(g.aId!==teamId&&g.bId!==teamId)continue;
-    const stamp=new Date(`${g.date}T${g.time}:00`).getTime();
-    if(Number.isFinite(stamp))rows.push({stamp,opp:g.aId===teamId?g.bId:g.aId});
-  }
-  for(const p of localPlacements||[]){
-    const g=p.game;
-    if(g.a!==teamId&&g.b!==teamId)continue;
-    rows.push({stamp:p.sl.stamp,opp:g.a===teamId?g.b:g.a});
-  }
-  rows.push({stamp:slot.stamp,opp:oppId,candidate:true});
-  rows.sort((a,b)=>a.stamp-b.stamp);
-  const idx=rows.findIndex(r=>r.candidate);
-  const prev=idx>0?rows[idx-1]:null;
-  const next=idx>=0&&idx<rows.length-1?rows[idx+1]:null;
-  return !!((prev&&prev.opp===oppId)||(next&&next.opp===oppId));
+  return {byDate,counts,roundsPerDate:minimum};
 }
 
 async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames,available,used,teamTimes,coachTimes,newGames,placementYield}){
@@ -2544,9 +2533,9 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     placements:overallBest
   };
 }
-async function generateSchedule(){
+async function generateSchedule(scopeOverride=null){
   syncSettings();
-  const {scope,targets}=selectedScheduleTargets();if(!targets.length)return alert('Select a division/pool to schedule.');const unapproved=[...new Set(targets.map(t=>t.division))].filter(d=>!state.pools[d]?.approved);if(unapproved.length){if(scope==='ALL'){return scheduleAllReadyDivisions()}return alert('Approve these division(s) before scheduling: '+unapproved.map(divisionLabel).join(', '));}
+  const {scope,targets}=selectedScheduleTargets(scopeOverride);if(!targets.length)return alert('Select a division/pool to schedule.');const unapproved=[...new Set(targets.map(t=>t.division))].filter(d=>!state.pools[d]?.approved);if(unapproved.length){if(scope==='ALL'){if(scheduleAllBatchRunning){throw new Error('Batch scope unexpectedly resolved to Entire League; re-entry blocked.')}return scheduleAllReadyDivisions()}return alert('Approve these division(s) before scheduling: '+unapproved.map(divisionLabel).join(', '));}
   const dupes=duplicateDisplayedNamesForTargets(targets);if(dupes.length)return alert('Duplicate team names remain in the selected scheduling scope: '+dupes.map(a=>`${a[0].name} — ${divisionLabel(teamDivisionScope(a[0]))}`).join('; ')+'. Rename or distinguish those teams before scheduling.');
   const validation=scheduleValidation(targets);if(validation.length){
     if(scope==='ALL'){
@@ -2640,7 +2629,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
 
     let plan;
-    try{plan=buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate)}
+    try{plan=await buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate,setGenerationStage)}
     catch(err){hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}: ${err.message||err}`);continue}
 
     const placementStarted=performance.now();let placementChecks=0,lastPlacementYield=performance.now();
@@ -2703,7 +2692,13 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   await yieldToBrowser();
   state.games=[...retainedGames,...newGames].map(g=>({...g,status:g.status||'Scheduled',pending:true}));
   persist();
-  renderAll();
+  // v11.11.86.17: Do NOT synchronously render the entire application after generation.
+  // renderAll() rebuilds Dashboard, Resources, Calendar, Management, Results, Standings,
+  // Coach Tools and League Portal even while the user is on Schedule. With a large generated
+  // schedule that can monopolize Chrome's main thread after the green completion state appears.
+  // Refresh only the active scheduling surfaces here; other tabs render on demand when opened.
+  renderSchedule();
+  await yieldToBrowser();
 
   const scopeLabel=scope==='ALL'?'all divisions and pools':$('scheduleFilter').selectedOptions[0]?.textContent||scope;
   const generationIssues=[...hardPlacementFailures,...warnings];
@@ -2781,7 +2776,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     `<details><summary>Capacity & feasibility</summary><div class="hint">${feasibilityNotes.map(esc).join('<br>')}</div></details>`+
     `${generationIssues.length?`<details><summary>Generation warnings (${generationIssues.length})</summary><div class="hint">${generationIssues.map(esc).join('<br>')}</div></details>`:''}`;
 
-  setGenerationStage(finalFails?'Complete — final Audit has items for review':'Complete — final Audit passed');
+  // v11.11.86.17: preserve the detailed generation summary instead of overwriting it with a generic stage line.
   setTab('schedule');
   resetRuntimeOverflowPlan();
 }
