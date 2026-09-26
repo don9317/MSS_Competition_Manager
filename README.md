@@ -9,3 +9,7 @@ Adds a court-only compaction pass before time rebuilding. It preserves game time
 
 ## v11.11.86.34
 Resource-change repair: Optimize This Date now detects games whose saved court/time is no longer legal under current court groups, availability, or date exceptions. Invalid placements are mandatory repairs; valid manual locks remain protected, while an invalid locked placement may be moved. Final success requires zero invalid current-resource placements on the selected date.
+
+
+## v11.11.86.35
+Multi-pass late-session compaction. Optimize This Date now repeats division/pool compaction sweeps (up to four), so games stranded late by temporary cross-block court occupancy are reconsidered after earlier blocks move. Stops when a full sweep accepts no further improvement. Opponents remain unchanged and protected audit rules remain enforced.
