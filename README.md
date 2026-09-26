@@ -13,3 +13,7 @@ Resource-change repair: Optimize This Date now detects games whose saved court/t
 
 ## v11.11.86.35
 Multi-pass late-session compaction. Optimize This Date now repeats division/pool compaction sweeps (up to four), so games stranded late by temporary cross-block court occupancy are reconsidered after earlier blocks move. Stops when a full sweep accepts no further improvement. Opponents remain unchanged and protected audit rules remain enforced.
+
+
+## v11.11.86.36
+Print/export-only change. Court/Game # numbering restarts at Game 1 for each court at 7:00 PM (High School session). Printed court sheets show Elementary and High School section labels but no time column. CSV includes Session and Game # but no game time. Scheduler and optimizer logic are unchanged from v86.35.
