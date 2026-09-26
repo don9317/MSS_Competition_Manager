@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.25</title>
+<title>MSS League Scheduler v11.11.86.28</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.25</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.28</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -334,7 +334,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.27</b> — SESSION-START ANCHORED COURT COMPRESSION: each division/pool starts at its earliest legal configured session time, then fills simultaneous courts before advancing; protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.28</b> — COURT CALENDAR DATE-SAFE OPTIMIZER: Optimize This Date uses the visible Court Calendar date; session-start anchoring + horizontal court fill retained; protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -342,7 +342,6 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <button class="primary" id="generateBtn">Generate Schedule</button>
       <button class="secondary" id="generateReadyBtn" type="button">Schedule All Approved / Ready Divisions</button>
       <button id="optimizeBtn" class="primary">Re-Optimize Schedule</button>
-      <button id="courtOptimizeBtn" type="button" onclick="optimizeCourtUseSafely()">Optimize Selected Date</button>
       <button id="courtOptimizeAllBtn" type="button" onclick="optimizeAllPlayingDates()">Optimize All Playing Dates</button>
       <button class="secondary" id="auditScopeBtn" type="button" onclick="runAuditWithConfirmation(false)">Audit Selected Scope</button>
       <button class="secondary" id="auditAllBtn" type="button" onclick="runAuditWithConfirmation(true)">Audit Entire League</button>
@@ -385,6 +384,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <div class="toolbar" style="margin:0">
         <label style="margin:0;min-width:210px">Playing Date<select id="calendarDate"></select></label>
         <label style="margin:0;min-width:260px">Division / Pool<select id="calendarScope"></select></label>
+        <button id="calendarOptimizeBtn" type="button">Optimize This Date</button>
         <button class="secondary" id="calendarPrintBtn" type="button">Print</button>
       </div>
     </div>
@@ -4034,8 +4034,8 @@ function restoreBlock(block,snap){
 }
 
 
-async function optimizeCourtUseSafely(){
-  const btn=$('courtOptimizeBtn');
+async function optimizeCourtUseSafely(explicitDate=null){
+  const btn=$('calendarOptimizeBtn');
   let original=null;
   try{
     if(!state.games.length){alert('Generate a schedule first.');return}
@@ -4044,9 +4044,11 @@ async function optimizeCourtUseSafely(){
     const scopeGames=state.games.filter(g=>g.status!=='Cancelled'&&scopeMatchesGame(scope,g));
     if(!scopeGames.length){alert('There are no scheduled games in the selected scope.');return}
 
-    const calendarDate=window.__mssOptimizationDate||$('calendarDate')?.value;
+    const calendarDate=explicitDate||$('calendarDate')?.value;
     const dates=[...new Set(scopeGames.map(g=>g.date).filter(Boolean))].sort();
-    const targetDate=(calendarDate&&dates.includes(calendarDate))?calendarDate:dates[0];
+    if(!calendarDate){alert('Choose a Playing Date on Court Calendar first.');return}
+    if(!dates.includes(calendarDate)){alert(`There are no scheduled games in the selected scope on ${calendarDate}.`);return}
+    const targetDate=calendarDate;
     const movable=scopeGames.filter(g=>g.date===targetDate&&!g.lockedManual);
 
     original=JSON.parse(JSON.stringify(state.games));
@@ -4178,7 +4180,7 @@ async function optimizeCourtUseSafely(){
 
     setGenerationStage(`Court + time optimization complete for ${targetDate}`);
   }catch(err){
-    console.error('v11.11.86.27 Court + Time optimizer error',err);
+    console.error('v11.11.86.28 Court + Time optimizer error',err);
     if(original){
       state.games=original;
       try{persist()}catch(_){}
@@ -4613,7 +4615,7 @@ safeBind('addExceptionBtn','click',addException);safeBind('addCourtBtn','click',
 $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',()=>generateSchedule());safeBind('optimizeBtn','click',optimizeSchedule);safeBind('generateReadyBtn','click',scheduleAllReadyDivisions);/* Audit buttons use inline safeRunScheduleAudit handlers so they remain functional even if another optional control binding fails. */
 ['managementDivision','managementWeek','managementStatus','managementCourt'].forEach(id=>$(id).addEventListener('change',renderManagement));
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
-$('exportScheduleBtn').addEventListener('click',exportSchedule);$('exportScheduleBackupBtn').addEventListener('click',exportScheduleBackup);$('scheduleRestoreFile').addEventListener('change',e=>restoreScheduleFile(e.target.files?.[0]));safeBind('exportDivisionSeasonBtn','click',exportDivisionSeason);safeBind('exportDivisionWeekBtn','click',exportDivisionWeek);safeBind('printCourtGameBtn','click',printCourtGameSchedule);safeBind('exportCourtGameBtn','click',exportCourtGameSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});safeBind('calendarDate','change',renderCourtCalendar);safeBind('calendarScope','change',renderCourtCalendar);safeBind('calendarPrintBtn','click',()=>window.print());
+$('exportScheduleBtn').addEventListener('click',exportSchedule);$('exportScheduleBackupBtn').addEventListener('click',exportScheduleBackup);$('scheduleRestoreFile').addEventListener('change',e=>restoreScheduleFile(e.target.files?.[0]));safeBind('exportDivisionSeasonBtn','click',exportDivisionSeason);safeBind('exportDivisionWeekBtn','click',exportDivisionWeek);safeBind('printCourtGameBtn','click',printCourtGameSchedule);safeBind('exportCourtGameBtn','click',exportCourtGameSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});safeBind('calendarDate','change',renderCourtCalendar);safeBind('calendarScope','change',renderCourtCalendar);safeBind('calendarOptimizeBtn','click',()=>optimizeCourtUseSafely($('calendarDate')?.value||null));safeBind('calendarPrintBtn','click',()=>window.print());
 $('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());$('sampleScoresBtn').addEventListener('click',createSampleScores);$('clearScoresBtn').addEventListener('click',clearAllScores);document.addEventListener('click',e=>{const close=e.target.closest&&e.target.closest('#closeTeamModal');if(close){e.preventDefault();e.stopPropagation();closeTeamModal();return}if(e.target===$('teamModal'))closeTeamModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTeamModal();closeGameEditor()}});
 document.querySelectorAll('#admin-settings input,#admin-settings select').forEach(e=>e.addEventListener('change',()=>{syncSettings();ensureDivisionConfig();persist();renderAll()}));
 $('addDivisionBtn').onclick=addDivision;$('detectDivisionsBtn').onclick=detectDivisions;$('autoAssignDivisionsBtn').onclick=autoAssignDivisions;
