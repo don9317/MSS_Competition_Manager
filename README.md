@@ -10,48 +10,56 @@
 - No opponent-generation, Re-Optimize, court optimizer or Audit logic changes.
 
 
-## v11.11.86.23 generator fix
+## v11.11.86.24 generator fix
 Replaces recursive matchup backtracking with a deterministic bounded constructor to prevent combinatorial browser freezes. Storage schema and league setup data are unchanged.
 
 
-## v11.11.86.23 generator fix
+## v11.11.86.24 generator fix
 Fixes a scope regression in v86.4 where the deterministic matchup planner attempted to call a generation-stage UI function that was local to generateSchedule(). The resulting ReferenceError was caught as a generation warning, causing zero games to be saved while the final audit could misleadingly report success. v86.5 passes the stage callback explicitly and preserves the detailed generation summary. No storage schema or league setup fields were changed.
 
 
-## v11.11.86.23
+## v11.11.86.24
 Post-generation responsiveness hotfix: schedule generation no longer calls full renderAll() after saving/auto-repair. Only the Schedule surface is refreshed during generation; other tabs render when opened. Storage schema unchanged.
 
 
-## v11.11.86.23
+## v11.11.86.24
 Schedule All Approved / Ready Divisions now runs sequentially, yields to the browser between divisions, shows progress, and avoids full-app renderAll() calls during the batch.
 
 
-## v11.11.86.23
+## v11.11.86.24
 Schedule All now passes each division scope directly into the proven generator instead of changing/re-reading the Schedule dropdown. A re-entry guard prevents accidental recursive Schedule All calls.
 
 
-## v11.11.86.23 — Atomic Nightly Minimum
+## v11.11.86.24 — Atomic Nightly Minimum
 Built directly from the known-running v86.17 baseline. Absolute Rule #1: every active team must receive at least the configured nightly minimum (3) on every playing date. Failed bounded placements no longer save partial games. A final independent commit gate verifies every target team/date before state.games is changed; any 2-game result blocks the generated scope from being saved. The fully relaxed final placement tier receives a larger bounded search window so soft opponent/rematch/rest preferences yield before the hard minimum. Sequential Schedule All/browser-yield architecture from v86.17 is retained.
 
 
-## v11.11.86.23 — Scope + Production Preflight Fix
+## v11.11.86.24 — Scope + Production Preflight Fix
 - Fixes Generate Schedule when Schedule / Display Scope is Entire League. The browser MouseEvent is no longer mistaken for a scope override.
 - Generate button now explicitly invokes generateSchedule() without forwarding the click event.
 - Production Preflight excludes draft/unapproved divisions and filters aggregate capacity blockers to approved production divisions.
 - Retains v86.20 atomic hard-minimum commit gate: no generated scope is saved if any active team has fewer than 3 games on a playing date.
 
 
-## v11.11.86.23 — Slot Diagnostic Fix
+## v11.11.86.24 — Slot Diagnostic Fix
 - Production Preflight now shows detailed Slot Diagnostics for every capacity blocker: Court Group, member surfaces, each court's hours and date exception, configured pool window, effective window, court mode, overflow status, base/total slots, and required games.
 - Slot generation now uses the same effective court-group/pool time intersection used by validation, preventing a stale/inherited pool window from validating while yielding zero slots.
 - Retains v86.21 Entire League click/scope correction and production-only preflight.
 - Retains v86.20 atomic hard-minimum commit gate: every active team must have at least 3 games per playing date before generated scope can be saved.
 
 
-## v11.11.86.23 — Opponent Matrix Repair
+## v11.11.86.24 — Opponent Matrix Repair
 - Even-sized pools now build matchup demand from deterministic circle-method round-robin rounds. This guarantees each team sees every available opponent before a repeat, until the pool exhausts its unique opponents.
 - This directly targets 10-team Varsity Boys, 14-team Varsity Girls, 14-team 5/6 Boys, 16-team HS JV, and other even pools.
 - Odd pools retain the exact nightly-degree constructor, including the required 4-3-3 pattern for a 3-team pool.
 - Re-Optimize general opponent repair budget increased and remains browser-yielding/bounded.
 - Final targeted repair now gives All Opponents Before Repeats higher scoring priority than immediate-rematch cleanup while preserving all structural hard rules and the original opponent-balance ceiling.
 - Retains v86.22 slot diagnostics/effective-window correction and v86.20 atomic 3-games-per-night commit gate.
+
+
+## v11.11.86.24 — Rotation Priority Repair
+- Corrects the visible browser title/header to v11.11.86.24.
+- Treats All Opponents Before Repeats as higher priority than the soft Opponent Balance warning during final repair. A hard rotation improvement may temporarily use up to four additional balance warnings; structural rules and nightly/season minimums remain protected.
+- Expands bounded targeted repair from 1,800 to 6,000 candidates and from 6 to 12 passes (45-second cap).
+- Exempts 3-team pools from All Opponents Before Repeats and Opponent Balance audit noise because a 3-game nightly minimum mathematically requires repeats.
+- Retains atomic 3-games-per-team-per-date commit protection, preflight, court/time rules, and all prior safety checks.

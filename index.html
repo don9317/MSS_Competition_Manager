@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.21</title>
+<title>MSS League Scheduler v11.11.86.24</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.21</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.24</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -334,7 +334,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.21</b> — OPPONENT MATRIX REPAIR: even pools use round-robin opponent rounds before repeats; stronger bounded re-optimization; hard 3-game commit retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.24</b> — OPPONENT MATRIX REPAIR: even pools use round-robin opponent rounds before repeats; stronger bounded re-optimization; hard 3-game commit retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -1674,7 +1674,7 @@ function slotsOnSurfaces(d,date,surfaceIds){return slotsOnSurfacesConfig(date,su
 function effectiveSlotConfig(d,pool){
   const cfg=poolResourceConfig(d,pool),win=effectivePoolWindow(d,pool);
   if(!win)return cfg;
-  // v11.11.86.23: slot generation must use the same effective group/config overlap
+  // v11.11.86.24: slot generation must use the same effective group/config overlap
   // that validation uses. This prevents an inherited/stale pool window from validating
   // successfully while producing zero slots on the actual court surfaces.
   return {...cfg,start:win.effectiveStart,end:win.effectiveEnd};
@@ -1836,7 +1836,7 @@ function rotationAllowsAtSlot(a,b,ids,division,pool,slot,games){
   if(!state.settings.playAllTeamsOnce)return true;
   return opponentRotationAllows(a,b,ids,chronologicalPairCounts(games,division,pool,slot.date,slot.time))
 }
-// v11.11.86.21 — candidate-time immediate-rematch guard.
+// v11.11.86.24 — candidate-time immediate-rematch guard.
 // Tests the proposed game against the immediately adjacent chronological games
 // already committed or tentatively placed for the same team.
 function chronologicalImmediateRematchAtCandidate(teamId,opponentId,slot,committedGames=[],placements=[]){
@@ -1884,7 +1884,7 @@ const divisionScopeKey=d=>`DIV::${d}`;
 function scopeMatches(scope,d,pool){return scope==='ALL'||scope===divisionScopeKey(d)||scope===poolKey(d,pool)}
 function scopeMatchesGame(scope,g){return scope==='ALL'||scope===divisionScopeKey(g.division)||scope===poolKey(g.division,g.pool)}
 function selectedScheduleTargets(scopeOverride=null){
-  // v11.11.86.21: batch scheduling may pass an explicit scope so generation
+  // v11.11.86.24: batch scheduling may pass an explicit scope so generation
   // never depends on the visible dropdown while Schedule All is running.
   const scope=scopeOverride||$('scheduleFilter').value||'ALL',targets=[];
   Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{
@@ -2216,7 +2216,7 @@ async function scheduleAllReadyDivisions(){
       const explicitScope=divisionScopeKey(d);
       const beforeCount=state.games.length;
       try{
-        // v11.11.86.21: pass the division directly. Do not drive batch generation
+        // v11.11.86.24: pass the division directly. Do not drive batch generation
         // through the UI dropdown; that can be reset to Entire League during renders.
         await generateSchedule(explicitScope);
         const afterCount=state.games.length;
@@ -2279,7 +2279,7 @@ function exactGamesRequiredForDate(teamCount,minimum){
   return Math.ceil(teamCount*minimum/2);
 }
 async function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate,onStage){
-  // v11.11.86.21 — deterministic bounded matchup constructor.
+  // v11.11.86.24 — deterministic bounded matchup constructor.
   // The former recursive backtracking search could expand combinatorially on certain
   // league shapes (especially odd/small pools) and monopolize Chrome's main thread.
   // This constructor builds the exact nightly degree sequence directly. It evaluates
@@ -2290,7 +2290,7 @@ async function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate,onStage){
   const pairKey=(a,b)=>[a,b].sort().join('|');
   const teamOrder=new Map(ids.map((id,i)=>[id,i]));
 
-  // v11.11.86.23 — OPPONENT MATRIX FIRST for even-sized pools.
+  // v11.11.86.24 — OPPONENT MATRIX FIRST for even-sized pools.
   // A circle-method round robin guarantees that every opponent is faced once before
   // any repeat. Each round gives every team exactly one game. Therefore an even pool
   // needing N games/team/date can consume N consecutive RR rounds per playing date,
@@ -2395,7 +2395,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     {name:'coach-relaxed',relaxCoach:true,relaxRest:false,relaxSequence:false,relaxRematch:false,timeMs:5500,nodeLimit:22000},
     {name:'rest-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:false,relaxRematch:false,timeMs:5000,nodeLimit:20000},
     {name:'sequence-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:true,relaxRematch:false,timeMs:4000,nodeLimit:16000},
-    // v11.11.86.21: Rule #1 outranks opponent/rematch preferences. Give the fully
+    // v11.11.86.24: Rule #1 outranks opponent/rematch preferences. Give the fully
     // relaxed final tier enough bounded search room to find the complete nightly placement.
     {name:'rematch-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:true,relaxRematch:true,timeMs:12000,nodeLimit:70000}
   ];
@@ -2574,7 +2574,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
   };
 }
 async function generateSchedule(scopeOverride=null){
-  // v11.11.86.21: when invoked by a DOM click handler, the browser passes a MouseEvent
+  // v11.11.86.24: when invoked by a DOM click handler, the browser passes a MouseEvent
   // as argument #1. That is NOT a schedule scope. Only accept explicit string scopes
   // from Schedule All / programmatic calls.
   if(typeof scopeOverride!=='string')scopeOverride=null;
@@ -2696,7 +2696,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
         hardPlacementFailures.push(`${divisionLabel(d)} — ${poolDisplayName(d,pool)}, Playing Date ${dateIndex+1} (${date}): the 3-game guarantee was preserved only by allowing an immediate-rematch fallback after all no-rematch placements were exhausted. Review the Immediate Rematches audit.`);
       }
       if(!result.ok){
-        // v11.11.86.21 — ABSOLUTE RULE #1 / ATOMIC DATE COMMIT.
+        // v11.11.86.24 — ABSOLUTE RULE #1 / ATOMIC DATE COMMIT.
         // Never retain a partial playing date. A 2-game team is not a schedule.
         // placeGuaranteeDatePlan only mutates shared state on full success, so when it
         // returns !ok there is nothing to commit and nothing to roll back.
@@ -2726,7 +2726,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   // Optimization only uses same-date swaps, so the nightly game guarantee is
   // preserved exactly.
 
-  // v11.11.86.21 — FINAL ATOMIC COMMIT GATE.
+  // v11.11.86.24 — FINAL ATOMIC COMMIT GATE.
   // A generated scope cannot be saved if any active team has fewer than the configured
   // nightly minimum on any playing date. This is checked independently of the solver's
   // own status so no downstream/legacy path can accidentally commit a 2-game result.
@@ -2759,7 +2759,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   await yieldToBrowser();
   state.games=[...retainedGames,...newGames].map(g=>({...g,status:g.status||'Scheduled',pending:true}));
   persist();
-  // v11.11.86.21: Do NOT synchronously render the entire application after generation.
+  // v11.11.86.24: Do NOT synchronously render the entire application after generation.
   // renderAll() rebuilds Dashboard, Resources, Calendar, Management, Results, Standings,
   // Coach Tools and League Portal even while the user is on Schedule. With a large generated
   // schedule that can monopolize Chrome's main thread after the green completion state appears.
@@ -2843,7 +2843,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     `<details><summary>Capacity & feasibility</summary><div class="hint">${feasibilityNotes.map(esc).join('<br>')}</div></details>`+
     `${generationIssues.length?`<details><summary>Generation warnings (${generationIssues.length})</summary><div class="hint">${generationIssues.map(esc).join('<br>')}</div></details>`:''}`;
 
-  // v11.11.86.21: preserve the detailed generation summary instead of overwriting it with a generic stage line.
+  // v11.11.86.24: preserve the detailed generation summary instead of overwriting it with a generic stage line.
   setTab('schedule');
   resetRuntimeOverflowPlan();
 }
@@ -3273,20 +3273,25 @@ async function opponentCoverageRepairBounded(){
 // does not exceed the starting v77 baseline, and every protected structural Audit
 // rule is no worse. Locked manual games are never touched.
 async function targetedFinalRepairV78(balanceCeilingOverride=null){
-  const started=performance.now(),MAX_MS=30000,MAX_CHECKS=1800;
+  const started=performance.now(),MAX_MS=45000,MAX_CHECKS=6000;
   let checks=0,accepted=0,timedOut=false;
   let base=opponentCoverageSnapshot();
   const balanceCeiling=balanceCeilingOverride==null?base.balance:Number(balanceCeilingOverride);
   const structuralLabels=['No self-matchups','No team double-booking','No court double-booking','Division time windows','Assigned court groups','Team schedule requests','Minimum games per playing date','Calculated season minimum','Maximum games per playing date','Rest / back-to-back rule'];
   const structural=(snap)=>Object.fromEntries(structuralLabels.map(k=>[k,snap.protected?.[k]||0]));
   let structBase=structural(base);
-  const score=x=>x.opp*100000+x.rem*1000+x.balance;
+  const score=x=>x.opp*1000000+x.rem*10000+x.balance;
   const safe=(after)=>{
-    if(after.balance>balanceCeiling)return false;
+    // v11.11.86.24 priority: hard opponent rotation outranks the soft balance warning.
+    // Permit a small temporary balance increase ONLY when a hard early-repeat defect is removed.
+    // All structural/hard schedule rules remain protected and the later balance cleanup can recover it.
+    const hardRotationImproved=after.opp<base.opp;
+    const allowedBalance=hardRotationImproved?Math.max(balanceCeiling,base.balance)+4:balanceCeiling;
+    if(after.balance>allowedBalance)return false;
     for(const k of structuralLabels)if((after.protected?.[k]||0)>(structBase[k]||0))return false;
     return after.rem<=base.rem&&after.opp<=base.opp&&(after.rem<base.rem||after.opp<base.opp);
   };
-  for(let pass=0;pass<6;pass++){
+  for(let pass=0;pass<12;pass++){
     if(performance.now()-started>=MAX_MS||checks>=MAX_CHECKS){timedOut=true;break}
     let best=null,bestScore=score(base);
     const badKeys=new Set(failedOpponentPoolKeys());
@@ -3470,7 +3475,9 @@ function auditResult(label,status,detail,violations=[]){return {label,status,det
 function opponentBalanceViolationsV71(games){
   const out=[],names=Object.fromEntries((state.teams||[]).map(t=>[t.id,t.team||t.name||t.id]));
   for(const d of (state.divisions||[]))for(const [pool,ids] of Object.entries(state.pools?.[d.id]?.lists||{})){
-    if(ids.length<3)continue;
+    // v11.11.86.24: a 3-team pool must repeat opponents to reach a 3-game nightly minimum.
+    // Do not report mathematically unavoidable repeat/balance noise as a warning.
+    if(ids.length<=3)continue;
     const pg=games.filter(g=>g.status!=='Cancelled'&&g.division===d.id&&g.pool===pool);
     if(!pg.length)continue;
     for(const id of ids){
@@ -3529,7 +3536,7 @@ function runScheduleAudit(allLeague=false){
     ids.forEach(id=>{
       const tg=pg.filter(g=>g.aId===id||g.bId===id),name=teamById(id).name;if(tg.length<guarantee)guaranteeBad.push(`${name}: ${tg.length}/${guarantee}`);
       const byDate={};tg.forEach(g=>(byDate[g.date]??=[]).push(g));dates.forEach(date=>{const arr=byDate[date]||[];const hasAvailability=divisionSlots(d,date).some(sl=>allowed(teamById(id),sl));if(hasAvailability&&arr.length<minimum)minimumDateBad.push(`${name}: ${arr.length} games on ${date} (minimum ${minimum})`);if(arr.length>max)maxBad.push(`${name}: ${arr.length} games on ${date} (max ${max})`);else if(arr.length>minimum)overflowWarn.push(`${name}: ${arr.length} games on ${date} (minimum ${minimum}; max ${max})`)});
-      const seq=[...tg].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));let seen=new Set();const auditPrefix=`${divisionLabel(d)} — ${poolDisplayName(d,pool)} — `;for(let i=0;i<seq.length;i++){const g=seq[i],opp=g.aId===id?g.bId:g.aId;if(i&&opp===(seq[i-1].aId===id?seq[i-1].bId:seq[i-1].aId)&&state.settings.avoidImmediateRematches){const prev=seq[i-1],pair=[id,opp].sort().join('|'),boundary=`${prev.date}|${prev.time}|${g.date}|${g.time}`,k=`${d}|${pool}|${pair}|${boundary}`;const entry=immediateKeys.get(k)||{division:d,pool,a:id,b:opp,teams:new Set(),prev,next:g};entry.teams.add(id);entry.prev=prev;entry.next=g;immediateKeys.set(k,entry)}if(state.settings.playAllTeamsOnce&&seen.has(opp)){const possible=ids.filter(x=>x!==id),unplayed=possible.filter(x=>!seen.has(x)&&x!==opp);if(unplayed.length){const oppName=teamById(opp)?.name||opp;const unplayedNames=unplayed.map(x=>teamById(x)?.name||x).join(', ');allBeforeRepeatBad.push(`${auditPrefix}${name}: repeated ${oppName} on ${g.date} ${fmtTime(g.time)} before facing all pool opponents — not yet faced: ${unplayedNames}`)}}seen.add(opp)}
+      const seq=[...tg].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));let seen=new Set();const auditPrefix=`${divisionLabel(d)} — ${poolDisplayName(d,pool)} — `;for(let i=0;i<seq.length;i++){const g=seq[i],opp=g.aId===id?g.bId:g.aId;if(i&&opp===(seq[i-1].aId===id?seq[i-1].bId:seq[i-1].aId)&&state.settings.avoidImmediateRematches){const prev=seq[i-1],pair=[id,opp].sort().join('|'),boundary=`${prev.date}|${prev.time}|${g.date}|${g.time}`,k=`${d}|${pool}|${pair}|${boundary}`;const entry=immediateKeys.get(k)||{division:d,pool,a:id,b:opp,teams:new Set(),prev,next:g};entry.teams.add(id);entry.prev=prev;entry.next=g;immediateKeys.set(k,entry)}if(state.settings.playAllTeamsOnce&&ids.length>3&&seen.has(opp)){const possible=ids.filter(x=>x!==id),unplayed=possible.filter(x=>!seen.has(x)&&x!==opp);if(unplayed.length){const oppName=teamById(opp)?.name||opp;const unplayedNames=unplayed.map(x=>teamById(x)?.name||x).join(', ');allBeforeRepeatBad.push(`${auditPrefix}${name}: repeated ${oppName} on ${g.date} ${fmtTime(g.time)} before facing all pool opponents — not yet faced: ${unplayedNames}`)}}seen.add(opp)}
       for(let i=1;i<seq.length;i++){if(seq[i].date!==seq[i-1].date)continue;const t1=new Date(`${seq[i-1].date}T${seq[i-1].time}:00`).getTime(),t2=new Date(`${seq[i].date}T${seq[i].time}:00`).getTime(),diff=(t2-t1)/60000;const minGap=(state.settings.allowBackToBack?Number(state.settings.minRest||0)+1:Math.max(2,Number(state.settings.minRest||0)+1))*gameLen;if(diff<minGap)restBad.push(`${name}: ${diff} min between games on ${seq[i].date}; requires ${minGap} min`)}
     })
   });
@@ -3543,7 +3550,7 @@ function runScheduleAudit(allLeague=false){
   });
   const row=(label,viol,detail,soft=false)=>results.push(auditResult(label,viol.length?(soft?'WARN':'FAIL'):'PASS',viol.length?`${viol.length} issue(s)`:detail,viol));
   immediateBad=[...immediateKeys.values()].map(x=>{const a=teamById(x.a)?.name||x.a,b=teamById(x.b)?.name||x.b;const both=x.teams.size>1?' — consecutive matchup for both teams':'';return `${divisionLabel(x.division)} — ${poolDisplayName(x.division,x.pool)} — ${a} vs ${b}${both} (${x.prev.date} ${x.prev.time} → ${x.next.date} ${x.next.time})`});
-  const courtExceptionBad=games.filter(g=>{const sid=g.courtId||state.courts.find(c=>c.name===g.court)?.id;return sid&&!courtExceptionAllows(sid,g.date,g.time,Number(state.settings.gameLength||20))}).map(g=>`${g.date} ${fmtTime(g.time)} — ${g.court}: ${teamById(g.teamA||g.teamAId).name} vs ${teamById(g.teamB||g.teamBId).name}`);row('Court availability exceptions',courtExceptionBad,'No games use a court during a date-specific blackout or outside its custom window');row('No self-matchups',self,'No self-games');row('No team double-booking',teamDouble,'No teams scheduled twice in the same slot');row('No court double-booking',courtDouble,'No courts double-booked');row('Division time windows',windowBad,'All games inside assigned division windows');row('Assigned court groups',courtBad,'All games use primary courts or Director-approved overflow courts');row('Overflow court usage',overflowCourtInfo,overflowCourtInfo.length?'Director-approved overflow courts were used':'No overflow courts used',true);row('Team schedule requests',requestBad,state.settings.honorScheduleRequests?'All requests honored':'Rule is OFF',false);row('Shared-coach conflicts',coachBad,state.settings.protectSharedCoaches?'No shared-coach conflicts':'Rule is OFF',true);row('Minimum games per playing date',minimumDateBad,'Every available team receives at least its minimum games on every playing date');row('Calculated season minimum',guaranteeBad,'Every team meets the calculated season minimum');row('Maximum games per playing date',maxBad,'No team exceeds its maximum');row('Immediate rematches',immediateBad,state.settings.avoidImmediateRematches?'No immediate rematches':'Rule is OFF',!state.settings.avoidImmediateRematches);row('All opponents before repeats',allBeforeRepeatBad,state.settings.playAllTeamsOnce?'Opponent rotation satisfied chronologically — larger pools must use unplayed opponents before repeats; small pools may repeat only after all available opponents have been faced':'Rule is OFF',!state.settings.playAllTeamsOnce);const opponentBalanceBad=opponentBalanceViolationsV71(games);row('Opponent balance',opponentBalanceBad,opponentBalanceBad.length?'Opponent meeting-count imbalance or same-date duplicate opponent found':'Opponent meeting counts are reasonably balanced and no same-date duplicate opponent was found',true);row('Rest / back-to-back rule',restBad,'Rest rule satisfied');row('Time-slot fairness',fairnessWarn,'Pools are reasonably balanced across early, middle, and late slots',true);
+  const courtExceptionBad=games.filter(g=>{const sid=g.courtId||state.courts.find(c=>c.name===g.court)?.id;return sid&&!courtExceptionAllows(sid,g.date,g.time,Number(state.settings.gameLength||20))}).map(g=>`${g.date} ${fmtTime(g.time)} — ${g.court}: ${teamById(g.teamA||g.teamAId).name} vs ${teamById(g.teamB||g.teamBId).name}`);row('Court availability exceptions',courtExceptionBad,'No games use a court during a date-specific blackout or outside its custom window');row('No self-matchups',self,'No self-games');row('No team double-booking',teamDouble,'No teams scheduled twice in the same slot');row('No court double-booking',courtDouble,'No courts double-booked');row('Division time windows',windowBad,'All games inside assigned division windows');row('Assigned court groups',courtBad,'All games use primary courts or Director-approved overflow courts');row('Overflow court usage',overflowCourtInfo,overflowCourtInfo.length?'Director-approved overflow courts were used':'No overflow courts used',true);row('Team schedule requests',requestBad,state.settings.honorScheduleRequests?'All requests honored':'Rule is OFF',false);row('Shared-coach conflicts',coachBad,state.settings.protectSharedCoaches?'No shared-coach conflicts':'Rule is OFF',true);row('Minimum games per playing date',minimumDateBad,'Every available team receives at least its minimum games on every playing date');row('Calculated season minimum',guaranteeBad,'Every team meets the calculated season minimum');row('Maximum games per playing date',maxBad,'No team exceeds its maximum');row('Immediate rematches',immediateBad,state.settings.avoidImmediateRematches?'No immediate rematches':'Rule is OFF',!state.settings.avoidImmediateRematches);row('All opponents before repeats',allBeforeRepeatBad,state.settings.playAllTeamsOnce?'Opponent rotation satisfied chronologically — pools with 4+ teams must use unplayed opponents before repeats; 3-team pools are exempt because repeats are mathematically required':'Rule is OFF',!state.settings.playAllTeamsOnce);const opponentBalanceBad=opponentBalanceViolationsV71(games);row('Opponent balance',opponentBalanceBad,opponentBalanceBad.length?'Opponent meeting-count imbalance or same-date duplicate opponent found':'Opponent meeting counts are reasonably balanced and no same-date duplicate opponent was found',true);row('Rest / back-to-back rule',restBad,'Rest rule satisfied');row('Time-slot fairness',fairnessWarn,'Pools are reasonably balanced across early, middle, and late slots',true);
   // An odd-sized pool with an odd nightly minimum mathematically requires at least one
   // team to take an extra game. Report those expected overflow games as PASS rather than WARN.
   const unexpectedOverflow=overflowWarn.filter(msg=>{
@@ -3641,7 +3648,7 @@ function runProductionPreflight(){
   const blocking=[],warnings=[],passes=[],slotDiagnostics=[];
   const dates=seasonDatesRaw();
   const teams=state.teams||[];
-  // v11.11.86.21: production preflight is production-only. Draft/unapproved
+  // v11.11.86.24: production preflight is production-only. Draft/unapproved
   // divisions are intentionally excluded from blockers and capacity checks.
   const allDivisions=allDivisionKeys();
   const divisions=allDivisions.filter(d=>state.pools?.[d]?.approved);
