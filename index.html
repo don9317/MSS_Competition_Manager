@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86</title>
+<title>MSS League Scheduler v11.11.86.1</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.1</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -334,7 +334,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.1</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -1041,7 +1041,24 @@ function refreshOverallApproval(){state.approved=allDivisionKeys().length>0&&all
 function approveDivision(d){const errors=divisionBoardErrors(d);if(errors.length){showActionFeedback(errors.join(' • '),false);return}state.pools[d].approved=true;refreshOverallApproval();logActivity(`${divisionLabel(d)} divisions/pools approved`);persist();renderAll();showActionFeedback(`${divisionLabel(d)} approved and locked.`)}
 function unlockDivision(d){if(state.games.some(g=>g.division===d)&&!confirm(`Unlock ${divisionLabel(d)}? Its current schedule may need to be regenerated.`))return;state.pools[d].approved=false;refreshOverallApproval();persist();renderAll()}
 function approveBoard(){
-  const ready=allDivisionKeys().filter(d=>!divisionBoardErrors(d).length);if(!ready.length)return alert('No divisions are ready for approval.');ready.forEach(d=>state.pools[d].approved=true);refreshOverallApproval();persist();renderAll();
+  const keys=allDivisionKeys();
+  const blocked=keys.map(d=>({d,errors:divisionBoardErrors(d)})).filter(x=>x.errors.length);
+  const ready=keys.filter(d=>!divisionBoardErrors(d).length);
+  if(!ready.length){
+    const detail=blocked.map(x=>`${divisionLabel(x.d)}: ${x.errors.join(' ')}`).join('\n\n');
+    alert('No divisions are ready for approval.\n\n'+detail);
+    return;
+  }
+  let newlyApproved=0;
+  ready.forEach(d=>{if(!state.pools[d].approved)newlyApproved++;state.pools[d].approved=true});
+  refreshOverallApproval();persist();renderAll();
+  const approvedNow=keys.filter(d=>state.pools[d]?.approved).length;
+  if(blocked.length){
+    const detail=blocked.map(x=>`• ${divisionLabel(x.d)} — ${x.errors.join(' ')}`).join('\n');
+    alert(`${approvedNow}/${keys.length} divisions are approved.\n\n${newlyApproved} division(s) were newly approved.\n\nThe following division(s) remain Draft and were NOT changed:\n${detail}\n\nFix only those listed issues, then click Approve All Ready Divisions again.`);
+  }else{
+    showActionFeedback(`All ${approvedNow} divisions are approved and locked.`,true);
+  }
 }
 function unlockBoard(){if(state.games.length&&!confirm('Unlock all divisions? Existing schedules may require regeneration. Continue?'))return;Object.values(state.pools).forEach(p=>p.approved=false);refreshOverallApproval();persist();renderAll()}
 function renderBoard(){
