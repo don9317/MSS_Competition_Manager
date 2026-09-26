@@ -8,3 +8,7 @@
 - Duplicate court names are blocked. Published-schedule renames require confirmation.
 - Retains v82.1 multi-court availability, publishing controls, Court Calendar fix and Court/Game print fix.
 - No opponent-generation, Re-Optimize, court optimizer or Audit logic changes.
+
+
+## v11.11.86.4 generator fix
+Replaces recursive matchup backtracking with a deterministic bounded constructor to prevent combinatorial browser freezes. Storage schema and league setup data are unchanged.

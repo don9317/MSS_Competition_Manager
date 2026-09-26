@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.3</title>
+<title>MSS League Scheduler v11.11.86.4</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.3</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.4</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -334,7 +334,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.3</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.4</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -2177,199 +2177,71 @@ function exactGamesRequiredForDate(teamCount,minimum){
   return Math.ceil(teamCount*minimum/2);
 }
 async function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate){
+  // v11.11.86.4 — deterministic bounded matchup constructor.
+  // The former recursive backtracking search could expand combinatorially on certain
+  // league shapes (especially odd/small pools) and monopolize Chrome's main thread.
+  // This constructor builds the exact nightly degree sequence directly. It evaluates
+  // only O(teamCount^2 * gamesNeeded) candidate pairs and yields between small chunks.
   if(ids.length<2)return {byDate:new Map(),counts:{},roundsPerDate:0};
   const byDate=new Map(),counts=Object.fromEntries(ids.map(id=>[id,0]));
   const pairCounts=new Map();
   const pairKey=(a,b)=>[a,b].sort().join('|');
   const teamOrder=new Map(ids.map((id,i)=>[id,i]));
 
-  // v11.11.79 — GUARANTEE-FIRST, VARIETY-SECOND.
-  // This intentionally preserves the v11.11.35 exact nightly degree planner:
-  // every team receives the configured minimum on every playing date, with only
-  // the mathematically required extra game for odd team-game totals.
-  //
-  // Opponent variety is optimized inside that fixed degree sequence. It is NEVER
-  // allowed to delete or skip guaranteed games. If perfect rotation is impossible,
-  // the full nightly guarantee still wins and the Audit reports the remaining repeat.
+  const feasibleRemaining=(remaining)=>{
+    const vals=Object.values(remaining);
+    const sum=vals.reduce((a,b)=>a+b,0);
+    if(sum===0)return true;
+    if(sum%2)return false;
+    const max=Math.max(...vals);
+    return max<=sum-max;
+  };
+
   for(const [dateIndex,date] of dates.entries()){
     const target=Object.fromEntries(ids.map(id=>[id,minimum]));
-    if((ids.length*minimum)%2===1){
-      const extra=ids[dateIndex%ids.length];
-      target[extra]++;
-    }
+    // Odd team-game totals cannot be paired. Preserve the configured minimum by
+    // assigning the mathematically required extra game to a rotating team.
+    if((ids.length*minimum)%2===1)target[ids[dateIndex%ids.length]]++;
     const over=ids.filter(id=>target[id]>maxPerDate);
     if(over.length)throw new Error(`The exact guarantee requires more than ${maxPerDate} games on ${date} for ${over.map(id=>teamById(id)?.name||id).join(', ')}.`);
+    if(!feasibleRemaining(target))throw new Error(`The configured nightly game guarantee cannot be paired without a self-match on ${date}.`);
 
-    const remaining={...target},games=[];
-    const dailyPairCounts=new Map();
+    const remaining={...target},games=[],dailyPairCounts=new Map();
     const totalNeeded=Object.values(target).reduce((a,b)=>a+b,0)/2;
-    let nodes=0;
+    let checks=0;
 
-    function unseenCount(a){
-      let n=0;
-      for(const b of ids)if(b!==a&&(pairCounts.get(pairKey(a,b))||0)===0)n++;
-      return n;
-    }
-    function candidatesFor(a,strictDaily=false){
-      return ids.filter(b=>b!==a&&remaining[b]>0&&(!strictDaily||(dailyPairCounts.get(pairKey(a,b))||0)===0)).sort((b,c)=>{
-        const kb=pairKey(a,b),kc=pairKey(a,c);
-        const db=dailyPairCounts.get(kb)||0, dc=dailyPairCounts.get(kc)||0;
-        const pb=pairCounts.get(kb)||0, pc=pairCounts.get(kc)||0;
-        // v11.11.79: same-date uniqueness first. In odd pools the parity-required
-        // fourth game should consume a different opponent whenever the degree
-        // sequence permits it. This remains a preference, not a hard rejection,
-        // so the nightly game guarantee can never be stranded.
-        if(db!==dc)return db-dc;
-        const ub=pb===0?1:0, uc=pc===0?1:0;
-        if(ub!==uc)return uc-ub;
-        const needB=unseenCount(b),needC=unseenCount(c);
-        if(needB!==needC)return needC-needB;
-        if(pb!==pc)return pb-pc;
-        if(remaining[b]!==remaining[c])return remaining[c]-remaining[b];
-        return (teamOrder.get(b)||0)-(teamOrder.get(c)||0);
-      });
-    }
-    function feasible(){
-      const vals=Object.values(remaining);
-      const sum=vals.reduce((a,b)=>a+b,0);
-      if(sum%2)return false;
-      const max=Math.max(...vals);
-      return max<=sum-max;
-    }
-    let searchStarted=performance.now(), lastMatchupYield=searchStarted;
-    async function solve(strictDaily=false){
-      nodes++;
-      if(nodes>420000 || performance.now()-searchStarted>12000)return false;
-      if(nodes%750===0 || performance.now()-lastMatchupYield>18){
-        setGenerationStage(`Planning matchups — playing date ${dateIndex+1}/${dates.length} • ${games.length}/${totalNeeded} games • ${nodes.toLocaleString()} checks`);
-        await yieldToBrowser(); lastMatchupYield=performance.now();
-      }
-      if(games.length===totalNeeded)return true;
-      if(!feasible())return false;
-
+    while(games.length<totalNeeded){
       const active=ids.filter(id=>remaining[id]>0);
-      // Work on the team with the highest remaining nightly degree. When tied,
-      // prioritize the team that still has the most unseen opponents, which gives
-      // the solver more chances to consume unique matchups before repeats.
-      active.sort((a,b)=>{
-        if(remaining[a]!==remaining[b])return remaining[b]-remaining[a];
-        const ua=unseenCount(a),ub=unseenCount(b);
-        if(ua!==ub)return ub-ua;
-        return (teamOrder.get(a)||0)-(teamOrder.get(b)||0);
-      });
-      const a=active[0];
-
-      for(const b of candidatesFor(a,strictDaily)){
-        const k=pairKey(a,b),old=pairCounts.get(k)||0,oldDay=dailyPairCounts.get(k)||0;
-        remaining[a]--;remaining[b]--;pairCounts.set(k,old+1);dailyPairCounts.set(k,oldDay+1);
-        games.push({a,b,roundOrder:games.length,rotationRound:old,date,dateIndex});
-        if(await solve(strictDaily))return true;
-        games.pop();remaining[a]++;remaining[b]++;
-        if(old)pairCounts.set(k,old);else pairCounts.delete(k);
-        if(oldDay)dailyPairCounts.set(k,oldDay);else dailyPairCounts.delete(k);
+      let best=null;
+      for(let i=0;i<active.length;i++)for(let j=i+1;j<active.length;j++){
+        const a=active[i],b=active[j];
+        remaining[a]--;remaining[b]--;
+        const ok=feasibleRemaining(remaining);
+        remaining[a]++;remaining[b]++;
+        if(!ok)continue;
+        const k=pairKey(a,b),day= dailyPairCounts.get(k)||0,hist=pairCounts.get(k)||0;
+        // Strongly prefer a new opponent today, then the least-used season opponent.
+        // Higher remaining need breaks ties so constrained teams are consumed first.
+        const score=[day,hist,-(remaining[a]+remaining[b]),-(Math.max(remaining[a],remaining[b])),teamOrder.get(a)+teamOrder.get(b)];
+        if(!best||score.some((v,x)=>v<best.score[x]&&score.slice(0,x).every((q,y)=>q===best.score[y]))){best={a,b,k,score}}
+        checks++;
       }
-      return false;
+      if(!best)throw new Error(`Could not construct the exact ${minimum}-game matchup guarantee for ${date} with the current max-games setting.`);
+      const {a,b,k}=best;
+      remaining[a]--;remaining[b]--;
+      const old=pairCounts.get(k)||0,oldDay=dailyPairCounts.get(k)||0;
+      pairCounts.set(k,old+1);dailyPairCounts.set(k,oldDay+1);
+      games.push({a,b,roundOrder:games.length,rotationRound:old,date,dateIndex,dailyRepeatFallback:oldDay>0});
+      if(games.length%8===0||games.length===totalNeeded){
+        setGenerationStage(`Planning matchups — playing date ${dateIndex+1}/${dates.length} • ${games.length}/${totalNeeded} games • deterministic`);
+        await yieldToBrowser();
+      }
     }
-
-    // v11.11.79: strict parity-extra construction. First require every pairing on this
-    // playing date to be unique. This directly prevents the parity-required fourth
-    // game from reusing an opponent already faced that day. If no exact degree plan
-    // exists under that condition, fall back to the guarantee-first solver so no team
-    // ever loses its required nightly games.
-    let usedDailyRepeatFallback=false;
-    if(!await solve(true)){
-      // A failed search backtracks all degree/pair mutations. Reset only the node budget.
-      nodes=0; searchStarted=performance.now(); lastMatchupYield=searchStarted;
-      usedDailyRepeatFallback=true;
-      if(!await solve(false))throw new Error(`Could not construct the exact ${minimum}-game matchup guarantee for ${date} within the safe matchup-planning bound.`);
-    }
-    if(usedDailyRepeatFallback)games.forEach(g=>g.dailyRepeatFallback=true);
-
     games.forEach(g=>{counts[g.a]++;counts[g.b]++});
     byDate.set(date,{games,daily:{...target},requiredGames:totalNeeded});
     await yieldToBrowser();
   }
-
-  // Safe local improvement pass. Every move is a same-date 2-game edge swap, so
-  // each team's number of games on that date is unchanged. This can improve
-  // opponent rotation without ever jeopardizing the 3-game nightly guarantee.
-  function rotationPenalty(){
-    const seen=Object.fromEntries(ids.map(id=>[id,new Set()]));
-    const lastOpp=Object.fromEntries(ids.map(id=>[id,null]));
-    let penalty=0;
-    for(const date of dates){
-      const entry=byDate.get(date); if(!entry)continue;
-      const dayPairs=new Set();
-      for(const g of entry.games){
-        const dk=pairKey(g.a,g.b);
-        if(dayPairs.has(dk))penalty+=40; // v73: same-day duplicate opponent is strongly undesirable
-        dayPairs.add(dk);
-        for(const [a,b] of [[g.a,g.b],[g.b,g.a]]){
-          if(lastOpp[a]===b)penalty+=8; // immediate-repeat proxy
-          if(seen[a].has(b)&&seen[a].size<ids.length-1)penalty+=5; // repeat before full rotation
-          lastOpp[a]=b; seen[a].add(b);
-          if(seen[a].size===ids.length-1)seen[a]=new Set(); // start a new rotation cycle
-        }
-      }
-    }
-    return penalty;
-  }
-
-  let bestPenalty=rotationPenalty();
-  const SWAP_PASSES=10;
-  for(let pass=0;pass<SWAP_PASSES&&bestPenalty>0;pass++){
-    let improved=false;
-    for(const date of dates){
-      const entry=byDate.get(date); if(!entry)continue;
-      const gs=entry.games;
-      outer:
-      for(let i=0;i<gs.length;i++)for(let j=i+1;j<gs.length;j++){
-        const g1=gs[i],g2=gs[j];
-        const a=g1.a,b=g1.b,c=g2.a,d=g2.b;
-        if(new Set([a,b,c,d]).size<4)continue;
-        const options=[
-          [{a,b:c},{a:b,b:d}],
-          [{a,b:d},{a:b,b:c}]
-        ];
-        for(const opt of options){
-          if(opt[0].a===opt[0].b||opt[1].a===opt[1].b)continue;
-          const old1={...g1},old2={...g2};
-          Object.assign(g1,{a:opt[0].a,b:opt[0].b});
-          Object.assign(g2,{a:opt[1].a,b:opt[1].b});
-          const p=rotationPenalty();
-          if(p<bestPenalty){
-            bestPenalty=p; improved=true;
-            break outer;
-          }
-          Object.assign(g1,old1);Object.assign(g2,old2);
-        }
-      }
-    }
-    if(!improved)break;
-  }
-
-  return {byDate,counts,roundsPerDate:null,rotationPenalty:bestPenalty};
-}
-
-function chronologicalImmediateRematchAtCandidate(teamId,oppId,slot,committedGames,localPlacements){
-  const rows=[];
-  for(const g of committedGames||[]){
-    if(g.status==='Cancelled')continue;
-    if(g.aId!==teamId&&g.bId!==teamId)continue;
-    const stamp=new Date(`${g.date}T${g.time}:00`).getTime();
-    if(Number.isFinite(stamp))rows.push({stamp,opp:g.aId===teamId?g.bId:g.aId});
-  }
-  for(const p of localPlacements||[]){
-    const g=p.game;
-    if(g.a!==teamId&&g.b!==teamId)continue;
-    rows.push({stamp:p.sl.stamp,opp:g.a===teamId?g.b:g.a});
-  }
-  rows.push({stamp:slot.stamp,opp:oppId,candidate:true});
-  rows.sort((a,b)=>a.stamp-b.stamp);
-  const idx=rows.findIndex(r=>r.candidate);
-  const prev=idx>0?rows[idx-1]:null;
-  const next=idx>=0&&idx<rows.length-1?rows[idx+1]:null;
-  return !!((prev&&prev.opp===oppId)||(next&&next.opp===oppId));
+  return {byDate,counts,roundsPerDate:minimum};
 }
 
 async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames,available,used,teamTimes,coachTimes,newGames,placementYield}){
