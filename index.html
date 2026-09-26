@@ -334,7 +334,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.21</b> — SCOPE + PREFLIGHT FIX: Entire League Generate routing corrected; production-only preflight; hard 3-game commit retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.21</b> — SLOT DIAGNOSTIC FIX: court/time slot tracing added; effective pool window used for slot generation; hard 3-game commit retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -1671,11 +1671,19 @@ function slotsOnSurfacesConfig(date,surfaceIds,cfg){
   return out.sort((a,b)=>a.stamp-b.stamp||a.court.localeCompare(b.court,undefined,{numeric:true,sensitivity:'base'}))
 }
 function slotsOnSurfaces(d,date,surfaceIds){return slotsOnSurfacesConfig(date,surfaceIds,state.divisionConfig[d]||{})}
+function effectiveSlotConfig(d,pool){
+  const cfg=poolResourceConfig(d,pool),win=effectivePoolWindow(d,pool);
+  if(!win)return cfg;
+  // v11.11.86.22: slot generation must use the same effective group/config overlap
+  // that validation uses. This prevents an inherited/stale pool window from validating
+  // successfully while producing zero slots on the actual court surfaces.
+  return {...cfg,start:win.effectiveStart,end:win.effectiveEnd};
+}
 function basePoolSlots(d,pool,date){
-  const cfg=poolResourceConfig(d,pool),group=state.courtGroups.find(g=>g.id===cfg?.courtGroupId);if(!group)return[];
+  const cfg=effectiveSlotConfig(d,pool),group=state.courtGroups.find(g=>g.id===cfg?.courtGroupId);if(!group)return[];
   return slotsOnSurfacesConfig(date,groupSurfaceIds(group),cfg).map(s=>({...s,overflow:false}))
 }
-function allFacilitySlotsForPool(d,pool,date){return slotsOnSurfacesConfig(date,state.courts.map(c=>c.id),poolResourceConfig(d,pool))}
+function allFacilitySlotsForPool(d,pool,date){return slotsOnSurfacesConfig(date,state.courts.map(c=>c.id),effectiveSlotConfig(d,pool))}
 function poolSlots(d,pool,date){
   const cfg=poolResourceConfig(d,pool),base=basePoolSlots(d,pool,date),mode=cfg.courtMode||'preferred';
   if(mode==='exclusive'||(mode==='preferred'&&!cfg.overflowApproved))return base;
@@ -3600,7 +3608,7 @@ function setGenerationStage(message){
 function runProductionPreflight(){
   syncSettings();
   synchronizePoolWindowsFromGroups();
-  const blocking=[],warnings=[],passes=[];
+  const blocking=[],warnings=[],passes=[],slotDiagnostics=[];
   const dates=seasonDatesRaw();
   const teams=state.teams||[];
   // v11.11.86.21: production preflight is production-only. Draft/unapproved
@@ -3645,8 +3653,20 @@ function runProductionPreflight(){
         const minimum=Number((state.divisionConfig[d]||{}).gamesPerWeek||state.settings.gamesPerWeek||3);
         const requiredPerDate=exactGamesRequiredForDate(ids.length,minimum);
         dates.forEach(date=>{
-          const slots=poolSlots(d,pool,date).length;
-          if(slots<requiredPerDate)blocking.push(`${label} on ${date}: needs at least ${requiredPerDate} games but only ${slots} legal court/time slot(s) are configured.`);
+          const baseSlots=basePoolSlots(d,pool,date);
+          const allSlots=poolSlots(d,pool,date);
+          const slots=allSlots.length;
+          if(slots<requiredPerDate){
+            const surfaces=groupSurfaceIds(grp);
+            const surfaceDetail=surfaces.map(id=>{
+              const c=state.courts.find(x=>x.id===id);
+              const ex=courtExceptionFor(id,date);
+              return `${c?.name||id} [${courtWindows(c).map(w=>`${w.start}-${w.end}`).join(', ')||'NO HOURS'}${ex?`; exception=${ex.type}${ex.type==='window'?` ${ex.start}-${ex.end}`:''}`:''}]`;
+            }).join(' • ');
+            const diag=`${label} on ${date}: Court Group="${grp.name||grp.id}" • surfaces=${surfaces.length} (${surfaceDetail||'NONE'}) • configured=${cfg.start||'—'}-${cfg.end||'—'} • effective=${win?.effectiveStart||'—'}-${win?.effectiveEnd||'—'} • mode=${cfg.courtMode||'preferred'} • overflow=${cfg.overflowApproved?'approved':'not approved'} • base slots=${baseSlots.length} • total legal slots=${slots} • required=${requiredPerDate}.`;
+            slotDiagnostics.push(diag);
+            blocking.push(`${label} on ${date}: needs at least ${requiredPerDate} games but only ${slots} legal court/time slot(s) are configured. See Slot Diagnostics below.`);
+          }
         });
       }
     });
@@ -3675,6 +3695,7 @@ function runProductionPreflight(){
     out.innerHTML=`<div class="status ${ready?'ok':'warn'}"><b>${ready?'READY TO SCHEDULE':'DO NOT GENERATE YET'}</b><br>${blocking.length} blocking problem(s) • ${warnings.length} warning(s).</div>
       ${blocking.length?`<details open><summary>Blocking problems (${blocking.length})</summary><div class="hint">${blocking.map(x=>'• '+esc(x)).join('<br>')}</div></details>`:''}
       ${warnings.length?`<details open><summary>Warnings (${warnings.length})</summary><div class="hint">${warnings.map(x=>'• '+esc(x)).join('<br>')}</div></details>`:''}
+      ${slotDiagnostics.length?`<details open><summary>Slot Diagnostics (${slotDiagnostics.length})</summary><div class="hint">${slotDiagnostics.map(x=>'• '+esc(x)).join('<br><br>')}</div></details>`:''}
       <details><summary>Passed checks (${passes.length})</summary><div class="hint">${passes.map(x=>'• '+esc(x)).join('<br>')}</div></details>`;
   }
   return {ready,blocking,warnings,passes};
