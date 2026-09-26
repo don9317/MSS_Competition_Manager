@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.6</title>
+<title>MSS League Scheduler v11.11.86.7</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.6</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.7</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -334,7 +334,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.6</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.7</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -1828,7 +1828,7 @@ function rotationAllowsAtSlot(a,b,ids,division,pool,slot,games){
   if(!state.settings.playAllTeamsOnce)return true;
   return opponentRotationAllows(a,b,ids,chronologicalPairCounts(games,division,pool,slot.date,slot.time))
 }
-// v11.11.86.6 — candidate-time immediate-rematch guard.
+// v11.11.86.7 — candidate-time immediate-rematch guard.
 // Tests the proposed game against the immediately adjacent chronological games
 // already committed or tentatively placed for the same team.
 function chronologicalImmediateRematchAtCandidate(teamId,opponentId,slot,committedGames=[],placements=[]){
@@ -2205,7 +2205,7 @@ function exactGamesRequiredForDate(teamCount,minimum){
   return Math.ceil(teamCount*minimum/2);
 }
 async function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate,onStage){
-  // v11.11.86.6 — deterministic bounded matchup constructor.
+  // v11.11.86.7 — deterministic bounded matchup constructor.
   // The former recursive backtracking search could expand combinatorially on certain
   // league shapes (especially odd/small pools) and monopolize Chrome's main thread.
   // This constructor builds the exact nightly degree sequence directly. It evaluates
@@ -2704,7 +2704,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     `<details><summary>Capacity & feasibility</summary><div class="hint">${feasibilityNotes.map(esc).join('<br>')}</div></details>`+
     `${generationIssues.length?`<details><summary>Generation warnings (${generationIssues.length})</summary><div class="hint">${generationIssues.map(esc).join('<br>')}</div></details>`:''}`;
 
-  // v11.11.86.6: preserve the detailed generation summary instead of overwriting it with a generic stage line.
+  // v11.11.86.7: preserve the detailed generation summary instead of overwriting it with a generic stage line.
   setTab('schedule');
   resetRuntimeOverflowPlan();
 }
