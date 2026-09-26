@@ -10,5 +10,9 @@
 - No opponent-generation, Re-Optimize, court optimizer or Audit logic changes.
 
 
-## v11.11.86.4 generator fix
+## v11.11.86.5 generator fix
 Replaces recursive matchup backtracking with a deterministic bounded constructor to prevent combinatorial browser freezes. Storage schema and league setup data are unchanged.
+
+
+## v11.11.86.5 generator fix
+Fixes a scope regression in v86.4 where the deterministic matchup planner attempted to call a generation-stage UI function that was local to generateSchedule(). The resulting ReferenceError was caught as a generation warning, causing zero games to be saved while the final audit could misleadingly report success. v86.5 passes the stage callback explicitly and preserves the detailed generation summary. No storage schema or league setup fields were changed.
