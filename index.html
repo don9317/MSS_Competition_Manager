@@ -334,7 +334,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.25</b> — OPPONENT MATRIX REPAIR: even pools use round-robin opponent rounds before repeats; stronger bounded re-optimization; hard 3-game commit retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.27</b> — SESSION-START ANCHORED COURT COMPRESSION: each division/pool starts at its earliest legal configured session time, then fills simultaneous courts before advancing; protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -3579,11 +3579,14 @@ function groupOptions(select){const current=select.value||select.dataset.lastVal
 
 function courtPackingMetrics(games){
   const step=Math.max(1,Number(state.settings.gameLength||15));
-  const groups=new Map();
-  (games||[]).filter(g=>g.status!=='Cancelled'&&g.date&&g.time&&g.court).forEach(g=>{
+  const active=(games||[]).filter(g=>g.status!=='Cancelled'&&g.date&&g.time&&g.court);
+  const groups=new Map(),dateTimes=new Map();
+  active.forEach(g=>{
     const k=`${g.date}|${g.court}`;
     if(!groups.has(k))groups.set(k,new Set());
     groups.get(k).add(minutes(g.time));
+    if(!dateTimes.has(g.date))dateTimes.set(g.date,new Set());
+    dateTimes.get(g.date).add(minutes(g.time));
   });
   let usedCourtSlots=0,internalEmptyCourtSlots=0,spanCourtSlots=0,courtBlocks=0,activeCourtDates=0,longestGapSlots=0;
   groups.forEach(set=>{
@@ -3597,17 +3600,32 @@ function courtPackingMetrics(games){
     let blocks=1;
     for(let i=1;i<xs.length;i++){
       const missing=Math.max(0,Math.round((xs[i]-xs[i-1])/step)-1);
-      if(missing>0){
-        blocks++;
-        longestGapSlots=Math.max(longestGapSlots,missing);
-      }
+      if(missing>0){blocks++;longestGapSlots=Math.max(longestGapSlots,missing)}
     }
     courtBlocks+=blocks;
   });
+  let distinctTimeSlots=0,timeSpanSlots=0,internalEmptyTimeSlots=0;
+  dateTimes.forEach(set=>{
+    const xs=[...set].sort((a,b)=>a-b);
+    if(!xs.length)return;
+    distinctTimeSlots+=xs.length;
+    const span=Math.round((xs[xs.length-1]-xs[0])/step)+1;
+    timeSpanSlots+=span;
+    internalEmptyTimeSlots+=Math.max(0,span-xs.length);
+  });
   const efficiency=spanCourtSlots?usedCourtSlots/spanCourtSlots*100:100;
-  // Minimize holes first, then fragmented blocks.
-  const objective=internalEmptyCourtSlots*1000+Math.max(0,courtBlocks-activeCourtDates)*100+longestGapSlots*10;
-  return {usedCourtSlots,internalEmptyCourtSlots,spanCourtSlots,courtBlocks,activeCourtDates,longestGapSlots,efficiency,objective};
+  // v11.11.86.26: OPERATIONS-FIRST HORIZONTAL COMPRESSION.
+  // Fewer distinct start times is the primary objective: fill simultaneous legal
+  // courts before creating another start time. Then shorten the overall day and
+  // remove time gaps. Per-court cosmetic packing is deliberately secondary.
+  const objective=
+    distinctTimeSlots*100000000 +
+    timeSpanSlots*1000000 +
+    internalEmptyTimeSlots*10000 +
+    internalEmptyCourtSlots*100 +
+    Math.max(0,courtBlocks-activeCourtDates)*10 +
+    longestGapSlots;
+  return {usedCourtSlots,internalEmptyCourtSlots,spanCourtSlots,courtBlocks,activeCourtDates,longestGapSlots,efficiency,distinctTimeSlots,timeSpanSlots,internalEmptyTimeSlots,objective};
 }
 
 
@@ -3658,7 +3676,7 @@ function runProductionPreflight(){
   const blocking=[],warnings=[],passes=[],slotDiagnostics=[];
   const dates=seasonDatesRaw();
   const teams=state.teams||[];
-  // v11.11.86.25: production preflight is production-only. Draft/unapproved
+  // v11.11.86.26: production preflight is production-only. Draft/unapproved
   // divisions are intentionally excluded from blockers and capacity checks.
   const allDivisions=allDivisionKeys();
   const divisions=allDivisions.filter(d=>state.pools?.[d]?.approved);
@@ -4044,7 +4062,7 @@ async function optimizeCourtUseSafely(){
     let currentAudit=originalAudit,currentDate=beforeDate;
     let acceptedBlocks=0,rejectedBlocks=0,noCandidateBlocks=0,auditRejectedBlocks=0,noImprovementBlocks=0;
     const blocks=buildOptimizationBlocks(movable);
-    const modes=['few-courts','early','late'];
+    const modes=['early'];
     const modeStats={attempted:0,noCandidate:0,notBetter:0,auditRejected:0,accepted:0};
 
     if(!blocks.length)throw new Error(`No optimization blocks were created for ${targetDate}.`);
@@ -4067,6 +4085,21 @@ async function optimizeCourtUseSafely(){
         const assignment=makeBlockCandidate(block,mode);
         if(!assignment){modeStats.noCandidate++;continue}
         hadCandidate=true;
+
+        // v11.11.86.27: SESSION-START ANCHOR. If the block has movable games and
+        // its earliest legal configured pool/session slot can host at least one of
+        // them without violating external team/rest constraints, require the
+        // candidate to actually use that earliest time. This keeps 4:30 sessions
+        // at 4:30 and 7:00 sessions at 7:00 instead of sliding later for packing.
+        const legalSlots=poolSlots(block.division,block.pool,block.date);
+        if(legalSlots.length){
+          const earliest=Math.min(...legalSlots.map(x=>minutes(x.time)));
+          const assignedTimes=[...assignment.values()].map(x=>minutes(x.time));
+          if(assignedTimes.length && Math.min(...assignedTimes)>earliest){
+            modeStats.notBetter++;
+            continue;
+          }
+        }
 
         applyBlockCandidate(block,assignment);
         const trialDate=packingMetricsForDate(targetDate);
@@ -4138,14 +4171,14 @@ async function optimizeCourtUseSafely(){
       <b>Blocks:</b> ${blocks.length} reviewed • ${acceptedBlocks} accepted • ${rejectedBlocks} unchanged.<br>
       <b>Rejection diagnostics:</b> ${noCandidateBlocks} no legal candidate • ${noImprovementBlocks} no packing improvement • ${auditRejectedBlocks} rejected by protected Audit.<br>
       <b>Mode attempts:</b> ${modeStats.attempted} total • ${modeStats.noCandidate} no candidate • ${modeStats.notBetter} not better • ${modeStats.auditRejected} failed protected Audit.<br>
-      <b>Before:</b> ${beforeDate.efficiency.toFixed(1)}% packing • ${beforeDate.internalEmptyCourtSlots} internal empty court-slot(s) • ${beforeDate.courtBlocks} court block(s).<br>
-      <b>After:</b> ${afterDate.efficiency.toFixed(1)}% packing • ${afterDate.internalEmptyCourtSlots} internal empty court-slot(s) • ${afterDate.courtBlocks} court block(s).
+      <b>Before:</b> ${beforeDate.distinctTimeSlots} start time(s) • ${beforeDate.efficiency.toFixed(1)}% packing • ${beforeDate.internalEmptyCourtSlots} internal empty court-slot(s) • ${beforeDate.courtBlocks} court block(s).<br>
+      <b>After:</b> ${afterDate.distinctTimeSlots} start time(s) • ${afterDate.efficiency.toFixed(1)}% packing • ${afterDate.internalEmptyCourtSlots} internal empty court-slot(s) • ${afterDate.courtBlocks} court block(s).
       ${improvement?`<br><b>Protected Audit improvements:</b> ${esc(improvement)}`:''}<br>
       <span class="hint">Only ${esc(targetDate)} was optimized. Use Court Calendar on that same date to verify these exact numbers.</span></div>`,true);
 
     setGenerationStage(`Court + time optimization complete for ${targetDate}`);
   }catch(err){
-    console.error('v11.11.79 Court + Time optimizer error',err);
+    console.error('v11.11.86.27 Court + Time optimizer error',err);
     if(original){
       state.games=original;
       try{persist()}catch(_){}
