@@ -1,9 +1,3 @@
-# MSS League Scheduler v11.11.86.31 — Physical Court Order
+# MSS League Scheduler v11.11.86.32 — Within-Group Court Priority
 
-Court optimizer refinement only.
-
-- Preserves v86.30 session-start anchoring and horizontal time compression.
-- Adds deterministic physical court preference among otherwise legal placements: 1A, 1B, 2A, 2B, 3A, 3B, etc.
-- On A-only dates, this naturally becomes 1A, 2A, 3A, etc.
-- Hard court availability, court-group assignments, team/rest rules, manual locks, matchups, and protected Audit remain authoritative.
-- START_HERE.html now redirects to the current index.html instead of embedding an obsolete build.
+Court optimization now gives the previous court assignment zero preference. Within each legal division/pool court group it uses physical order (1A, 1B, 2A, 2B, 3A, 3B...) after earliest session start and horizontal compression. A 3-team pool assigned to 2B + 3A should remain on 2B unless 2B is legally unavailable. Hard rules and protected audit rollback remain authoritative.
