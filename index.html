@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.13</title>
+<title>MSS League Scheduler v11.11.86.14</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.13</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.14</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -334,7 +334,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.13</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.14</b> — SAFE STORAGE build from v84: generator retained; destructive erase guarded; Save & Verify added.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -1828,7 +1828,7 @@ function rotationAllowsAtSlot(a,b,ids,division,pool,slot,games){
   if(!state.settings.playAllTeamsOnce)return true;
   return opponentRotationAllows(a,b,ids,chronologicalPairCounts(games,division,pool,slot.date,slot.time))
 }
-// v11.11.86.13 — candidate-time immediate-rematch guard.
+// v11.11.86.14 — candidate-time immediate-rematch guard.
 // Tests the proposed game against the immediately adjacent chronological games
 // already committed or tentatively placed for the same team.
 function chronologicalImmediateRematchAtCandidate(teamId,opponentId,slot,committedGames=[],placements=[]){
@@ -1876,7 +1876,7 @@ const divisionScopeKey=d=>`DIV::${d}`;
 function scopeMatches(scope,d,pool){return scope==='ALL'||scope===divisionScopeKey(d)||scope===poolKey(d,pool)}
 function scopeMatchesGame(scope,g){return scope==='ALL'||scope===divisionScopeKey(g.division)||scope===poolKey(g.division,g.pool)}
 function selectedScheduleTargets(scopeOverride=null){
-  // v11.11.86.13: batch scheduling may pass an explicit scope so generation
+  // v11.11.86.14: batch scheduling may pass an explicit scope so generation
   // never depends on the visible dropdown while Schedule All is running.
   const scope=scopeOverride||$('scheduleFilter').value||'ALL',targets=[];
   Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{
@@ -2149,15 +2149,24 @@ function repairSummaryText(r){
   if(b.rest!==a.rest)bits.push(`rest conflicts ${b.rest}→${a.rest}`);
   return `Automatic repair: ${r.iterations} improvement(s)${bits.length?` • ${bits.join(' • ')}`:''}.`;
 }
+// v11.11.86.14 — single production-scope authority.
+function isProductionDivision(d){
+  return !!(d && state.pools?.[d]?.approved === true);
+}
+function productionDivisionKeys(){
+  return allDivisionKeys().filter(isProductionDivision);
+}
+function draftDivisionKeys(){
+  return allDivisionKeys().filter(d=>!isProductionDivision(d));
+}
 function readyDivisionKeys(){
   synchronizePoolWindowsFromGroups();
-  return allDivisionKeys().filter(d=>state.pools?.[d]?.approved&&divisionResourceReady(d));
+  return productionDivisionKeys().filter(d=>divisionResourceReady(d));
 }
 function blockedDivisionDetails(){
   synchronizePoolWindowsFromGroups();
-  return allDivisionKeys().filter(d=>!state.pools?.[d]?.approved||!divisionResourceReady(d)).map(d=>{
+  return productionDivisionKeys().filter(d=>!divisionResourceReady(d)).map(d=>{
     const reasons=[];
-    if(!state.pools?.[d]?.approved)reasons.push('not approved');
     divisionPoolEntries(d).forEach(pool=>{
       const cfg=poolResourceConfig(d,pool),group=state.courtGroups.find(g=>g.id===cfg?.courtGroupId);
       if(!group)reasons.push(`${poolDisplayName(d,pool)} missing Court Group`);
@@ -2205,7 +2214,7 @@ async function scheduleAllReadyDivisions(){
       const explicitScope=divisionScopeKey(d);
       const beforeCount=state.games.length;
       try{
-        // v11.11.86.13: pass the division directly. Do not drive batch generation
+        // v11.11.86.14: pass the division directly. Do not drive batch generation
         // through the UI dropdown; that can be reset to Entire League during renders.
         await generateSchedule(explicitScope);
         const afterCount=state.games.length;
@@ -2268,7 +2277,7 @@ function exactGamesRequiredForDate(teamCount,minimum){
   return Math.ceil(teamCount*minimum/2);
 }
 async function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate,onStage){
-  // v11.11.86.13 — deterministic bounded matchup constructor.
+  // v11.11.86.14 — deterministic bounded matchup constructor.
   // The former recursive backtracking search could expand combinatorially on certain
   // league shapes (especially odd/small pools) and monopolize Chrome's main thread.
   // This constructor builds the exact nightly degree sequence directly. It evaluates
@@ -2524,7 +2533,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     );
   }
 
-  // v11.11.86.13 — HARD-MINIMUM COMPLETION PASS.
+  // v11.11.86.14 — HARD-MINIMUM COMPLETION PASS.
   // If the preference-aware solver times out one game short, solve the SAME planned
   // matchup set using only immutable production constraints:
   //   valid court/time + team availability + no team double-booking + no court double-booking.
@@ -2765,7 +2774,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     await yieldToBrowser();
   }
 
-  // v11.11.86.13: a partial placement may be retained for director diagnosis, but it is NEVER
+  // v11.11.86.14: a partial placement may be retained for director diagnosis, but it is NEVER
   // considered a valid production result. Nightly minimum and calculated season minimum remain
   // hard FAIL rules. The Audit now reports Division / Pool / Team / Playing Date / actual-required.
 
@@ -2778,7 +2787,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   await yieldToBrowser();
   state.games=[...retainedGames,...newGames].map(g=>({...g,status:g.status||'Scheduled',pending:true}));
   persist();
-  // v11.11.86.13: Do NOT synchronously render the entire application after generation.
+  // v11.11.86.14: Do NOT synchronously render the entire application after generation.
   // renderAll() rebuilds Dashboard, Resources, Calendar, Management, Results, Standings,
   // Coach Tools and League Portal even while the user is on Schedule. With a large generated
   // schedule that can monopolize Chrome's main thread after the green completion state appears.
@@ -2865,7 +2874,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     `<details><summary>Capacity & feasibility</summary><div class="hint">${feasibilityNotes.map(esc).join('<br>')}</div></details>`+
     `${generationIssues.length?`<details><summary>Generation warnings (${generationIssues.length})</summary><div class="hint">${generationIssues.map(esc).join('<br>')}</div></details>`:''}`;
 
-  // v11.11.86.13: preserve the detailed generation summary instead of overwriting it with a generic stage line.
+  // v11.11.86.14: preserve the detailed generation summary instead of overwriting it with a generic stage line.
   setTab('schedule');
   resetRuntimeOverflowPlan();
 }
@@ -3359,7 +3368,7 @@ async function targetedFinalRepairV78(balanceCeilingOverride=null){
 }
 
 
-// v11.11.86.13 — HARD MINIMUM SAFETY GATE.
+// v11.11.86.14 — HARD MINIMUM SAFETY GATE.
 // Nightly minimum and calculated season minimum are inviolable production rules.
 function hardMinimumSnapshot(games){
   const active=(games||[]).filter(g=>g.status!=='Cancelled');
@@ -3598,12 +3607,12 @@ function nightlyCapacityDiagnostic(d,pool,date,ids,minimum,maxPerDate,games){
 
 function runScheduleAudit(allLeague=false){
   syncSettings();const selected=allLeague?'ALL':($('scheduleFilter').value||'ALL');
-  // v11.11.86.13: production audits exclude Draft / unapproved divisions.
+  // v11.11.86.14: production audits exclude Draft / unapproved divisions.
   // A deliberately unapproved one-team division must not create false hard-rule failures.
   const productionDivision=d=>state.pools?.[d]?.approved===true;
   const games=state.games.filter(g=>g.status!=='Cancelled'&&scopeMatchesGame(selected,g)&&(!allLeague||productionDivision(g.division)));
   if(!games.length){$('scheduleAudit').innerHTML='<div class="status warn">No scheduled games are available to audit for this scope.</div>';return}
-  const targetPools=[];Object.entries(state.pools).forEach(([d,p])=>{if(allLeague&&!productionDivision(d))return;Object.entries(p.lists).forEach(([pool,ids])=>{if(scopeMatches(selected,d,pool))targetPools.push({d,pool,ids})})});
+  const targetPools=[];Object.entries(state.pools).forEach(([d,p])=>{if(allLeague&&!isProductionDivision(d))return;Object.entries(p.lists).forEach(([pool,ids])=>{if(scopeMatches(selected,d,pool))targetPools.push({d,pool,ids})})});
   const results=[],gameLen=Number(state.settings.gameLength||20),dates=seasonDates();
   let self=[],teamDouble=[],courtDouble=[],windowBad=[],courtBad=[],requestBad=[],coachBad=[],maxBad=[],guaranteeBad=[],minimumDateBad=[],overflowWarn=[],overflowCourtInfo=[],immediateBad=[],allBeforeRepeatBad=[],restBad=[],fairnessWarn=[];const immediateKeys=new Map();
   const slotCourt={},slotTeam={},slotCoach={};
@@ -3751,7 +3760,7 @@ function runProductionPreflight(){
   const blocking=[],warnings=[],passes=[];
   const dates=seasonDatesRaw();
   const teams=state.teams||[];
-  // v11.11.86.13 — Production Preflight must use the same production scope
+  // v11.11.86.14 — Production Preflight must use the same production scope
   // as Schedule All and Entire League Audit. Draft/unapproved divisions are
   // intentionally outside the production schedule and must not create blockers.
   const allDivisions=allDivisionKeys();
@@ -3779,7 +3788,7 @@ function runProductionPreflight(){
 
   if(!allDivisions.length)blocking.push('No divisions exist.');
   else if(!divisions.length)blocking.push('No approved production divisions are available to schedule.');
-  if(draftDivisions.length)passes.push(`${draftDivisions.length} Draft/unapproved division(s) intentionally skipped by Production Preflight: ${draftDivisions.map(divisionLabel).join(' • ')}`);
+  if(draftDivisions.length)passes.push(`SKIPPED DRAFT: ${draftDivisions.map(divisionLabel).join(' • ')}`);
   divisions.forEach(d=>{
     const pd=state.pools?.[d];
     const lists=pd?.lists||{};
@@ -3823,7 +3832,7 @@ function runProductionPreflight(){
   const out=$('productionPreflightSummary');
   const ready=!blocking.length;
   if(out){
-    out.innerHTML=`<div class="status ${ready?'ok':'warn'}"><b>${ready?'READY TO SCHEDULE':'DO NOT GENERATE YET'}</b><br>${blocking.length} blocking problem(s) • ${warnings.length} warning(s).</div>
+    out.innerHTML=`<div class="hint" style="margin-bottom:6px"><b>86.14 PREFLIGHT ENGINE</b> • ${divisions.length} production division(s) • ${draftDivisions.length} draft/unapproved skipped</div><div class="status ${ready?'ok':'warn'}"><b>${ready?'READY TO SCHEDULE':'DO NOT GENERATE YET'}</b><br>${blocking.length} blocking problem(s) • ${warnings.length} warning(s).</div>
       ${blocking.length?`<details open><summary>Blocking problems (${blocking.length})</summary><div class="hint">${blocking.map(x=>'• '+esc(x)).join('<br>')}</div></details>`:''}
       ${warnings.length?`<details open><summary>Warnings (${warnings.length})</summary><div class="hint">${warnings.map(x=>'• '+esc(x)).join('<br>')}</div></details>`:''}
       <div class="hint" style="margin-top:6px"><b>Production scope:</b> approved divisions only. Draft/unapproved divisions are skipped and do not block generation.</div>
