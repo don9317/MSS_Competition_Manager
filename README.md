@@ -21,3 +21,15 @@ Print/export-only change. Court/Game # numbering restarts at Game 1 for each cou
 
 ## v11.11.86.38
 Optimizer fix: adds a game-level left-shift cleanup after block optimization. Latest games are reconsidered one at a time and moved to the earliest legal earlier court/time while preserving opponents, court legality, team spacing/conflicts, schedule requests, and protected audit rules. This targets stranded late-session games after large empty gaps. Includes the v86.37 League Rules navigation fix.
+
+
+## v11.11.86.39
+Management/UI safety update. Director Dashboard now reports actual Divisions / Pools separately (for example 7 / 8) and division scheduling counts use true divisions rather than pool rows. Start New League now requires warning + typed NEW LEAGUE + final confirmation; Erase All League Data retains warning + typed ERASE ALL protection. Court Groups are listed alphabetically and include Edit Courts to change group surface membership without regenerating schedules. Scheduler/optimizer behavior remains v86.38.
+
+
+## v86.40
+- Added Schedule Management export: **Export CSV / By Time**.
+- Sort order: Date → Time → Court.
+- Columns: Date, Time, Court, Division, Pool, Team A, Team B.
+- Uses the current Schedule Management filters.
+- No scheduler, optimizer, pool, court, audit, or league logic changes.
