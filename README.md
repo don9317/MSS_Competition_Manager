@@ -27,9 +27,21 @@ Optimizer fix: adds a game-level left-shift cleanup after block optimization. La
 Management/UI safety update. Director Dashboard now reports actual Divisions / Pools separately (for example 7 / 8) and division scheduling counts use true divisions rather than pool rows. Start New League now requires warning + typed NEW LEAGUE + final confirmation; Erase All League Data retains warning + typed ERASE ALL protection. Court Groups are listed alphabetically and include Edit Courts to change group surface membership without regenerating schedules. Scheduler/optimizer behavior remains v86.38.
 
 
-## v86.40
+## v86.41
 - Added Schedule Management export: **Export CSV / By Time**.
 - Sort order: Date → Time → Court.
 - Columns: Date, Time, Court, Division, Pool, Team A, Team B.
 - Uses the current Schedule Management filters.
 - No scheduler, optimizer, pool, court, audit, or league logic changes.
+
+
+## v11.11.86.41
+- Game Length changes now re-grid existing working schedule start times to the new interval while preserving dates, courts, matchups, scores, and game records.
+- Fixes Court Calendar retaining stale 12-minute times after returning Game Length to 10 minutes.
+- No scheduler, optimizer, pool, court-assignment, or matchup-generation changes.
+
+
+## v11.11.86.42
+- Clean package of v86.41 game-length regrid fix.
+- No additional functional changes.
+- Retains Export CSV / By Time from v86.40 and all prior scheduling/management behavior.
