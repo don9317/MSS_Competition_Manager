@@ -41,7 +41,10 @@ Management/UI safety update. Director Dashboard now reports actual Divisions / P
 - No scheduler, optimizer, pool, court-assignment, or matchup-generation changes.
 
 
-## v11.11.86.42
+## v11.11.86.43
 - Clean package of v86.41 game-length regrid fix.
 - No additional functional changes.
 - Retains Export CSV / By Time from v86.40 and all prior scheduling/management behavior.
+
+
+v86.43: One-time startup repair converts stale off-grid 12-minute game timestamps to the current Game Length grid while preserving matchups, courts, dates, game records/numbers, and scores.

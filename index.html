@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.42</title>
+<title>MSS League Scheduler v11.11.86.43</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.42</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.43</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -334,7 +334,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.42</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.43</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -679,7 +679,7 @@ async function load(){
   setSaveStatus('saving','Loading saved league…','IndexedDB • safe startup');
   try{
     const saved=await withTimeout(readStateFromDB(),STORAGE_TIMEOUT_MS,'Saved league load');
-    if(saved){state=Object.assign(state,saved);normalizeLoadedState();synchronizeDivisionState();hydrate();ensurePools();ensureDivisionConfig();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin');setSaveStatus('saved','League loaded','IndexedDB • saved progress restored');scheduleDeferredCourtMigration()}
+    if(saved){state=Object.assign(state,saved);normalizeLoadedState();synchronizeDivisionState();hydrate();ensurePools();ensureDivisionConfig();const repaired=repairLegacyTwelveMinuteTimesToCurrentGrid();if(repaired){await queueSave(true)}renderAll();setView(new URLSearchParams(location.search).get('view')||'admin');setSaveStatus('saved','League loaded','IndexedDB • saved progress restored');scheduleDeferredCourtMigration()}
     else{setSaveStatus('saved','Ready — new league','IndexedDB');try{await withTimeout(queueSave(true),STORAGE_TIMEOUT_MS,'Initial save')}catch(e){console.warn(e)}}
   }catch(e){
     console.error(e);
@@ -4912,7 +4912,36 @@ $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.tar
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
 $('exportScheduleBtn').addEventListener('click',exportSchedule);$('exportScheduleBackupBtn').addEventListener('click',exportScheduleBackup);$('scheduleRestoreFile').addEventListener('change',e=>restoreScheduleFile(e.target.files?.[0]));safeBind('exportDivisionSeasonBtn','click',exportDivisionSeason);safeBind('exportDivisionWeekBtn','click',exportDivisionWeek);safeBind('printCourtGameBtn','click',printCourtGameSchedule);safeBind('exportCourtGameBtn','click',exportCourtGameSchedule);safeBind('exportCourtTimeBtn','click',exportCourtTimeSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});safeBind('calendarDate','change',renderCourtCalendar);safeBind('calendarScope','change',renderCourtCalendar);safeBind('calendarOptimizeBtn','click',()=>optimizeCourtUseSafely($('calendarDate')?.value||null));safeBind('calendarPrintBtn','click',()=>window.print());
 $('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());$('sampleScoresBtn').addEventListener('click',createSampleScores);$('clearScoresBtn').addEventListener('click',clearAllScores);document.addEventListener('click',e=>{const close=e.target.closest&&e.target.closest('#closeTeamModal');if(close){e.preventDefault();e.stopPropagation();closeTeamModal();return}if(e.target===$('teamModal'))closeTeamModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTeamModal();closeGameEditor()}});
-// v11.11.86.42: changing Game Length must re-grid existing working games to the
+// v11.11.86.43: one-time startup repair for schedules that were temporarily placed on
+// a 12-minute grid before Game Length was returned to another value. Only times that are
+// OFF the CURRENT grid are touched. Existing times already valid for the current interval
+// are preserved. Matchups, courts, dates, game records/numbers, and scores are untouched.
+function repairLegacyTwelveMinuteTimesToCurrentGrid(){
+  if(state._gameTimeGridRepairVersion>=43||!state.games?.length){state._gameTimeGridRepairVersion=43;return 0}
+  const currentLen=Math.max(1,Number(state.settings.gameLength||20)),legacyLen=12;
+  let changed=0;
+  const hhmm=m=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+  if(currentLen!==legacyLen){
+    state.games.forEach(g=>{
+      if(!g?.time||!g?.date)return;
+      const win=effectivePoolWindow(g.division,g.pool);
+      if(!win?.effectiveStart)return;
+      const anchor=minutes(win.effectiveStart),current=minutes(g.time),delta=current-anchor;
+      if(!Number.isFinite(anchor)||!Number.isFinite(current)||delta<0)return;
+      // A time already on today's configured grid is correct; never move it.
+      if(delta%currentLen===0)return;
+      // Repair only timestamps that exactly match the known stale 12-minute grid.
+      if(delta%legacyLen!==0)return;
+      const slotIndex=delta/legacyLen,next=hhmm(anchor+(slotIndex*currentLen));
+      if(next!==g.time){g.time=next;g.pending=true;changed++}
+    });
+  }
+  state._gameTimeGridRepairVersion=43;
+  if(changed)logActivity(`Startup repair: ${changed} stale 12-minute game time(s) were aligned to the current ${currentLen}-minute grid. Matchups, courts, dates, and game records were preserved.`);
+  return changed;
+}
+
+// v11.11.86.43: changing Game Length must re-grid existing working games to the
 // new slot interval. Matchups, courts, dates, scores, and game records are preserved;
 // only stored start times move to the corresponding slot on the current interval.
 function regridExistingGamesForGameLength(oldLen,newLen){
