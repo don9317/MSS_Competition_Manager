@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.47</title>
+<title>MSS League Scheduler v11.11.86.48</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.47</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.48</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -336,7 +336,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.47</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.48</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -2079,7 +2079,7 @@ function candidatePairsDailyMinimum(ids,dailyCounts,minimum,maxPerDate,pairCount
 }
 function targetFeasibility(d,pool,ids,guarantee,maxPerDate,dates,scope,fairPlan){
   const totalRequiredTeamGames=ids.length*guarantee;
-  const requiredGames=Math.ceil(totalRequiredTeamGames/2);
+  const requiredGames=dates.length*Math.ceil(ids.length*Math.ceil(guarantee/Math.max(1,dates.length))/2);
   const slotCounts=dates.map(date=>targetSlots(d,pool,date,scope,fairPlan).length);
   const availableSlots=slotCounts.reduce((a,b)=>a+b,0);
   const oddTeamGameTotal=(totalRequiredTeamGames%2)!==0;
@@ -2100,7 +2100,7 @@ function targetFeasibility(d,pool,ids,guarantee,maxPerDate,dates,scope,fairPlan)
     teamOpportunity[id]=opp;
   });
   const shortTeams=ids.filter(id=>teamOpportunity[id]<guarantee);
-  return {requiredGames,availableSlots,oddTeamGameTotal,shortTeams,teamOpportunity,possible:!oddTeamGameTotal&&availableSlots>=requiredGames&&!shortTeams.length}
+  return {requiredGames,availableSlots,oddTeamGameTotal,shortTeams,teamOpportunity,possible:availableSlots>=requiredGames&&!shortTeams.length}
 }
 
 // v11.11.15 — iterative post-generation repair engine.
@@ -2772,7 +2772,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
     const minimum=Number(cfg.gamesPerWeek||state.settings.gamesPerWeek||3),guarantee=minimum*Math.max(1,dates.length),maxPerDate=Math.max(minimum,Number(cfg.maxGamesPerDate||state.settings.maxGamesPerDate||4));
     const f=targetFeasibility(d,pool,ids,guarantee,maxPerDate,dates,scope,fairPlan),label=`${divisionLabel(d)} — Pool ${pool}`;
     feasibilityNotes.push(`${label}: requires ${f.requiredGames} games; ${f.availableSlots} assigned court/time slots available using ${state.settings.gameLength}-minute games across ${dates.length} playing date(s), ${groupSurfaceIds(state.courtGroups.find(g=>g.id===cfg.courtGroupId)).length} surface(s), ${cfg.start||'?'}–${cfg.end||'?'}.`);
-    if(f.oddTeamGameTotal)hardPreflight.push(`${label}: ${ids.length} teams × ${guarantee} guaranteed games produces an odd total of team-games, so equal guarantees are mathematically impossible.`);
+    // Odd-sized pools are valid: the existing matchup planner rotates one fourth game per date when needed.
     if(f.availableSlots<f.requiredGames){const sug=overflowSuggestionForTarget(d,pool,ids,dates,retainedGames),mode=cfg.courtMode||'preferred';let extra='';if(sug&&sug.totalAvailable>=f.requiredGames&&mode!=='exclusive'&&!cfg.overflowApproved)extra=' Compatible overflow capacity exists elsewhere in the facility; choose Preferred/Open court use and approve overflow when prompted.';hardPreflight.push(`${label}: needs ${f.requiredGames} games but only ${f.availableSlots} court/time slots are available.${extra}`)}
     f.shortTeams.forEach(id=>hardPreflight.push(`${label}: ${teamById(id).name} can reach at most ${f.teamOpportunity[id]} games under the current dates, requests, rest rule, and max-games-per-date setting (guarantee ${guarantee}).`));
     if(f.shortTeams.length&&!state.settings.allowBackToBack&&minimum>=3)hardPreflight.push(`${label}: Back-to-Back Games is OFF. A minimum of ${minimum} games per team per night commonly requires consecutive game slots. Enable Back-to-Back Games or add more time/court capacity.`);
@@ -5004,7 +5004,7 @@ $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.tar
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
 $('exportScheduleBtn').addEventListener('click',exportSchedule);$('exportScheduleBackupBtn').addEventListener('click',exportScheduleBackup);$('scheduleRestoreFile').addEventListener('change',e=>restoreScheduleFile(e.target.files?.[0]));safeBind('exportDivisionSeasonBtn','click',exportDivisionSeason);safeBind('exportDivisionWeekBtn','click',exportDivisionWeek);safeBind('printCourtGameBtn','click',printCourtGameSchedule);safeBind('exportCourtGameBtn','click',exportCourtGameSchedule);safeBind('exportCourtTimeBtn','click',exportCourtTimeSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});safeBind('calendarDate','change',renderCourtCalendar);safeBind('calendarScope','change',renderCourtCalendar);safeBind('calendarOptimizeBtn','click',()=>optimizeCourtUseSafely($('calendarDate')?.value||null));safeBind('calendarPrintBtn','click',()=>window.print());
 $('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());$('sampleScoresBtn').addEventListener('click',createSampleScores);$('clearScoresBtn').addEventListener('click',clearAllScores);document.addEventListener('click',e=>{const close=e.target.closest&&e.target.closest('#closeTeamModal');if(close){e.preventDefault();e.stopPropagation();closeTeamModal();return}if(e.target===$('teamModal'))closeTeamModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTeamModal();closeGameEditor()}});
-// v11.11.86.47: one-time startup repair for schedules that were temporarily placed on
+// v11.11.86.48: one-time startup repair for schedules that were temporarily placed on
 // a 12-minute grid before Game Length was returned to another value. Only times that are
 // OFF the CURRENT grid are touched. Existing times already valid for the current interval
 // are preserved. Matchups, courts, dates, game records/numbers, and scores are untouched.
@@ -5033,7 +5033,7 @@ function repairLegacyTwelveMinuteTimesToCurrentGrid(){
   return changed;
 }
 
-// v11.11.86.47: changing Game Length must re-grid existing working games to the
+// v11.11.86.48: changing Game Length must re-grid existing working games to the
 // new slot interval. Matchups, courts, dates, scores, and game records are preserved;
 // only stored start times move to the corresponding slot on the current interval.
 function regridExistingGamesForGameLength(oldLen,newLen){
