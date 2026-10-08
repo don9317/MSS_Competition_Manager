@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.45</title>
+<title>MSS League Scheduler v11.11.86.46</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.45</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.46</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -336,7 +336,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.45</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.46</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -357,7 +357,12 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <button class="secondary" id="printBtn">Print</button>
       <label style="margin:0;min-width:260px">Schedule / Display Scope<select id="scheduleFilter"></select></label>
     </div>
-    <div class="hint" style="margin-bottom:4px"><b>Version upgrade safety:</b> Export Schedule Backup saves the exact game objects. Restore Schedule accepts either that JSON backup or the standard Export CSV.</div>
+    <div class="card" style="padding:12px;margin:10px 0;border:2px solid #b8c9df">
+ <b>Playing Dates to Schedule — select future dates only</b>
+ <div class="hint">Past dates are protected and cannot be selected. Only checked dates are replaced; other dates, scores and results remain unchanged.</div>
+ <div id="generationDateChoices" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:8px"></div>
+ </div>
+ <div class="hint" style="margin-bottom:4px"><b>Version upgrade safety:</b> Export Schedule Backup saves the exact game objects. Restore Schedule accepts either that JSON backup or the standard Export CSV.</div>
     <div class="status info" style="margin-bottom:8px"><b>Production workflow:</b> 1) <b>Import registrations</b> → 2) <b>Production Preflight</b> → 3) <b>Export Schedule Backup</b> → 4) <b>Generate Schedule</b> → 5) <b>Re-Optimize Schedule</b> → 6) <b>Audit Entire League</b> → 7) <b>Optimize All Playing Dates</b> → 8) <b>Final Audit</b> → 9) <b>Publish</b>.<br><span class="hint">Manual director changes are locked by default. Re-Optimize and Court/Time optimization work around those locked games instead of undoing them.</span></div>
     <div class="hint" style="margin-bottom:8px">For multi-pool divisions, choose <b>Entire Division</b> to schedule all pools together. Pools may use different Court Groups through Pool Court Overrides. Use <b>Export Division Season</b> for the full division schedule or <b>Export Division Week</b> for one playing date. Schedule generation follows the League Scheduling Rules configured under Resources.</div><div id="productionPreflightSummary" class="card" style="margin:10px 0;padding:12px;border:1px solid #d5dde8;background:#fbfcfe">
   <b>Production Preflight</b>
@@ -2668,6 +2673,23 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     placements:overallBest
   };
 }
+function selectedGenerationDates(){
+  const today=new Date();const localToday=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-');
+  const all=seasonDatesRaw();
+  return all.filter(d=>d>=localToday&&document.querySelector(`[data-generation-date="${d}"]`)?.checked);
+}
+function renderGenerationDates(){
+  const box=$('generationDateChoices');if(!box)return;
+  const today=new Date(),localToday=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-');
+  const old={};box.querySelectorAll('[data-generation-date]').forEach(el=>old[el.dataset.generationDate]=el.checked);
+  box.innerHTML='';
+  seasonDatesRaw().forEach(d=>{
+    const past=d<localToday,label=document.createElement('label'),cb=document.createElement('input');
+    label.style.cssText='display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #d1dbe8;border-radius:7px';
+    cb.type='checkbox';cb.dataset.generationDate=d;cb.disabled=past;cb.checked=!past&&(old[d]===undefined?true:old[d]);
+    label.append(cb,document.createTextNode(`${d}${past?' — Protected (past)':''}`));box.appendChild(label);
+  });
+}
 async function generateSchedule(scopeOverride=null){
   // v11.11.86.39: when invoked by a DOM click handler, the browser passes a MouseEvent
   // as argument #1. That is NOT a schedule scope. Only accept explicit string scopes
@@ -2685,8 +2707,13 @@ async function generateSchedule(scopeOverride=null){
     return alert(validation.join('\n'));
   }
 
-  const dates=seasonDates(),used=new Set(),teamTimes={},coachTimes={},newGames=[],warnings=[],feasibilityNotes=[];
-  const retainedGames=scope==='ALL'?[]:state.games.filter(g=>!scopeMatchesGame(scope,g));
+  const dates=selectedGenerationDates(),used=new Set(),teamTimes={},coachTimes={},newGames=[],warnings=[],feasibilityNotes=[];
+  if(!dates.length)return alert('Select at least one future playing date. Past dates cannot be regenerated.');
+  if(!scheduleAllBatchRunning&&!confirm(`REGENERATE ONLY THESE DATES:\\n${dates.join('\\n')}\\n\\nAll other dates, including completed games and scores, will be preserved. Continue?`))return;
+  const selectedDateSet=new Set(dates);
+  const protectedSnapshot=JSON.stringify(state.games.filter(g=>!selectedDateSet.has(g.date)));
+
+  const retainedGames=state.games.filter(g=>!selectedDateSet.has(g.date)||!scopeMatchesGame(scope,g));
   const targetDivisions=[...new Set(targets.map(t=>t.division))];
   resetRuntimeOverflowPlan();
   // v11.11.27 — overflow approval and schedule generation are deliberately separate actions.
@@ -2852,7 +2879,10 @@ This approval will be saved. Click Generate Schedule again to build the schedule
 
   setGenerationStage('Saving generated schedule');
   await yieldToBrowser();
-  state.games=[...retainedGames,...newGames].map(g=>({...g,status:g.status||'Scheduled',pending:true}));
+  if(JSON.stringify(retainedGames.filter(g=>!selectedDateSet.has(g.date)))!==protectedSnapshot){
+    throw new Error('Protected historical games changed unexpectedly. Generation canceled without saving.');
+  }
+  state.games=[...retainedGames,...newGames].map(g=>({...g,status:g.status||'Scheduled',pending:selectedDateSet.has(g.date)?true:g.pending}));
   persist();
   // v11.11.86.39: Do NOT synchronously render the entire application after generation.
   // renderAll() rebuilds Dashboard, Resources, Calendar, Management, Results, Standings,
@@ -2877,7 +2907,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   const fixableFails=(initialAudit?.results||[]).filter(r=>r.status==='FAIL'&&fixableLabels.has(r.label));
 
   let repair=null;
-  if(fixableFails.length){
+  if(false&&fixableFails.length){
     setGenerationStage(`Auto-optimizing ${fixableFails.length} fixable audit rule(s)`);
     await yieldToBrowser();
 
@@ -4553,7 +4583,7 @@ function renderCourtCalendar(){
   table.innerHTML=`<thead><tr><th>Time</th>${courts.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${times.map(time=>`<tr><th>${fmtTime(time)}</th>${courts.map(c=>{const arr=slotMap[`${time}|${c}`]||[];return `<td class="calendar-cell ${arr.length>1?'calendar-conflict':''}">${arr.length?arr.map(g=>`<button class="calendar-game ${arr.length>1?'calendar-conflict':''}" type="button" data-calendar-game="${g.id}"><b>${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</b><br><span class="hint">${esc(divisionLabel(g.division))} • ${esc(poolDisplayName(g.division,g.pool))}</span></button>`).join(''):'<span class="calendar-empty">—</span>'}</td>`}).join('')}</tr>`).join('')}</tbody>`;
   document.querySelectorAll('[data-calendar-game]').forEach(b=>b.onclick=()=>openGameEditor(b.dataset.calendarGame));
 }
-function renderSchedule(){groupOptions($('scheduleFilter'));const f=$('scheduleFilter').value||'ALL',g=state.games.filter(x=>scopeMatchesGame(f,x)).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));$('scheduleTable').innerHTML='<thead><tr><th>Playing Date #</th><th>Date</th><th>Time</th><th>Court</th><th>Division / Pool</th><th>Matchup</th><th>Status</th><th>Result</th><th></th></tr></thead><tbody>'+g.map(x=>`<tr class="${x.pending?'pending-row':''}"><td>${x.week||''}</td><td>${x.date}</td><td>${fmtTime(x.time)}</td><td>${esc(x.court)}</td><td>${esc(divisionLabel(x.division))} — ${esc(poolDisplayName(x.division,x.pool))}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td>${esc(x.status||'Scheduled')}${x.lockedManual?' • 🔒 Locked':''}${x.pending?' • Unpublished':''}</td><td>${x.sa==null?'—':x.sa+'–'+x.sb}</td><td><button class="edit-btn" data-edit-game="${x.id}">Edit</button></td></tr>`).join('')+'</tbody>';document.querySelectorAll('[data-edit-game]').forEach(b=>b.addEventListener('click',()=>openGameEditor(b.dataset.editGame)))}
+function renderSchedule(){renderGenerationDates();groupOptions($('scheduleFilter'));const f=$('scheduleFilter').value||'ALL',g=state.games.filter(x=>scopeMatchesGame(f,x)).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));$('scheduleTable').innerHTML='<thead><tr><th>Playing Date #</th><th>Date</th><th>Time</th><th>Court</th><th>Division / Pool</th><th>Matchup</th><th>Status</th><th>Result</th><th></th></tr></thead><tbody>'+g.map(x=>`<tr class="${x.pending?'pending-row':''}"><td>${x.week||''}</td><td>${x.date}</td><td>${fmtTime(x.time)}</td><td>${esc(x.court)}</td><td>${esc(divisionLabel(x.division))} — ${esc(poolDisplayName(x.division,x.pool))}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td>${esc(x.status||'Scheduled')}${x.lockedManual?' • 🔒 Locked':''}${x.pending?' • Unpublished':''}</td><td>${x.sa==null?'—':x.sa+'–'+x.sb}</td><td><button class="edit-btn" data-edit-game="${x.id}">Edit</button></td></tr>`).join('')+'</tbody>';document.querySelectorAll('[data-edit-game]').forEach(b=>b.addEventListener('click',()=>openGameEditor(b.dataset.editGame)))}
 function sameSlot(g,date,time,court){return g.date===date&&g.time===time&&g.court===court}
 function gameWarnings(game,date,time,court,aId,bId){const warnings=[];if(aId===bId)warnings.push('A team cannot play itself.');const a=teamById(aId),b=teamById(bId);state.games.filter(g=>g.id!==game.id&&g.status!=='Cancelled').forEach(g=>{if(sameSlot(g,date,time,court))warnings.push(`Court conflict with ${teamById(g.aId).name} vs ${teamById(g.bId).name}.`);if(g.date===date&&g.time===time&&(g.aId===aId||g.bId===aId||g.aId===bId||g.bId===bId))warnings.push('One of the teams is already scheduled at that time.');const ga=teamById(g.aId),gb=teamById(g.bId),coaches=[a.coach,b.coach].filter(Boolean);if(g.date===date&&g.time===time&&coaches.some(c=>c===ga.coach||c===gb.coach))warnings.push('A shared coach is already scheduled at that time.')});const cfg=state.divisionConfig[game.division];if(cfg&&(time<cfg.start||time>=cfg.end))warnings.push(`Time is outside the division window (${fmtTime(cfg.start)}–${fmtTime(cfg.end)}).`);if(!state.courts.some(c=>c.name===court))warnings.push('The selected court is not an active playing surface.');return [...new Set(warnings)]}
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
@@ -4969,7 +4999,7 @@ $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.tar
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
 $('exportScheduleBtn').addEventListener('click',exportSchedule);$('exportScheduleBackupBtn').addEventListener('click',exportScheduleBackup);$('scheduleRestoreFile').addEventListener('change',e=>restoreScheduleFile(e.target.files?.[0]));safeBind('exportDivisionSeasonBtn','click',exportDivisionSeason);safeBind('exportDivisionWeekBtn','click',exportDivisionWeek);safeBind('printCourtGameBtn','click',printCourtGameSchedule);safeBind('exportCourtGameBtn','click',exportCourtGameSchedule);safeBind('exportCourtTimeBtn','click',exportCourtTimeSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});safeBind('calendarDate','change',renderCourtCalendar);safeBind('calendarScope','change',renderCourtCalendar);safeBind('calendarOptimizeBtn','click',()=>optimizeCourtUseSafely($('calendarDate')?.value||null));safeBind('calendarPrintBtn','click',()=>window.print());
 $('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());$('sampleScoresBtn').addEventListener('click',createSampleScores);$('clearScoresBtn').addEventListener('click',clearAllScores);document.addEventListener('click',e=>{const close=e.target.closest&&e.target.closest('#closeTeamModal');if(close){e.preventDefault();e.stopPropagation();closeTeamModal();return}if(e.target===$('teamModal'))closeTeamModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTeamModal();closeGameEditor()}});
-// v11.11.86.45: one-time startup repair for schedules that were temporarily placed on
+// v11.11.86.46: one-time startup repair for schedules that were temporarily placed on
 // a 12-minute grid before Game Length was returned to another value. Only times that are
 // OFF the CURRENT grid are touched. Existing times already valid for the current interval
 // are preserved. Matchups, courts, dates, game records/numbers, and scores are untouched.
@@ -4998,7 +5028,7 @@ function repairLegacyTwelveMinuteTimesToCurrentGrid(){
   return changed;
 }
 
-// v11.11.86.45: changing Game Length must re-grid existing working games to the
+// v11.11.86.46: changing Game Length must re-grid existing working games to the
 // new slot interval. Matchups, courts, dates, scores, and game records are preserved;
 // only stored start times move to the corresponding slot on the current interval.
 function regridExistingGamesForGameLength(oldLen,newLen){
