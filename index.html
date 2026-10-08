@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.43</title>
+<title>MSS League Scheduler v11.11.86.44</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.43</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.44</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -145,6 +145,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
         <div class="field"><label>Grade Group</label><select id="grade"><option>3rd/4th Grade</option><option>5th/6th Grade</option><option>7th/8th Grade</option><option>HS JV</option><option>HS Varsity</option></select></div>
         <div class="field"><label>Level</label><select id="skill"><option>Open</option><option>Rec</option></select></div>
       </div>
+      <div class="field"><label>Assign to Existing Division</label><select id="manualTeamDivision"><option value="">— Select Division —</option></select><div class="hint">Required when adding teams to an existing league. This does not rebuild pools or schedules.</div></div>
       <label>Schedule Request</label><select id="request"><option value="">None</option><option value="no_sat_am">No Saturday morning</option><option value="no_sun">No Sunday</option><option value="no_am">No morning games</option><option value="no_pm">No afternoon/evening games</option></select>
       <button class="primary" id="addTeamBtn">Add Team</button>
     </div>
@@ -194,6 +195,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       </div>
       <div class="toolbar" style="margin:0">
         <button class="secondary" id="rebalanceBtn">Rebalance Pools</button>
+        <button class="secondary" id="recoverUnassignedBtn" type="button">Assign Missing Teams</button>
         <button class="success" id="approveBtn">Approve All Ready Divisions</button>
         <button class="danger hidden" id="unlockBtn">Unlock Board</button>
       </div>
@@ -334,7 +336,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.43</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.44</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -737,10 +739,28 @@ function setView(view){
 function setTab(tab){document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));document.querySelectorAll('[id^="admin-"]').forEach(p=>p.classList.remove('active'));const panel=$('admin-'+tab);if(!panel)return setTab('dashboard');panel.classList.add('active');if(tab==='dashboard')renderDashboard();if(tab==='divisions')renderDivisionSetup();if(tab==='board')renderBoard();if(tab==='schedule')renderSchedule();if(tab==='calendar')renderCourtCalendar();if(tab==='management')renderManagement();if(tab==='results')renderResults();if(tab==='standings')renderStandings()}
 document.querySelectorAll('.viewbar button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 
+function renderManualDivisionOptions(){
+  const el=$('manualTeamDivision');if(!el)return;
+  const current=el.value;
+  el.innerHTML='<option value="">— Select Division —</option>'+(state.divisions||[]).map(d=>`<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('');
+  if((state.divisions||[]).some(d=>d.id===current))el.value=current;
+}
 function addTeam(){
   const name=$('teamName').value.trim();if(!name)return alert('Enter a team name.');
-  state.teams.push({id:uid('t'),name,coach:$('coachName').value.trim(),gender:$('gender').value,grade:$('grade').value,skill:$('skill').value,request:$('request').value,pool:null,divisionId:''});
-  $('teamName').value='';$('coachName').value='';state.approved=false;ensurePools(true);save();
+  const divisionId=$('manualTeamDivision')?.value||'';
+  if(state.divisions?.length&&!divisionId)return alert('Select the existing Division for this team before adding it.');
+  const d=(state.divisions||[]).find(x=>x.id===divisionId);
+  const team={id:uid('t'),name,coach:$('coachName').value.trim(),gender:$('gender').value,grade:$('grade').value,skill:$('skill').value,request:$('request').value,pool:null,divisionId,sourceDivision:d?.sourceRegistrationName||d?.name||''};
+  state.teams.push(team);
+  // Incrementally assign ONLY the new team. Never force-rebuild approved pools.
+  ensurePools();
+  if(divisionId&&state.pools[divisionId]){
+    state.pools[divisionId].approved=false;
+    refreshOverallApproval();
+  }
+  $('teamName').value='';$('coachName').value='';
+  persist();renderAll();
+  showActionFeedback(`${name} added to ${divisionLabel(divisionId)}. Review and approve that division; existing scheduled games were not changed.`);
 }
 function removeTeam(id){state.teams=state.teams.filter(t=>t.id!==id);state.games=state.games.filter(g=>g.aId!==id&&g.bId!==id);state.approved=false;ensurePools(true);save()}
 function renderTeams(){
@@ -1064,8 +1084,28 @@ function approveBoard(){
   }
 }
 function unlockBoard(){if(state.games.length&&!confirm('Unlock all divisions? Existing schedules may require regeneration. Continue?'))return;Object.values(state.pools).forEach(p=>p.approved=false);refreshOverallApproval();persist();renderAll()}
+function assignMissingTeamsSafely(){
+  const missing=state.teams.filter(t=>!t.divisionId);
+  if(!missing.length)return alert('All teams already have Division assignments.');
+  let assigned=0;
+  for(const t of missing){
+    const candidates=state.divisions.map(d=>({d,score:scoreDivisionMatch(t,d)})).filter(x=>x.score>=0).sort((a,b)=>b.score-a.score);
+    const suggested=candidates.length&&(!candidates[1]||candidates[0].score>candidates[1].score)?candidates[0].d:null;
+    const choice=prompt(`Assign "${t.name}" to an existing Division.\n\n${state.divisions.map(d=>d.name).join('\n')}\n\nType the EXACT division name, or Cancel to skip.`,suggested?.name||'');
+    if(choice===null)continue;
+    const d=state.divisions.find(x=>x.name.toLowerCase()===choice.trim().toLowerCase());
+    if(!d){alert('Division name not found; team left unchanged.');continue}
+    t.divisionId=d.id;t.sourceDivision=d.sourceRegistrationName||d.name;assigned++;
+    ensurePools();
+    if(state.pools[d.id])state.pools[d.id].approved=false;
+  }
+  refreshOverallApproval();persist();renderAll();
+  alert(`${assigned} team(s) assigned. Review the affected pool(s) and approve their division(s). Existing games were not changed.`);
+}
 function renderBoard(){
   ensurePools();const errors=boardValidation(),keys=Object.keys(state.pools).sort(),approvedCount=keys.filter(d=>state.pools[d]?.approved).length;refreshOverallApproval();
+  $('recoverUnassignedBtn').onclick=assignMissingTeamsSafely;
+  $('recoverUnassignedBtn').classList.toggle('hidden',!state.teams.some(t=>!t.divisionId));
   $('approveBtn').classList.toggle('hidden',approvedCount===keys.length&&keys.length>0);$('unlockBtn').classList.toggle('hidden',approvedCount===0);$('rebalanceBtn').disabled=approvedCount>0;
   const syncInfo=synchronizeDivisionState();$('boardStatus').innerHTML=keys.length?`<div class="status ${errors.length?'warn':approvedCount===keys.length?'ok':'warn'}"><b>${approvedCount}/${keys.length} divisions approved.</b> ${errors.length?errors.length+' board item(s) still need review.':'Approved divisions can be scheduled immediately; unfinished divisions may remain in Draft.'}<br><span class="hint">${syncInfo.divisions} divisions synchronized • ${syncInfo.assigned}/${syncInfo.teams} teams assigned</span></div>`:'<div class="status warn">Import or add teams first.</div>';
   const allTargets=[];Object.entries(state.pools).forEach(([d,p])=>Object.keys(p.lists).forEach(x=>allTargets.push({d,p:x,label:`${divisionLabel(d)} — ${poolDisplayName(d,x)}`})));
@@ -4880,7 +4920,7 @@ function reportRuntimeIssue(label,err){
 }
 function renderAll(){
   const steps=[
-    ['Division Setup',renderDivisionSetup],['Director Dashboard',renderDashboard],['Registrations',()=>{renderTeams();renderReplaceTeamOptions()}],['Duplicate Check',renderDuplicateNameStatus],
+    ['Division Setup',renderDivisionSetup],['Director Dashboard',renderDashboard],['Registrations',()=>{renderManualDivisionOptions();renderTeams();renderReplaceTeamOptions()}],['Duplicate Check',renderDuplicateNameStatus],
     ['Resources',()=>{renderSettings();renderCourtExceptions()}],['Division & Pool Board',renderBoard],['Schedule',renderSchedule],['Court Calendar',renderCourtCalendar],['Schedule Management',renderManagement],
     ['Results',renderResults],['Standings',renderStandings],['Coach Selectors',renderCoachSelectors],['Coach Tools',renderCoach],['League Portal',renderPublic]
   ];
@@ -4912,7 +4952,7 @@ $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.tar
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
 $('exportScheduleBtn').addEventListener('click',exportSchedule);$('exportScheduleBackupBtn').addEventListener('click',exportScheduleBackup);$('scheduleRestoreFile').addEventListener('change',e=>restoreScheduleFile(e.target.files?.[0]));safeBind('exportDivisionSeasonBtn','click',exportDivisionSeason);safeBind('exportDivisionWeekBtn','click',exportDivisionWeek);safeBind('printCourtGameBtn','click',printCourtGameSchedule);safeBind('exportCourtGameBtn','click',exportCourtGameSchedule);safeBind('exportCourtTimeBtn','click',exportCourtTimeSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});safeBind('calendarDate','change',renderCourtCalendar);safeBind('calendarScope','change',renderCourtCalendar);safeBind('calendarOptimizeBtn','click',()=>optimizeCourtUseSafely($('calendarDate')?.value||null));safeBind('calendarPrintBtn','click',()=>window.print());
 $('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());$('sampleScoresBtn').addEventListener('click',createSampleScores);$('clearScoresBtn').addEventListener('click',clearAllScores);document.addEventListener('click',e=>{const close=e.target.closest&&e.target.closest('#closeTeamModal');if(close){e.preventDefault();e.stopPropagation();closeTeamModal();return}if(e.target===$('teamModal'))closeTeamModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTeamModal();closeGameEditor()}});
-// v11.11.86.43: one-time startup repair for schedules that were temporarily placed on
+// v11.11.86.44: one-time startup repair for schedules that were temporarily placed on
 // a 12-minute grid before Game Length was returned to another value. Only times that are
 // OFF the CURRENT grid are touched. Existing times already valid for the current interval
 // are preserved. Matchups, courts, dates, game records/numbers, and scores are untouched.
@@ -4941,7 +4981,7 @@ function repairLegacyTwelveMinuteTimesToCurrentGrid(){
   return changed;
 }
 
-// v11.11.86.43: changing Game Length must re-grid existing working games to the
+// v11.11.86.44: changing Game Length must re-grid existing working games to the
 // new slot interval. Matchups, courts, dates, scores, and game records are preserved;
 // only stored start times move to the corresponding slot on the current interval.
 function regridExistingGamesForGameLength(oldLen,newLen){

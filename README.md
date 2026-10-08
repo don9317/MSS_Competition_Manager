@@ -41,10 +41,11 @@ Management/UI safety update. Director Dashboard now reports actual Divisions / P
 - No scheduler, optimizer, pool, court-assignment, or matchup-generation changes.
 
 
-## v11.11.86.43
+## v11.11.86.44
 - Clean package of v86.41 game-length regrid fix.
 - No additional functional changes.
 - Retains Export CSV / By Time from v86.40 and all prior scheduling/management behavior.
 
 
 v86.43: One-time startup repair converts stale off-grid 12-minute game timestamps to the current Game Length grid while preserving matchups, courts, dates, game records/numbers, and scores.
+\n## v11.11.86.44\nManual Add Team now selects an existing Division and preserves other pool assignments. Assign Missing Teams repairs prior unassigned teams individually without changing scheduled games.\n
