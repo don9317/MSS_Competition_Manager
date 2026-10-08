@@ -41,14 +41,14 @@ Management/UI safety update. Director Dashboard now reports actual Divisions / P
 - No scheduler, optimizer, pool, court-assignment, or matchup-generation changes.
 
 
-## v11.11.86.46
+## v11.11.86.47
 - Clean package of v86.41 game-length regrid fix.
 - No additional functional changes.
 - Retains Export CSV / By Time from v86.40 and all prior scheduling/management behavior.
 
 
 v86.43: One-time startup repair converts stale off-grid 12-minute game timestamps to the current Game Length grid while preserving matchups, courts, dates, game records/numbers, and scores.
-\n## v11.11.86.46\nManual Add Team now selects an existing Division and preserves other pool assignments. Assign Missing Teams repairs prior unassigned teams individually without changing scheduled games.\n
-## v11.11.86.46
+\n## v11.11.86.47\nManual Add Team now selects an existing Division and preserves other pool assignments. Assign Missing Teams repairs prior unassigned teams individually without changing scheduled games.\n
+## v11.11.86.47
 Edit Courts opens a checkbox editor with Save Courts and Cancel; no schedule regeneration.
-\n## v11.11.86.46\nDate-scoped generation: choose future dates; past dates disabled, all nonselected dates preserved. Automatic post-generation optimizer disabled for safety; run audit and review before separate optimization.\n
+\n## v11.11.86.47\nDate-scoped generation: choose future dates; past dates disabled, all nonselected dates preserved. Automatic post-generation optimizer disabled for safety; run audit and review before separate optimization.\n\n## v11.11.86.47\nProduction Preflight uses only selected future dates for pool slot checks and overall/shared capacity. Displays run timestamp and selected dates. Existing generation unchanged.\n
