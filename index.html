@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.49</title>
+<title>MSS League Scheduler v11.11.86.50</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.49</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.50</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -336,7 +336,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.49</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.50</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -346,7 +346,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <button id="optimizeBtn" class="primary">Re-Optimize Schedule</button>
       <button id="courtOptimizeAllBtn" type="button" onclick="optimizeAllPlayingDates()">Optimize All Playing Dates</button>
       <button class="secondary" id="auditScopeBtn" type="button" onclick="runAuditWithConfirmation(false)">Audit Selected Scope</button>
-      <button class="secondary" id="auditFutureBtn" type="button" onclick="runScheduleAudit(true,true)">Audit Selected Future Dates</button> <button class="secondary" id="auditAllBtn" type="button" onclick="runAuditWithConfirmation(true)">Audit Entire League</button>
+      <button class="secondary" id="auditFutureBtn" type="button" onclick="runFutureDatesAudit()">Audit Selected Future Dates</button> <button class="secondary" id="auditAllBtn" type="button" onclick="runAuditWithConfirmation(true)">Audit Entire League</button>
       <button class="secondary" id="exportScheduleBtn">Export CSV</button>
       <button class="secondary" id="exportScheduleBackupBtn">Export Schedule Backup</button>
       <label class="secondary" style="display:inline-flex;align-items:center;cursor:pointer">Restore Schedule
@@ -3630,11 +3630,28 @@ function opponentBalanceViolationsV71(games){
   return [...new Set(out)];
 }
 
+async function runFutureDatesAudit(){
+  const btn=$('auditFutureBtn'),out=$('scheduleAudit'),dates=selectedGenerationDates();
+  if(!dates.length){if(out)out.innerHTML='<div class="status warn">Select at least one future date before auditing.</div>';out?.scrollIntoView({behavior:'smooth',block:'start'});return}
+  const old=btn?.textContent||'Audit Selected Future Dates';
+  try{
+    if(btn){btn.disabled=true;btn.textContent='Auditing future dates…'}
+    if(out)out.innerHTML=`<div class="status info">Checking ${dates.map(esc).join(', ')}…</div>`;
+    await yieldToBrowser();
+    const result=runScheduleAudit(true,true);
+    const stamp=new Date().toLocaleTimeString();
+    if(btn)btn.textContent='Future Audit ✓ Complete';
+    setGenerationStage(`Future-date audit completed ${stamp} — ${dates.length} dates; ${result?.fails||0} failed rules, ${result?.warns||0} warnings`);
+    out?.scrollIntoView({behavior:'smooth',block:'start'});
+    return result;
+  }catch(err){console.error('Future audit failed',err);if(out)out.innerHTML=`<div class="status warn"><b>Future-date audit failed</b>: ${esc(err?.message||String(err))}</div>`;out?.scrollIntoView({behavior:'smooth',block:'start'});if(btn)btn.textContent='Future Audit — Retry';return null}
+  finally{if(btn)btn.disabled=false}
+}
 function runScheduleAudit(allLeague=false,futureOnly=false){
   syncSettings();const selected=allLeague?'ALL':($('scheduleFilter').value||'ALL');
   const auditDateSet=futureOnly?new Set(selectedGenerationDates()):null;
   const games=state.games.filter(g=>g.status!=='Cancelled'&&scopeMatchesGame(selected,g)&&(!auditDateSet||auditDateSet.has(g.date)));
-  if(!games.length){$('scheduleAudit').innerHTML='<div class="status warn">No scheduled games are available to audit for this scope.</div>';return}
+  if(!games.length){$('scheduleAudit').innerHTML='<div class="status warn">No scheduled games are available to audit for this scope.</div>';return {fails:0,warns:1,overall:'WARN',results:[]}}
   const targetPools=[];Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{if(scopeMatches(selected,d,pool))targetPools.push({d,pool,ids})}));
   const results=[],gameLen=Number(state.settings.gameLength||20),dates=futureOnly?selectedGenerationDates():seasonDates();
   let self=[],teamDouble=[],courtDouble=[],windowBad=[],courtBad=[],requestBad=[],coachBad=[],maxBad=[],guaranteeBad=[],minimumDateBad=[],overflowWarn=[],overflowCourtInfo=[],immediateBad=[],allBeforeRepeatBad=[],restBad=[],fairnessWarn=[];const immediateKeys=new Map();
@@ -3669,7 +3686,7 @@ function runScheduleAudit(allLeague=false,futureOnly=false){
     ids.forEach(id=>{
       const tg=pg.filter(g=>g.aId===id||g.bId===id),name=teamById(id).name;if(tg.length<guarantee)guaranteeBad.push(`${name}: ${tg.length}/${guarantee}`);
       const byDate={};tg.forEach(g=>(byDate[g.date]??=[]).push(g));dates.forEach(date=>{const arr=byDate[date]||[];const hasAvailability=divisionSlots(d,date).some(sl=>allowed(teamById(id),sl));if(hasAvailability&&arr.length<minimum)minimumDateBad.push(`${name}: ${arr.length} games on ${date} (minimum ${minimum})`);if(arr.length>max)maxBad.push(`${name}: ${arr.length} games on ${date} (max ${max})`);else if(arr.length>minimum)overflowWarn.push(`${name}: ${arr.length} games on ${date} (minimum ${minimum}; max ${max})`)});
-      const seq=[...tg].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));let seen=new Set();const auditPrefix=`${divisionLabel(d)} — ${poolDisplayName(d,pool)} — `;for(let i=0;i<seq.length;i++){const g=seq[i],opp=g.aId===id?g.bId:g.aId;if(i&&opp===(seq[i-1].aId===id?seq[i-1].bId:seq[i-1].aId)&&state.settings.avoidImmediateRematches){const prev=seq[i-1],pair=[id,opp].sort().join('|'),boundary=`${prev.date}|${prev.time}|${g.date}|${g.time}`,k=`${d}|${pool}|${pair}|${boundary}`;const entry=immediateKeys.get(k)||{division:d,pool,a:id,b:opp,teams:new Set(),prev,next:g};entry.teams.add(id);entry.prev=prev;entry.next=g;immediateKeys.set(k,entry)}if(state.settings.playAllTeamsOnce&&ids.length>3&&seen.has(opp)){const possible=ids.filter(x=>x!==id),unplayed=possible.filter(x=>!seen.has(x)&&x!==opp);if(unplayed.length){const oppName=teamById(opp)?.name||opp;const unplayedNames=unplayed.map(x=>teamById(x)?.name||x).join(', ');allBeforeRepeatBad.push(`${auditPrefix}${name}: repeated ${oppName} on ${g.date} ${fmtTime(g.time)} before facing all pool opponents — not yet faced: ${unplayedNames}`)}}seen.add(opp)}
+      const prior=futureOnly?state.games.filter(g=>g.status!=='Cancelled'&&g.division===d&&g.pool===pool&&g.date<dates[0]&&(g.aId===id||g.bId===id)):[];const seq=[...prior,...tg].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));let seen=new Set();const auditPrefix=`${divisionLabel(d)} — ${poolDisplayName(d,pool)} — `;for(let i=0;i<seq.length;i++){const g=seq[i],opp=g.aId===id?g.bId:g.aId;if(i&&opp===(seq[i-1].aId===id?seq[i-1].bId:seq[i-1].aId)&&state.settings.avoidImmediateRematches&&(!futureOnly||dates.includes(g.date))){const prev=seq[i-1],pair=[id,opp].sort().join('|'),boundary=`${prev.date}|${prev.time}|${g.date}|${g.time}`,k=`${d}|${pool}|${pair}|${boundary}`;const entry=immediateKeys.get(k)||{division:d,pool,a:id,b:opp,teams:new Set(),prev,next:g};entry.teams.add(id);entry.prev=prev;entry.next=g;immediateKeys.set(k,entry)}if((!futureOnly||dates.includes(g.date))&&state.settings.playAllTeamsOnce&&ids.length>3&&seen.has(opp)){const possible=ids.filter(x=>x!==id),unplayed=possible.filter(x=>!seen.has(x)&&x!==opp);if(unplayed.length){const oppName=teamById(opp)?.name||opp;const unplayedNames=unplayed.map(x=>teamById(x)?.name||x).join(', ');allBeforeRepeatBad.push(`${auditPrefix}${name}: repeated ${oppName} on ${g.date} ${fmtTime(g.time)} before facing all pool opponents — not yet faced: ${unplayedNames}`)}}seen.add(opp)}
       for(let i=1;i<seq.length;i++){if(seq[i].date!==seq[i-1].date)continue;const t1=new Date(`${seq[i-1].date}T${seq[i-1].time}:00`).getTime(),t2=new Date(`${seq[i].date}T${seq[i].time}:00`).getTime(),diff=(t2-t1)/60000;const minGap=(state.settings.allowBackToBack?Number(state.settings.minRest||0)+1:Math.max(2,Number(state.settings.minRest||0)+1))*gameLen;if(diff<minGap)restBad.push(`${name}: ${diff} min between games on ${seq[i].date}; requires ${minGap} min`)}
     })
   });
@@ -3694,7 +3711,7 @@ function runScheduleAudit(allLeague=false,futureOnly=false){
   });
   row('Odd-pool extra games / games above minimum',unexpectedOverflow,overflowWarn.length&&!unexpectedOverflow.length?'Expected odd-pool balancing: extra games are within the configured maximum':'No unexpected overflow games',true);
   const fails=results.filter(r=>r.status==='FAIL').length,warns=results.filter(r=>r.status==='WARN').length,overall=fails?'FAIL':warns?'WARN':'PASS';
-  $('scheduleAudit').innerHTML=`<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Schedule & Rules Audit</h2><span class="status ${overall==='PASS'?'ok':'warn'}" style="display:inline-block;margin:0">${overall}${fails?` • ${fails} failed rule(s)`:''}${warns?` • ${warns} warning(s)`:''}</span></div><p class="hint">Scope: ${selected==='ALL'?'Entire League':esc($('scheduleFilter').selectedOptions[0]?.textContent||selected)}. Hard rules must PASS before publishing. The nightly minimum is a hard rule; games above the minimum are allowed up to the configured maximum.</p>${results.map(r=>`<div class="item"><b>${r.status==='PASS'?'✓':r.status==='WARN'?'!':'✕'} ${esc(r.label)}</b><span class="pill" style="float:right">${r.status}</span><br><span class="hint">${esc(r.detail)}</span>${r.violations.length?`<details><summary>Show details</summary><div class="hint">${r.violations.slice(0,50).map(esc).join('<br>')}${r.violations.length>50?'<br>…and more':''}</div></details>`:''}</div>`).join('')}</div>`;
+  $('scheduleAudit').innerHTML=`<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Schedule & Rules Audit</h2><span class="status ${overall==='PASS'?'ok':'warn'}" style="display:inline-block;margin:0">${overall}${fails?` • ${fails} failed rule(s)`:''}${warns?` • ${warns} warning(s)`:''}</span></div><p class="hint">Scope: ${futureOnly?'Selected future dates ('+dates.map(esc).join(', ')+')':selected==='ALL'?'Entire League':esc($('scheduleFilter').selectedOptions[0]?.textContent||selected)}. ${futureOnly?'Historical dates excluded from court, time and double-booking checks.':'Hard rules must PASS before publishing.'} The nightly minimum is a hard rule; games above the minimum are allowed up to the configured maximum.</p>${results.map(r=>`<div class="item"><b>${r.status==='PASS'?'✓':r.status==='WARN'?'!':'✕'} ${esc(r.label)}</b><span class="pill" style="float:right">${r.status}</span><br><span class="hint">${esc(r.detail)}</span>${r.violations.length?`<details><summary>Show details</summary><div class="hint">${r.violations.slice(0,50).map(esc).join('<br>')}${r.violations.length>50?'<br>…and more':''}</div></details>`:''}</div>`).join('')}</div>`;
   return {fails,warns,overall,results};
 }
 
@@ -5011,7 +5028,7 @@ $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.tar
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
 $('exportScheduleBtn').addEventListener('click',exportSchedule);$('exportScheduleBackupBtn').addEventListener('click',exportScheduleBackup);$('scheduleRestoreFile').addEventListener('change',e=>restoreScheduleFile(e.target.files?.[0]));safeBind('exportDivisionSeasonBtn','click',exportDivisionSeason);safeBind('exportDivisionWeekBtn','click',exportDivisionWeek);safeBind('printCourtGameBtn','click',printCourtGameSchedule);safeBind('exportCourtGameBtn','click',exportCourtGameSchedule);safeBind('exportCourtTimeBtn','click',exportCourtTimeSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});safeBind('calendarDate','change',renderCourtCalendar);safeBind('calendarScope','change',renderCourtCalendar);safeBind('calendarOptimizeBtn','click',()=>optimizeCourtUseSafely($('calendarDate')?.value||null));safeBind('calendarPrintBtn','click',()=>window.print());
 $('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());$('sampleScoresBtn').addEventListener('click',createSampleScores);$('clearScoresBtn').addEventListener('click',clearAllScores);document.addEventListener('click',e=>{const close=e.target.closest&&e.target.closest('#closeTeamModal');if(close){e.preventDefault();e.stopPropagation();closeTeamModal();return}if(e.target===$('teamModal'))closeTeamModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTeamModal();closeGameEditor()}});
-// v11.11.86.49: one-time startup repair for schedules that were temporarily placed on
+// v11.11.86.50: one-time startup repair for schedules that were temporarily placed on
 // a 12-minute grid before Game Length was returned to another value. Only times that are
 // OFF the CURRENT grid are touched. Existing times already valid for the current interval
 // are preserved. Matchups, courts, dates, game records/numbers, and scores are untouched.
@@ -5040,7 +5057,7 @@ function repairLegacyTwelveMinuteTimesToCurrentGrid(){
   return changed;
 }
 
-// v11.11.86.49: changing Game Length must re-grid existing working games to the
+// v11.11.86.50: changing Game Length must re-grid existing working games to the
 // new slot interval. Matchups, courts, dates, scores, and game records are preserved;
 // only stored start times move to the corresponding slot on the current interval.
 function regridExistingGamesForGameLength(oldLen,newLen){
