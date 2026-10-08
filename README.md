@@ -41,14 +41,14 @@ Management/UI safety update. Director Dashboard now reports actual Divisions / P
 - No scheduler, optimizer, pool, court-assignment, or matchup-generation changes.
 
 
-## v11.11.86.48
+## v11.11.86.49
 - Clean package of v86.41 game-length regrid fix.
 - No additional functional changes.
 - Retains Export CSV / By Time from v86.40 and all prior scheduling/management behavior.
 
 
 v86.43: One-time startup repair converts stale off-grid 12-minute game timestamps to the current Game Length grid while preserving matchups, courts, dates, game records/numbers, and scores.
-\n## v11.11.86.48\nManual Add Team now selects an existing Division and preserves other pool assignments. Assign Missing Teams repairs prior unassigned teams individually without changing scheduled games.\n
-## v11.11.86.48
+\n## v11.11.86.49\nManual Add Team now selects an existing Division and preserves other pool assignments. Assign Missing Teams repairs prior unassigned teams individually without changing scheduled games.\n
+## v11.11.86.49
 Edit Courts opens a checkbox editor with Save Courts and Cancel; no schedule regeneration.
-\n## v11.11.86.48\nDate-scoped generation: choose future dates; past dates disabled, all nonselected dates preserved. Automatic post-generation optimizer disabled for safety; run audit and review before separate optimization.\n\n## v11.11.86.48\nProduction Preflight uses only selected future dates for pool slot checks and overall/shared capacity. Displays run timestamp and selected dates. Existing generation unchanged.\n\n## v11.11.86.48\nCorrects false hard stop for odd-sized pools: existing nightly matchup planner rotates one extra game across teams, within configured maximum. Capacity calculation now rounds up per playing date. No game length setting changed.\n
+\n## v11.11.86.49\nDate-scoped generation: choose future dates; past dates disabled, all nonselected dates preserved. Automatic post-generation optimizer disabled for safety; run audit and review before separate optimization.\n\n## v11.11.86.49\nProduction Preflight uses only selected future dates for pool slot checks and overall/shared capacity. Displays run timestamp and selected dates. Existing generation unchanged.\n\n## v11.11.86.49\nCorrects false hard stop for odd-sized pools: existing nightly matchup planner rotates one extra game across teams, within configured maximum. Capacity calculation now rounds up per playing date. No game length setting changed.\n\n## v11.11.86.49\nFuture-only audit excludes protected historical dates; future matchup planning seeds opponent counts from preserved earlier games.\n
