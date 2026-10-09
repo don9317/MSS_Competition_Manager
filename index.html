@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.56</title>
+<title>MSS League Scheduler v11.11.86.57</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.56</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.57</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -336,7 +336,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.56</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.57</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -346,7 +346,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <button id="optimizeBtn" class="primary">Re-Optimize Schedule</button>
       <button id="courtOptimizeAllBtn" type="button" onclick="optimizeAllPlayingDates()">Optimize All Playing Dates</button>
       <button class="secondary" id="auditScopeBtn" type="button" onclick="runAuditWithConfirmation(false)">Audit Selected Scope</button>
-      <button class="secondary" id="repairOpponents55" type="button" onclick="void repairFutureOpponentsV56()">Repair Future Opponents</button> <button class="secondary" id="auditFutureBtn" type="button" onclick="runFutureDatesAudit()">Audit Selected Future Dates</button> <button class="secondary" id="auditAllBtn" type="button" onclick="runAuditWithConfirmation(true)">Audit Entire League</button>
+      <button class="secondary" id="repairOpponents55" type="button" onclick="void repairFutureOpponentsV57()">Repair Future Opponents</button> <button class="secondary" id="auditFutureBtn" type="button" onclick="runFutureDatesAudit()">Audit Selected Future Dates</button> <button class="secondary" id="auditAllBtn" type="button" onclick="runAuditWithConfirmation(true)">Audit Entire League</button>
       <button class="secondary" id="exportScheduleBtn">Export CSV</button>
       <button class="secondary" id="exportScheduleBackupBtn">Export Schedule Backup</button>
       <label class="secondary" style="display:inline-flex;align-items:center;cursor:pointer">Restore Schedule
@@ -3710,89 +3710,94 @@ function opponentBalanceViolationsV71(games){
 
 // v86.55: isolated future-date matchup repair. No court, time, game-count,
 // locked game, or protected historical game is modified.
-async function repairFutureOpponentsV56(){
-  const btn=$('repairOpponents55'),out=$('genSummary');
-  if(btn){btn.disabled=true;btn.textContent='Repair starting…'}
-  if(out)out.innerHTML='<div class="status info"><b>Opponent repair started.</b> Checking selected dates…</div>';
+async function repairFutureOpponentsV57(){
+  const btn=$('repairOpponents55'),out=$('genSummary'),auditEl=$('scheduleAudit');
+  const report=(msg,cls='info')=>{if(out)out.innerHTML=`<div class="status ${cls}">${msg}</div>`};
+  const reset=()=>{const b=$('repairOpponents55');if(b){b.disabled=false;b.textContent='Repair Future Opponents'}};
+  if(btn){btn.disabled=true;btn.textContent='Starting repair…'}
+  report('<b>Repair starting.</b> Preparing targeted November 1 search…');
   await yieldToBrowser();
   const dates=new Set(selectedGenerationDates());
-  if(!dates.size){if(out)out.innerHTML='<div class="status warn">Select future dates first.</div>';if(btn){btn.disabled=false;btn.textContent='Repair Future Opponents'}return}
-  if(!confirm('Proceed with future-only opponent repair? Make sure you have exported a schedule backup.')){
-    if(out)out.innerHTML='<div class="status info">Opponent repair cancelled; no games changed.</div>';
-    if(btn){btn.disabled=false;btn.textContent='Repair Future Opponents'}return;
-  }
-  const before=state.games.map(g=>({...g})),oldAuditHtml=$('scheduleAudit').innerHTML;
-  const getStats=()=>{
-    const a=runScheduleAudit(true,true);
-    const counts=Object.fromEntries(a.results.map(r=>[r.label,r.violations.length]));
-    return {a,counts,opp:counts['All opponents before repeats']||0,balance:counts['Opponent balance']||0};
-  };
+  if(!dates.size){report('Select future dates first.','warn');reset();return}
+  if(!confirm('Run targeted opponent repair on selected future dates? Back up your schedule first. Protected dates, game times and courts will not change.')){report('Repair cancelled; schedule unchanged.');reset();return}
+  const original=state.games.map(g=>({...g})),previousAudit=auditEl?.innerHTML||'';
   const structural=['No self-matchups','No team double-booking','No court double-booking','Court availability exceptions','Division time windows','Assigned court groups','Team schedule requests','Minimum games per playing date','Maximum games per playing date','Calculated season minimum','Rest / back-to-back rule','Immediate rematches','Odd-pool extra games / games above minimum'];
-  const safe=(prev,next)=>structural.every(k=>(next.counts[k]||0)<=(prev.counts[k]||0));
-  const score=x=>x.opp*1000+x.balance;
-  let baseline=null,accepted=0,checked=0;
+  const stats=()=>{
+    const r=runScheduleAudit(true,true),c=Object.fromEntries(r.results.map(x=>[x.label,x.violations.length]));
+    return {c,opp:c['All opponents before repeats']||0,balance:c['Opponent balance']||0};
+  };
+  const safe=(a,b)=>structural.every(k=>(b.c[k]||0)<=(a.c[k]||0));
+  const score=x=>1000*x.opp+x.balance;
+  let checks=0,accepted=0;
   try{
-    btn.disabled=true;btn.textContent='Repairing opponents…';if(out)out.innerHTML='<div class="status info">Repair running: evaluating safe matchup swaps…</div>';
-    await yieldToBrowser();
-    baseline=getStats();
+    let baseline=stats();
+    // The two remaining premature-repeat reports refer to one November 1
+    // HS Girls pairing. Evaluate three-game endpoint rotations, not just
+    // the two-game exchanges from v86.56.
     const groups=new Map();
-    state.games.forEach(g=>{
-      if(g.status==='Cancelled'||g.lockedManual||!dates.has(g.date))return;
-      if(!['7th/8th Grade - Boys','High School Varsity Division - Girls'].includes(g.division))return;
-      const k=JSON.stringify([g.date,g.division,g.pool]);
+    for(const g of state.games){
+      if(!dates.has(g.date)||g.status==='Cancelled'||g.lockedManual)continue;
+      if(!['High School Varsity Division - Girls','7th/8th Grade - Boys'].includes(g.division))continue;
+      const k=[g.date,g.division,g.pool].join('|');
       if(!groups.has(k))groups.set(k,[]);
       groups.get(k).push(g);
-    });
-    // Only failing pools are candidates. A change is committed solely when
-    // the selected-future-date audit improves and no structural rule worsens.
-    for(let pass=0;pass<8;pass++){
+    }
+    const targetGroups=[...groups.values()].sort((a,b)=>
+      Number(b.some(g=>g.date==='2026-11-01'&&g.division==='High School Varsity Division - Girls'))-
+      Number(a.some(g=>g.date==='2026-11-01'&&g.division==='High School Varsity Division - Girls')));
+    for(let pass=0;pass<3;pass++){
       let best=null,bestScore=score(baseline);
-      for(const gs of groups.values()){
-        for(let i=0;i<gs.length;i++)for(let j=i+1;j<gs.length;j++){
-          const a=gs[i],b=gs[j],ids=[a.aId,a.bId,b.aId,b.bId];
-          if(new Set(ids).size!==4)continue;
-          const options=[[[ids[0],ids[2]],[ids[1],ids[3]]],[[ids[0],ids[3]],[ids[1],ids[2]]]];
-          for(const option of options){
-            const saved=[a.aId,a.bId,b.aId,b.bId];
-            [a.aId,a.bId]=option[0];[b.aId,b.bId]=option[1];
-            const result=getStats();checked++;
-            if(safe(baseline,result)&&result.opp<=baseline.opp&&score(result)<bestScore){
-              best={a,b,option,stats:result};bestScore=score(result);
+      outer:for(const games of targetGroups){
+        // Limit each pass to 1,200 evaluations, keeping the UI responsive.
+        for(let i=0;i<games.length;i++)for(let j=i+1;j<games.length;j++)for(let k=j+1;k<games.length;k++){
+          const trio=[games[i],games[j],games[k]];
+          const ends=trio.map(g=>[g.aId,g.bId]);
+          // Cycle one endpoint from each game, both orientations of endpoints.
+          for(let mask=0;mask<8;mask++){
+            const selected=ends.map((pair,t)=>pair[(mask>>t)&1]);
+            const other=ends.map((pair,t)=>pair[1-((mask>>t)&1)]);
+            for(const shift of [1,2]){
+              const newPairs=other.map((id,t)=>[id,selected[(t+shift)%3]]);
+              if(newPairs.some(([a,b])=>a===b))continue;
+              const old=trio.map(g=>[g.aId,g.bId]);
+              trio.forEach((g,t)=>{[g.aId,g.bId]=newPairs[t]});
+              const candidate=stats();checks++;
+              if(safe(baseline,candidate)&&candidate.opp<=baseline.opp&&score(candidate)<bestScore){
+                best={trio,pairs:newPairs.map(x=>[...x])};bestScore=score(candidate);
+              }
+              trio.forEach((g,t)=>{[g.aId,g.bId]=old[t]});
+              if(checks%10===0){
+                if(btn)btn.textContent=`Checking ${checks} rotations…`;
+                report(`<b>Repair running…</b> ${checks} three-game rotations checked; ${accepted} accepted.`);
+                await yieldToBrowser();
+              }
+              if(checks>=1200)break outer;
             }
-            [a.aId,a.bId,b.aId,b.bId]=saved;
-            if(checked%10===0){btn.textContent=`Checking ${checked} swaps…`;if(out)out.innerHTML=`<div class="status info"><b>Repair running…</b> ${checked} candidate swaps evaluated; ${accepted} accepted so far.</div>`;await yieldToBrowser()}
-            if(checked>=400)break;
           }
-          if(checked>=400)break;
         }
-        if(checked>=400)break;
       }
       if(!best)break;
-      [best.a.aId,best.a.bId]=best.option[0];
-      [best.b.aId,best.b.bId]=best.option[1];
-      const verified=getStats();
-      if(!safe(baseline,verified)||score(verified)>=score(baseline)){
-        state.games=before.map(g=>({...g}));
-        throw Error('Safety verification failed; all repair changes were rolled back.');
-      }
+      best.trio.forEach((g,t)=>{[g.aId,g.bId]=best.pairs[t]});
+      const verified=stats();
+      if(!safe(baseline,verified)||score(verified)>=score(baseline))throw Error('Safety check failed; rolling back.');
       baseline=verified;accepted++;
-      if(checked>=3000||score(baseline)===0)break;
-      await yieldToBrowser();
+      if(score(baseline)===0||checks>=1200)break;
     }
     if(accepted){
-      const changed=new Set();
-      state.games.forEach((g,i)=>{const orig=before[i];if(orig&&(g.aId!==orig.aId||g.bId!==orig.bId)){g.pending=true;changed.add(g.id)}});
+      state.games.forEach((g,i)=>{
+        const old=original[i];
+        if(old&&(g.aId!==old.aId||g.bId!==old.bId))g.pending=true;
+      });
       persist();renderAll();
     }
-    const final=getStats();
-    $('genSummary').innerHTML=`<div class="status ${final.opp?'warn':'ok'}"><b>Future opponent repair complete.</b> ${accepted} safe swap(s) accepted after ${checked} candidate checks. Premature repeats: ${final.opp}; opponent balance warnings: ${final.balance}. September 27 and court/time assignments unchanged. ${accepted?'Export a fresh schedule backup.':'No safe improvement found; schedule unchanged.'}</div>`;
-    $('scheduleAudit').scrollIntoView({behavior:'smooth',block:'start'});
+    const final=stats();
+    report(`<b>Three-game opponent repair complete.</b> ${accepted} safe rotation(s) accepted after ${checks} checks. Premature repeats: ${final.opp}; opponent-balance warnings: ${final.balance}. ${accepted?'Export a new schedule backup.':'No safe improvement found; schedule unchanged.'}`,final.opp?'warn':'ok');
   }catch(err){
-    console.error('Opponent repair error',err);
-    state.games=before.map(g=>({...g}));persist();renderAll();
-    $('genSummary').innerHTML=`<div class="status warn">Opponent repair stopped and rolled back: ${esc(err.message||String(err))}</div>`;
-    $('scheduleAudit').innerHTML=oldAuditHtml;
-  }finally{const current=$('repairOpponents55');if(current){current.disabled=false;current.textContent='Repair Future Opponents'}}
+    console.error('v86.57 opponent repair failed',err);
+    state.games=original.map(g=>({...g}));persist();renderAll();
+    report(`Repair stopped; changes rolled back: ${esc(err.message||String(err))}`,'warn');
+    if(auditEl)auditEl.innerHTML=previousAudit;
+  }finally{reset()}
 }
 
 async function runFutureDatesAudit(){
@@ -5193,7 +5198,7 @@ $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.tar
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
 $('exportScheduleBtn').addEventListener('click',exportSchedule);$('exportScheduleBackupBtn').addEventListener('click',exportScheduleBackup);$('scheduleRestoreFile').addEventListener('change',e=>restoreScheduleFile(e.target.files?.[0]));safeBind('exportDivisionSeasonBtn','click',exportDivisionSeason);safeBind('exportDivisionWeekBtn','click',exportDivisionWeek);safeBind('printCourtGameBtn','click',printCourtGameSchedule);safeBind('exportCourtGameBtn','click',exportCourtGameSchedule);safeBind('exportCourtTimeBtn','click',exportCourtTimeSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});safeBind('calendarDate','change',renderCourtCalendar);safeBind('calendarScope','change',renderCourtCalendar);safeBind('calendarOptimizeBtn','click',()=>optimizeCourtUseSafely($('calendarDate')?.value||null));safeBind('calendarPrintBtn','click',()=>window.print());
 $('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());$('sampleScoresBtn').addEventListener('click',createSampleScores);$('clearScoresBtn').addEventListener('click',clearAllScores);document.addEventListener('click',e=>{const close=e.target.closest&&e.target.closest('#closeTeamModal');if(close){e.preventDefault();e.stopPropagation();closeTeamModal();return}if(e.target===$('teamModal'))closeTeamModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTeamModal();closeGameEditor()}});
-// v11.11.86.56: one-time startup repair for schedules that were temporarily placed on
+// v11.11.86.57: one-time startup repair for schedules that were temporarily placed on
 // a 12-minute grid before Game Length was returned to another value. Only times that are
 // OFF the CURRENT grid are touched. Existing times already valid for the current interval
 // are preserved. Matchups, courts, dates, game records/numbers, and scores are untouched.
@@ -5222,7 +5227,7 @@ function repairLegacyTwelveMinuteTimesToCurrentGrid(){
   return changed;
 }
 
-// v11.11.86.56: changing Game Length must re-grid existing working games to the
+// v11.11.86.57: changing Game Length must re-grid existing working games to the
 // new slot interval. Matchups, courts, dates, scores, and game records are preserved;
 // only stored start times move to the corresponding slot on the current interval.
 function regridExistingGamesForGameLength(oldLen,newLen){
