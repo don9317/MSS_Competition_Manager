@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.60</title>
+<title>MSS League Scheduler v11.11.86.61</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.60</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.61</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -336,7 +336,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.60</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.61</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -4833,12 +4833,21 @@ function renderManagement(){
   groupOptions($('managementDivision'));
   const divisionValue=$('managementDivision').value||'ALL';
   const scoped=state.games.filter(g=>divisionValue==='ALL'||poolKey(g.division,g.pool)===divisionValue);
-  const weeks=[...new Set(scoped.map(g=>String(g.week||'')).filter(Boolean))].sort((a,b)=>Number(a)-Number(b)),weekCurrent=$('managementWeek').value||'ALL';
-  $('managementWeek').innerHTML='<option value="ALL">All playing dates</option>'+weeks.map(w=>`<option value="${esc(w)}">Playing Date ${esc(w)}</option>`).join('');if(weekCurrent==='ALL'||weeks.includes(weekCurrent))$('managementWeek').value=weekCurrent;
+  // v86.61: select by the actual ISO playing date, not g.week. Older games can
+  // have missing/duplicated week numbers after future-only regeneration.
+  const officialDates=seasonDatesRaw();
+  const availableDates=[...new Set(scoped.map(g=>String(g.date||'')).filter(Boolean))].sort();
+  const weekCurrent=$('managementWeek').value||'ALL';
+  const dateChoices=[...new Set([...officialDates,...availableDates])].sort();
+  $('managementWeek').innerHTML='<option value="ALL">All playing dates</option>'+dateChoices.map(date=>{
+    const officialIndex=officialDates.indexOf(date);
+    return `<option value="${esc(date)}">Playing Date ${officialIndex>=0?officialIndex+1:'—'} — ${esc(date)}</option>`;
+  }).join('');
+  $('managementWeek').value=(weekCurrent==='ALL'||dateChoices.includes(weekCurrent))?weekCurrent:'ALL';
   const courts=[...new Set(scoped.map(g=>g.court).filter(Boolean))].sort(),courtCurrent=$('managementCourt').value||'ALL';
   $('managementCourt').innerHTML='<option value="ALL">All courts</option>'+courts.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');if(courtCurrent==='ALL'||courts.includes(courtCurrent))$('managementCourt').value=courtCurrent;
   const week=$('managementWeek').value||'ALL',status=$('managementStatus').value||'ALL',court=$('managementCourt').value||'ALL';
-  const games=scoped.filter(g=>(week==='ALL'||String(g.week||'')===week)&&(court==='ALL'||g.court===court)&&(status==='ALL'||(status==='NEEDS_SCORE'?(g.status!=='Cancelled'&&(g.sa==null||g.sb==null)):status==='UNPUBLISHED'?g.pending:(g.status||'Scheduled')===status))).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));
+  const games=scoped.filter(g=>(week==='ALL'||String(g.date||'')===week)&&(court==='ALL'||g.court===court)&&(status==='ALL'||(status==='NEEDS_SCORE'?(g.status!=='Cancelled'&&(g.sa==null||g.sb==null)):status==='UNPUBLISHED'?g.pending:(g.status||'Scheduled')===status))).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));
   const selectedLabel=divisionValue==='ALL'?'All divisions and pools':($('managementDivision').selectedOptions[0]?.textContent||divisionValue);
   $('managementScopeTitle').textContent=`${selectedLabel} • ${games.length} game(s) shown`;
   $('publishStatus').innerHTML=`<div class="status ${pending?'warn':'ok'}">${pending?pending+' unpublished schedule change(s). The League Portal still shows the last published schedule.':'The working and published schedules match.'}</div>`;
@@ -5048,7 +5057,7 @@ function replaceTeamKeepSchedule(){
 }
 function managementFilteredGames(){
  const divisionValue=$('managementDivision')?.value||'ALL',week=$('managementWeek')?.value||'ALL',status=$('managementStatus')?.value||'ALL',court=$('managementCourt')?.value||'ALL';
- return state.games.filter(g=>(divisionValue==='ALL'||poolKey(g.division,g.pool)===divisionValue)&&(week==='ALL'||String(g.week||'')===week)&&(court==='ALL'||g.court===court)&&(status==='ALL'||(status==='NEEDS_SCORE'?(g.status!=='Cancelled'&&(g.sa==null||g.sb==null)):status==='UNPUBLISHED'?g.pending:(g.status||'Scheduled')===status)));
+ return state.games.filter(g=>(divisionValue==='ALL'||poolKey(g.division,g.pool)===divisionValue)&&(week==='ALL'||String(g.date||'')===week)&&(court==='ALL'||g.court===court)&&(status==='ALL'||(status==='NEEDS_SCORE'?(g.status!=='Cancelled'&&(g.sa==null||g.sb==null)):status==='UNPUBLISHED'?g.pending:(g.status||'Scheduled')===status)));
 }
 function courtGameRows(games=state.games){
  // v11.11.86.39 — PRINT/EXPORT ONLY.
@@ -5208,7 +5217,7 @@ $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.tar
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
 $('exportScheduleBtn').addEventListener('click',exportSchedule);$('exportScheduleBackupBtn').addEventListener('click',exportScheduleBackup);$('scheduleRestoreFile').addEventListener('change',e=>restoreScheduleFile(e.target.files?.[0]));safeBind('exportDivisionSeasonBtn','click',exportDivisionSeason);safeBind('exportDivisionWeekBtn','click',exportDivisionWeek);safeBind('printCourtGameBtn','click',printCourtGameSchedule);safeBind('exportCourtGameBtn','click',exportCourtGameSchedule);safeBind('exportCourtTimeBtn','click',exportCourtTimeSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});safeBind('calendarDate','change',renderCourtCalendar);safeBind('calendarScope','change',renderCourtCalendar);safeBind('calendarOptimizeBtn','click',()=>optimizeCourtUseSafely($('calendarDate')?.value||null));safeBind('calendarPrintBtn','click',()=>window.print());
 $('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());$('sampleScoresBtn').addEventListener('click',createSampleScores);$('clearScoresBtn').addEventListener('click',clearAllScores);document.addEventListener('click',e=>{const close=e.target.closest&&e.target.closest('#closeTeamModal');if(close){e.preventDefault();e.stopPropagation();closeTeamModal();return}if(e.target===$('teamModal'))closeTeamModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTeamModal();closeGameEditor()}});
-// v11.11.86.60: one-time startup repair for schedules that were temporarily placed on
+// v11.11.86.61: one-time startup repair for schedules that were temporarily placed on
 // a 12-minute grid before Game Length was returned to another value. Only times that are
 // OFF the CURRENT grid are touched. Existing times already valid for the current interval
 // are preserved. Matchups, courts, dates, game records/numbers, and scores are untouched.
@@ -5237,7 +5246,7 @@ function repairLegacyTwelveMinuteTimesToCurrentGrid(){
   return changed;
 }
 
-// v11.11.86.60: changing Game Length must re-grid existing working games to the
+// v11.11.86.61: changing Game Length must re-grid existing working games to the
 // new slot interval. Matchups, courts, dates, scores, and game records are preserved;
 // only stored start times move to the corresponding slot on the current interval.
 function regridExistingGamesForGameLength(oldLen,newLen){
