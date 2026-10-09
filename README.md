@@ -63,3 +63,7 @@ v11.11.86.63 — Schedule Management Playing Date selector uses actual scheduled
 
 ## v86.63 — Court Calendar presentation only
 Adds a default-on Hide Unused Courts checkbox to Court Calendar. Filters displayed columns to courts with games on the selected date and division/pool. Unchecking restores all configured court columns. Does not delete surfaces, modify court groups, games, availability, audit, scheduling, optimization, or exports. Historical dates continue to display their used courts.
+
+
+## v86.64
+Court Calendar: Print Full Court Calendar opens a separate print-friendly report for the selected date/scope. Uses landscape pages, repeating table headers, and separates elementary and high-school sessions. No schedule data is modified.
