@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.58</title>
+<title>MSS League Scheduler v11.11.86.59</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.58</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.59</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -336,7 +336,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.58</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.59</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -3710,101 +3710,104 @@ function opponentBalanceViolationsV71(games){
 
 // v86.55: isolated future-date matchup repair. No court, time, game-count,
 // locked game, or protected historical game is modified.
-async function repairFutureOpponentsV58(){
-  const btn=$('repairOpponents55'),out=$('genSummary'),auditEl=$('scheduleAudit');
-  const report=(msg,cls='info')=>{if(out)out.innerHTML=`<div class="status ${cls}">${msg}</div>`};
-  const reset=()=>{const b=$('repairOpponents55');if(b){b.disabled=false;b.textContent='Repair Future Opponents'}};
-  if(btn){btn.disabled=true;btn.textContent='Starting repair…'}
-  report('<b>Repair starting.</b> Preparing targeted November 1 search…');
+async function repairFutureOpponentsV59(){
+ const btn=$('repairOpponents55'),out=$('genSummary'),dates=new Set(selectedGenerationDates());
+ const say=(msg,cls='info')=>{if(out)out.innerHTML=`<div class="status ${cls}">${msg}</div>`};
+ const reset=()=>{if(btn){btn.disabled=false;btn.textContent='Repair Future Opponents'}};
+ if(!dates.size){say('Select at least one future date.','warn');return}
+ if(!confirm('Targeted opponent repair: preserve past dates and all game times/courts. Export Schedule Backup first. Continue?'))return;
+ if(btn){btn.disabled=true;btn.textContent='Preparing targeted repair…'}
+ const original=state.games.map(g=>({...g}));let checked=0,accepted=0;
+ const structural=['No self-matchups','No team double-booking','No court double-booking','Court availability exceptions','Division time windows','Assigned court groups','Team schedule requests','Minimum games per playing date','Maximum games per playing date','Calculated season minimum','Rest / back-to-back rule','Immediate rematches','Odd-pool extra games / games above minimum'];
+ const stats=()=>{const r=runScheduleAudit(true,true),c=Object.fromEntries(r.results.map(x=>[x.label,x.violations.length]));return {c,opp:c['All opponents before repeats']||0,balance:c['Opponent balance']||0}};
+ const safe=(before,after)=>structural.every(k=>(after.c[k]||0)<=(before.c[k]||0));
+ const value=x=>10000*x.opp+x.balance;
+ try{
+  let base=stats();
+  const groups=new Map();
+  for(const g of state.games){
+   if(!dates.has(g.date)||g.status==='Cancelled'||g.lockedManual)continue;
+   const name=String(divisionLabel(g.division)||g.division).toLowerCase();
+   if(!((name.includes('varsity')&&name.includes('girl'))||(name.includes('7th/8th')&&name.includes('boy'))))continue;
+   const key=[g.date,g.division,g.pool].join('|');
+   if(!groups.has(key))groups.set(key,[]);groups.get(key).push(g);
+  }
+  const groupList=[...groups.values()].sort((x,y)=>{
+   const rank=arr=>arr.some(g=>g.date==='2026-11-01'&&String(divisionLabel(g.division)).toLowerCase().includes('girl'))?0:1;
+   return rank(x)-rank(y);
+  });
+  say(`<b>Targeted repair:</b> ${groupList.length} eligible date/division/pool groups. Starting at the November 1 HS Girls matchup.`);
   await yieldToBrowser();
-  const dates=new Set(selectedGenerationDates());
-  if(!dates.size){report('Select future dates first.','warn');reset();return}
-  if(!confirm('Run targeted opponent repair on selected future dates? Back up your schedule first. Protected dates, game times and courts will not change.')){report('Repair cancelled; schedule unchanged.');reset();return}
-  const original=state.games.map(g=>({...g})),previousAudit=auditEl?.innerHTML||'';
-  const structural=['No self-matchups','No team double-booking','No court double-booking','Court availability exceptions','Division time windows','Assigned court groups','Team schedule requests','Minimum games per playing date','Maximum games per playing date','Calculated season minimum','Rest / back-to-back rule','Immediate rematches','Odd-pool extra games / games above minimum'];
-  const stats=()=>{
-    const r=runScheduleAudit(true,true),c=Object.fromEntries(r.results.map(x=>[x.label,x.violations.length]));
-    return {c,opp:c['All opponents before repeats']||0,balance:c['Opponent balance']||0};
-  };
-  const safe=(a,b)=>structural.every(k=>(b.c[k]||0)<=(a.c[k]||0));
-  const score=x=>1000*x.opp+x.balance;
-  let checks=0,accepted=0;
-  try{
-    let baseline=stats();
-    // The two remaining premature-repeat reports refer to one November 1
-    // HS Girls pairing. Evaluate three-game endpoint rotations, not just
-    // the two-game exchanges from v86.56.
-    const groups=new Map();
-    for(const g of state.games){
-      if(!dates.has(g.date)||g.status==='Cancelled'||g.lockedManual)continue;
-      // Match the actual registered division keys rather than hard-coded display names.
-      const divisionName=String(divisionLabel(g.division)||g.division).toLowerCase();
-      if(!((divisionName.includes('varsity')&&divisionName.includes('girl'))||
-           (divisionName.includes('7th/8th')&&divisionName.includes('boy'))))continue;
-      const k=[g.date,g.division,g.pool].join('|');
-      if(!groups.has(k))groups.set(k,[]);
-      groups.get(k).push(g);
+  // Each pass seeks the best legal two-game exchange, then an anchored
+  // three-game exchange if needed. This avoids spending the budget on
+  // unrelated triples before reaching the actual repeat.
+  for(let pass=0;pass<3;pass++){
+   let best=null,bestVal=value(base),bestCounts=null;
+   const consider=async(trio,pairs)=>{
+    const old=trio.map(g=>[g.aId,g.bId]);
+    if(pairs.some(([a,b])=>a===b))return;
+    trio.forEach((g,i)=>{[g.aId,g.bId]=pairs[i]});
+    const now=stats();checked++;
+    if(safe(base,now)&&now.opp<=base.opp&&value(now)<bestVal){
+      best={trio,pairs:pairs.map(pair=>[...pair])};bestVal=value(now);bestCounts=now;
     }
-    const targetSummary=[...groups.entries()].map(([key,gs])=>`${key}: ${gs.length} eligible games`);
-    report(`<b>Repair eligibility:</b> ${targetSummary.length} date/division/pool groups found.<br>${targetSummary.map(esc).join('<br>')||'No eligible games. Check whether games are manually locked or whether selected dates match.'}`);
-    await yieldToBrowser();
-    if(!targetSummary.length){report('<b>No repair candidates found.</b> No games changed. The selected dates, division identifiers, and manual locks must be reviewed.','warn');return}
-    const targetGroups=[...groups.values()].sort((a,b)=>
-      Number(b.some(g=>g.date==='2026-11-01'&&g.division==='High School Varsity Division - Girls'))-
-      Number(a.some(g=>g.date==='2026-11-01'&&g.division==='High School Varsity Division - Girls')));
-    for(let pass=0;pass<3;pass++){
-      let best=null,bestScore=score(baseline);
-      outer:for(const games of targetGroups){
-        // Limit each pass to 1,200 evaluations, keeping the UI responsive.
-        for(let i=0;i<games.length;i++)for(let j=i+1;j<games.length;j++)for(let k=j+1;k<games.length;k++){
-          const trio=[games[i],games[j],games[k]];
-          const ends=trio.map(g=>[g.aId,g.bId]);
-          // Cycle one endpoint from each game, both orientations of endpoints.
-          for(let mask=0;mask<8;mask++){
-            const selected=ends.map((pair,t)=>pair[(mask>>t)&1]);
-            const other=ends.map((pair,t)=>pair[1-((mask>>t)&1)]);
-            for(const shift of [1,2]){
-              const newPairs=other.map((id,t)=>[id,selected[(t+shift)%3]]);
-              if(newPairs.some(([a,b])=>a===b))continue;
-              const old=trio.map(g=>[g.aId,g.bId]);
-              trio.forEach((g,t)=>{[g.aId,g.bId]=newPairs[t]});
-              const candidate=stats();checks++;
-              if(safe(baseline,candidate)&&candidate.opp<=baseline.opp&&score(candidate)<bestScore){
-                best={trio,pairs:newPairs.map(x=>[...x])};bestScore=score(candidate);
-              }
-              trio.forEach((g,t)=>{[g.aId,g.bId]=old[t]});
-              if(checks%10===0){
-                if(btn)btn.textContent=`Checking ${checks} rotations…`;
-                report(`<b>Repair running…</b> ${checks} three-game rotations checked; ${accepted} accepted.`);
-                await yieldToBrowser();
-              }
-              if(checks>=1200)break outer;
-            }
-          }
-        }
+    trio.forEach((g,i)=>{[g.aId,g.bId]=old[i]});
+    if(checked%25===0){if(btn)btn.textContent=`Checking ${checked} exchanges…`;say(`Targeted repair running: ${checked} candidate exchanges checked, ${accepted} accepted.`);await yieldToBrowser()}
+   };
+   for(const games of groupList){
+    if(games.length<2)continue;
+    const ranked=[...games].sort((a,b)=>{
+      const target=g=>g.date==='2026-11-01'&&
+        ['MO Phenom','Trinity Seniors'].every(t=>[teamById(g.aId)?.name||'',teamById(g.bId)?.name||''].some(n=>n.toLowerCase().includes(t.toLowerCase())));
+      return Number(target(b))-Number(target(a));
+    });
+    const anchors=ranked.slice(0,Math.min(5,ranked.length));
+    for(const anchor of anchors){
+     for(const other of ranked){
+      if(anchor===other)continue;
+      // Swap one endpoint between two games: each team retains
+      // its number of appearances and every slot remains fixed.
+      for(let sideA=0;sideA<2;sideA++)for(let sideB=0;sideB<2;sideB++){
+       const aa=[anchor.aId,anchor.bId],bb=[other.aId,other.bId];
+       [aa[sideA],bb[sideB]]=[bb[sideB],aa[sideA]];
+       await consider([anchor,other],[aa,bb]);
       }
-      if(!best)break;
-      best.trio.forEach((g,t)=>{[g.aId,g.bId]=best.pairs[t]});
-      const verified=stats();
-      if(!safe(baseline,verified)||score(verified)>=score(baseline))throw Error('Safety check failed; rolling back.');
-      baseline=verified;accepted++;
-      if(score(baseline)===0||checks>=1200)break;
+      if(checked>=2400)break;
+     }
+     if(checked>=2400)break;
+     // Three-game endpoint cycle with the actual anchor first.
+     for(let j=0;j<ranked.length;j++)for(let k=j+1;k<ranked.length;k++){
+      const g2=ranked[j],g3=ranked[k];if(g2===anchor||g3===anchor)continue;
+      const trio=[anchor,g2,g3],ends=trio.map(g=>[g.aId,g.bId]);
+      for(let mask=0;mask<8;mask++)for(const shift of [1,2]){
+       const sel=ends.map((e,t)=>e[(mask>>t)&1]),otherEnds=ends.map((e,t)=>e[1-((mask>>t)&1)]);
+       await consider(trio,otherEnds.map((id,t)=>[id,sel[(t+shift)%3]]));
+       if(checked>=2400)break;
+      }
+      if(checked>=2400)break;
+     }
+     if(checked>=2400)break;
     }
-    if(accepted){
-      state.games.forEach((g,i)=>{
-        const old=original[i];
-        if(old&&(g.aId!==old.aId||g.bId!==old.bId))g.pending=true;
-      });
-      persist();renderAll();
-    }
-    const final=stats();
-    report(`<b>Three-game opponent repair complete.</b> ${accepted} safe rotation(s) accepted after ${checks} checks. Premature repeats: ${final.opp}; opponent-balance warnings: ${final.balance}. ${accepted?'Export a new schedule backup.':'No safe improvement found; schedule unchanged. Review the eligibility count above.'}`,final.opp?'warn':'ok');
-  }catch(err){
-    console.error('v86.57 opponent repair failed',err);
-    state.games=original.map(g=>({...g}));persist();renderAll();
-    report(`Repair stopped; changes rolled back: ${esc(err.message||String(err))}`,'warn');
-    if(auditEl)auditEl.innerHTML=previousAudit;
-  }finally{reset()}
+    if(checked>=2400)break;
+   }
+   if(!best)break;
+   best.trio.forEach((g,i)=>{[g.aId,g.bId]=best.pairs[i]});
+   const verified=stats();
+   if(!safe(base,verified)||value(verified)>=value(base))throw Error('Post-commit safety validation failed');
+   base=verified;accepted++;
+   if(base.opp===0&&base.balance===0)break;
+  }
+  if(accepted){
+   state.games.forEach((g,i)=>{const old=original[i];if(old&&(g.aId!==old.aId||g.bId!==old.bId))g.pending=true});
+   persist();renderAll();
+  }
+  const final=stats();
+  say(`<b>Targeted opponent repair complete.</b> ${checked} candidate exchanges checked; ${accepted} safe change(s) accepted. Premature repeats: ${final.opp}; opponent-balance warnings: ${final.balance}. ${accepted?'Export a fresh Schedule Backup and run Audit Selected Future Dates.':'No safe improvement found; existing schedule unchanged.'}`,final.opp?'warn':'ok');
+ }catch(err){
+  console.error('v86.59 repair',err);
+  state.games=original.map(g=>({...g}));persist();renderAll();
+  say(`Repair rolled back: ${esc(err.message||String(err))}`,'warn');
+ }finally{reset()}
 }
 
 async function runFutureDatesAudit(){
@@ -5205,7 +5208,7 @@ $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.tar
 $('publishChangesBtn').addEventListener('click',publishScheduleChanges);$('restorePublishedBtn').addEventListener('click',restorePublishedSchedule);$('closeEditGame').addEventListener('click',closeGameEditor);$('saveGameChange').addEventListener('click',()=>saveGameChange());$('cancelGameBtn').addEventListener('click',()=>saveGameChange('Cancelled'));['editDate','editTime','editCourt','editTeamA','editTeamB'].forEach(id=>$(id).addEventListener('change',previewGameWarnings));$('editGameModal').addEventListener('click',e=>{if(e.target===$('editGameModal'))closeGameEditor()});
 $('exportScheduleBtn').addEventListener('click',exportSchedule);$('exportScheduleBackupBtn').addEventListener('click',exportScheduleBackup);$('scheduleRestoreFile').addEventListener('change',e=>restoreScheduleFile(e.target.files?.[0]));safeBind('exportDivisionSeasonBtn','click',exportDivisionSeason);safeBind('exportDivisionWeekBtn','click',exportDivisionWeek);safeBind('printCourtGameBtn','click',printCourtGameSchedule);safeBind('exportCourtGameBtn','click',exportCourtGameSchedule);safeBind('exportCourtTimeBtn','click',exportCourtTimeSchedule);$('printBtn').addEventListener('click',()=>window.print());$('scheduleFilter').addEventListener('change',()=>{$('scheduleFilter').dataset.lastValue=$('scheduleFilter').value;renderSchedule()});safeBind('calendarDate','change',renderCourtCalendar);safeBind('calendarScope','change',renderCourtCalendar);safeBind('calendarOptimizeBtn','click',()=>optimizeCourtUseSafely($('calendarDate')?.value||null));safeBind('calendarPrintBtn','click',()=>window.print());
 $('coachSelect').addEventListener('change',renderCoach);$('coachTeamSelect').addEventListener('change',renderCoach);$('publicDivision').addEventListener('change',renderPublic);$('publicPrintBtn').addEventListener('click',()=>window.print());$('sampleScoresBtn').addEventListener('click',createSampleScores);$('clearScoresBtn').addEventListener('click',clearAllScores);document.addEventListener('click',e=>{const close=e.target.closest&&e.target.closest('#closeTeamModal');if(close){e.preventDefault();e.stopPropagation();closeTeamModal();return}if(e.target===$('teamModal'))closeTeamModal()});document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTeamModal();closeGameEditor()}});
-// v11.11.86.58: one-time startup repair for schedules that were temporarily placed on
+// v11.11.86.59: one-time startup repair for schedules that were temporarily placed on
 // a 12-minute grid before Game Length was returned to another value. Only times that are
 // OFF the CURRENT grid are touched. Existing times already valid for the current interval
 // are preserved. Matchups, courts, dates, game records/numbers, and scores are untouched.
@@ -5234,7 +5237,7 @@ function repairLegacyTwelveMinuteTimesToCurrentGrid(){
   return changed;
 }
 
-// v11.11.86.58: changing Game Length must re-grid existing working games to the
+// v11.11.86.59: changing Game Length must re-grid existing working games to the
 // new slot interval. Matchups, courts, dates, scores, and game records are preserved;
 // only stored start times move to the corresponding slot on the current interval.
 function regridExistingGamesForGameLength(oldLen,newLen){
