@@ -41,20 +41,20 @@ Management/UI safety update. Director Dashboard now reports actual Divisions / P
 - No scheduler, optimizer, pool, court-assignment, or matchup-generation changes.
 
 
-## v11.11.86.54
+## v11.11.86.55
 - Clean package of v86.41 game-length regrid fix.
 - No additional functional changes.
 - Retains Export CSV / By Time from v86.40 and all prior scheduling/management behavior.
 
 
 v86.43: One-time startup repair converts stale off-grid 12-minute game timestamps to the current Game Length grid while preserving matchups, courts, dates, game records/numbers, and scores.
-\n## v11.11.86.54\nManual Add Team now selects an existing Division and preserves other pool assignments. Assign Missing Teams repairs prior unassigned teams individually without changing scheduled games.\n
-## v11.11.86.54
+\n## v11.11.86.55\nManual Add Team now selects an existing Division and preserves other pool assignments. Assign Missing Teams repairs prior unassigned teams individually without changing scheduled games.\n
+## v11.11.86.55
 Edit Courts opens a checkbox editor with Save Courts and Cancel; no schedule regeneration.
-\n## v11.11.86.54\nDate-scoped generation: choose future dates; past dates disabled, all nonselected dates preserved. Automatic post-generation optimizer disabled for safety; run audit and review before separate optimization.\n\n## v11.11.86.54\nProduction Preflight uses only selected future dates for pool slot checks and overall/shared capacity. Displays run timestamp and selected dates. Existing generation unchanged.\n\n## v11.11.86.54\nCorrects false hard stop for odd-sized pools: existing nightly matchup planner rotates one extra game across teams, within configured maximum. Capacity calculation now rounds up per playing date. No game length setting changed.\n\n## v11.11.86.54\nFuture-only audit excludes protected historical dates; future matchup planning seeds opponent counts from preserved earlier games.\n
-## v11.11.86.54
+\n## v11.11.86.55\nDate-scoped generation: choose future dates; past dates disabled, all nonselected dates preserved. Automatic post-generation optimizer disabled for safety; run audit and review before separate optimization.\n\n## v11.11.86.55\nProduction Preflight uses only selected future dates for pool slot checks and overall/shared capacity. Displays run timestamp and selected dates. Existing generation unchanged.\n\n## v11.11.86.55\nCorrects false hard stop for odd-sized pools: existing nightly matchup planner rotates one extra game across teams, within configured maximum. Capacity calculation now rounds up per playing date. No game length setting changed.\n\n## v11.11.86.55\nFuture-only audit excludes protected historical dates; future matchup planning seeds opponent counts from preserved earlier games.\n
+## v11.11.86.55
 Future audit button shows working/completed status, scrolls to results, labels audited dates, catches errors, and includes historical opponent encounters without auditing historical court configuration. No scheduling or optimizer changes.
-\n## v11.11.86.54\nOpponent-history-aware rotation: even pools select the round-robin start that minimizes repeats against protected earlier dates; odd pools penalize repeat pairs whenever either team has unplayed opponents across the pool, not only those with remaining nightly degree. No audit suppression, no optimizer or court changes. Existing schedule unchanged until explicitly regenerated.\n\n## v86.52\nDeterministic opponent matrix search across 160 seeded team orderings for even-sized pools, scoring historical opponent coverage before repeats. Only future generation changes; existing games are not modified on installation.\n
+\n## v11.11.86.55\nOpponent-history-aware rotation: even pools select the round-robin start that minimizes repeats against protected earlier dates; odd pools penalize repeat pairs whenever either team has unplayed opponents across the pool, not only those with remaining nightly degree. No audit suppression, no optimizer or court changes. Existing schedule unchanged until explicitly regenerated.\n\n## v86.52\nDeterministic opponent matrix search across 160 seeded team orderings for even-sized pools, scoring historical opponent coverage before repeats. Only future generation changes; existing games are not modified on installation.\n
 ## v86.53
 Odd-pool planner evaluates 32 deterministic candidate matchup plans against historical opponent coverage and balance. New entrants are included in the complete matrix. Existing schedule is unchanged until future dates are regenerated.
-\n## v86.54\nFor 9-team odd pools, expands deterministic opponent-plan search to 256 candidates and prioritizes opponent coverage and balance. Future-date rest audit excludes protected historical dates. Other pool sizes retain v86.53 planning. Schedule unchanged until selected future dates are regenerated.\n
+\n## v86.54\nFor 9-team odd pools, expands deterministic opponent-plan search to 256 candidates and prioritizes opponent coverage and balance. Future-date rest audit excludes protected historical dates. Other pool sizes retain v86.53 planning. Schedule unchanged until selected future dates are regenerated.\n\n## v86.55\nAdds explicit Repair Future Opponents button. Bounded same-date/same-pool two-game endpoint swaps, accepts only strictly improved future opponent audit with no structural worsening, protects manually locked and historical games, no court/time changes, rollback on failure. Run only after schedule backup.\n
