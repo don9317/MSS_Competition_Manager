@@ -67,3 +67,7 @@ Adds a default-on Hide Unused Courts checkbox to Court Calendar. Filters display
 
 ## v86.64
 Court Calendar: Print Full Court Calendar opens a separate print-friendly report for the selected date/scope. Uses landscape pages, repeating table headers, and separates elementary and high-school sessions. No schedule data is modified.
+
+
+## v86.65
+Added two read-only Schedule Management print reports: Division / Game # / Court and Division / Time / Court. Existing scheduling and saved games are unchanged.
