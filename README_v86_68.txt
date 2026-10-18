@@ -1,0 +1,1 @@
+v86.68: Future Team Changes dropdown now identifies each team by team name, division, and pool. Team IDs and all scheduling, score, and withdrawal logic are unchanged. Back up your league before updating.

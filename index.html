@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.67</title>
+<title>MSS League Scheduler v11.11.86.68</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.67</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.68</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -349,7 +349,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.67</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.68</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -804,7 +804,14 @@ function futureTeamChangeDates(){
 function renderFutureTeamControls(){
   const team=$('futureTeamSelect'),action=$('futureTeamAction'),date=$('futureTeamDate'),division=$('futureTeamDivision'),pool=$('futureTeamPool');if(!team)return;
   const fill=(el,items)=>{const old=el.value;el.innerHTML=items.map(([v,label])=>`<option value="${esc(v)}">${esc(label)}</option>`).join('');if(items.some(([v])=>v===old))el.value=old};
-  fill(team,[['','Select team'],...state.teams.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(t=>[t.id,t.name])]);
+  // Include division and pool so identically named registrations are distinguishable.
+  const teamLabel=t=>{
+    const div=state.divisions.find(d=>d.id===t.divisionId);
+    const divName=div?.name||divisionLabel(t.divisionId)||'Unassigned division';
+    const pools=Object.entries(state.pools?.[t.divisionId]?.lists||{}).filter(([,ids])=>Array.isArray(ids)&&ids.includes(t.id)).map(([k])=>poolDisplayName(t.divisionId,k));
+    return `${t.name} — ${divName}${pools.length?' — '+pools.join(', '):''}`;
+  };
+  fill(team,[['','Select team'],...state.teams.slice().sort((a,b)=>teamLabel(a).localeCompare(teamLabel(b))).map(t=>[t.id,teamLabel(t)])]);
   fill(date,[['','Select future date'],...futureTeamChangeDates().map(d=>[d,d])]);
   fill(division,[['','Select destination division'],...state.divisions.map(d=>[d.id,d.name])]);
   const pools=Object.keys(state.pools?.[division.value]?.lists||{});
