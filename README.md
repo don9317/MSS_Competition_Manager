@@ -71,3 +71,9 @@ Court Calendar: Print Full Court Calendar opens a separate print-friendly report
 
 ## v86.65
 Added two read-only Schedule Management print reports: Division / Game # / Court and Division / Time / Court. Existing scheduling and saved games are unchanged.
+
+
+## v86.66 — Results Score Entry Filters and Scoresheet
+- Score Entry date, division and court filters (read-only display filters; no schedule changes).
+- Print a blank My Sport Space two-team scoresheet, or a prefilled game-specific blank scoresheet via each row.
+- Original scoring/correction rules and scheduling logic unchanged.

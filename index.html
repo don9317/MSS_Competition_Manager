@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.65</title>
+<title>MSS League Scheduler v11.11.86.66</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.65</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.66</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -336,7 +336,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.65</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.66</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -422,7 +422,13 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   </div>
 </section>
 
-<section id="admin-results" class="panel"><div class="card"><div class="toolbar"><button class="secondary" id="sampleScoresBtn">Create Sample Scores</button><button class="danger" id="clearScoresBtn">Clear All Scores</button></div><h2>Score Entry</h2><p class="hint">Enter final scores. Pool standings update automatically.</p><div class="table-wrap"><table id="resultsTable"></table></div></div></section>
+<section id="admin-results" class="panel"><div class="card"><div class="toolbar"><button class="secondary" id="sampleScoresBtn">Create Sample Scores</button><button class="danger" id="clearScoresBtn">Clear All Scores</button></div><h2>Score Entry</h2><p class="hint">Enter final scores. Pool standings update automatically. Filter by date, division and court; print a blank scoresheet for any game.</p>
+<div class="toolbar" style="flex-wrap:wrap;gap:10px;margin:12px 0">
+<label>Playing Date <select id="resultsDate" aria-label="Filter score entry by playing date"><option value="ALL">All Dates</option></select></label>
+<label>Division <select id="resultsDivision" aria-label="Filter score entry by division"><option value="ALL">All Divisions</option></select></label>
+<label>Court <select id="resultsCourt" aria-label="Filter score entry by court"><option value="ALL">All Courts</option></select></label>
+<button class="secondary" id="printBlankScoresheetBtn" type="button">Print Blank MSS Scoresheet</button>
+</div><p class="hint" id="resultsFilterCount"></p><div class="table-wrap"><table id="resultsTable"></table></div></div></section>
 <section id="admin-standings" class="panel"><div id="standingsAdmin"></div></section>
 
 <section id="coach-view" class="panel">
@@ -4909,7 +4915,39 @@ function renderManagement(){
   $('changeHistory').innerHTML=state.scheduleChanges.length?state.scheduleChanges.map(c=>{const g=state.games.find(x=>x.id===c.gameId),a=c.after||{},teamA=teamById(a.aId||g?.aId).name,teamB=teamById(a.bId||g?.bId).name;return `<div class="item"><div class="row" style="justify-content:space-between;align-items:start"><div><b>${new Date(c.changedAt).toLocaleString()} • ${esc((c.kind||'schedule').replace(/^./,m=>m.toUpperCase()))}</b><br>${esc(teamA)} vs ${esc(teamB)}<br><span class="hint">${esc(changeSummary(c))}<br>Reason: ${esc(c.reason||'No reason entered')}${c.warnings?.length?'<br>Override: '+c.warnings.map(esc).join('; '):''}</span></div><button class="secondary" data-restore-change="${c.id}">${canDirectUndo(c)?'Undo':'Restore This Version'}</button></div></div>`}).join(''):'<p class="hint">No schedule changes have been recorded.</p>';
   document.querySelectorAll('[data-restore-change]').forEach(b=>b.addEventListener('click',()=>restoreHistoryEntry(b.dataset.restoreChange)));
 }
-function renderResults(){const g=[...state.games].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));$('resultsTable').innerHTML='<thead><tr><th>Playing Date #</th><th>Date</th><th>Pool</th><th>Game</th><th>Score</th></tr></thead><tbody>'+g.map(x=>`<tr><td>${x.week||''}</td><td>${x.date} ${fmtTime(x.time)}</td><td>${esc(divisionLabel(x.division))} — ${x.pool}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td><input class="score" data-score-id="${x.id}" data-side="a" type="number" value="${x.sa??''}"> - <input class="score" data-score-id="${x.id}" data-side="b" type="number" value="${x.sb??''}"></td></tr>`).join('')+'</tbody>';document.querySelectorAll('[data-score-id]').forEach(i=>i.addEventListener('change',()=>setScore(i.dataset.scoreId,i.dataset.side,i.value)))}
+// v86.66: Results filters are display-only; scoring and schedule state remain unchanged.
+const resultsFilterState={date:'ALL',division:'ALL',court:'ALL'};
+function renderResults(){
+ const selectors=[['resultsDate','date','All Dates', [...new Set([...(state.settings?.dates||[]).map(x=>typeof x==='string'?x:x?.date).filter(Boolean),...state.games.map(g=>g.date).filter(Boolean)])].sort(),d=>d],['resultsDivision','division','All Divisions',[...new Set(state.games.map(g=>g.division).filter(Boolean))].sort((a,b)=>divisionLabel(a).localeCompare(divisionLabel(b),undefined,{numeric:true})),divisionLabel],['resultsCourt','court','All Courts',[...new Set(state.games.map(g=>g.court).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})),x=>x]];
+ selectors.forEach(([id,key,all,values,label])=>{
+   const el=$(id);if(!el)return;
+   el.innerHTML='<option value="ALL">'+esc(all)+'</option>'+values.map(v=>'<option value="'+esc(String(v))+'">'+esc(label(v))+'</option>').join('');
+   if(resultsFilterState[key]!=='ALL'&&!values.includes(resultsFilterState[key]))resultsFilterState[key]='ALL';
+   el.value=resultsFilterState[key];el.onchange=()=>{resultsFilterState[key]=el.value;renderResults()};
+ });
+ const g=state.games.filter(x=>(resultsFilterState.date==='ALL'||x.date===resultsFilterState.date)&&(resultsFilterState.division==='ALL'||x.division===resultsFilterState.division)&&(resultsFilterState.court==='ALL'||x.court===resultsFilterState.court)).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));
+ $('resultsFilterCount').textContent=g.length+' game(s) shown out of '+state.games.length+'.';
+ $('resultsTable').innerHTML='<thead><tr><th>Playing Date #</th><th>Date / Time</th><th>Court</th><th>Division / Pool</th><th>Game</th><th>Score</th><th>Scoresheet</th></tr></thead><tbody>'+g.map(x=>`<tr><td>${esc(String(x.week||''))}</td><td>${esc(x.date)} ${esc(fmtTime(x.time))}</td><td>${esc(x.court||'—')}</td><td>${esc(divisionLabel(x.division))} — ${esc(poolDisplayName(x.division,x.pool))}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td><input class="score" data-score-id="${esc(x.id)}" data-side="a" type="number" value="${x.sa??''}"> - <input class="score" data-score-id="${esc(x.id)}" data-side="b" type="number" value="${x.sb??''}"></td><td><button class="secondary" type="button" data-print-score="${esc(x.id)}">Print</button></td></tr>`).join('')+'</tbody>';
+ if(!g.length)$('resultsTable').querySelector('tbody').innerHTML='<tr><td colspan="7">No games match the selected filters.</td></tr>';
+ document.querySelectorAll('[data-score-id]').forEach(i=>i.addEventListener('change',()=>setScore(i.dataset.scoreId,i.dataset.side,i.value)));
+ document.querySelectorAll('[data-print-score]').forEach(b=>b.addEventListener('click',()=>printMssScoresheet(b.dataset.printScore)));
+ $('printBlankScoresheetBtn').onclick=()=>printMssScoresheet(null);
+}
+function printMssScoresheet(gameId){
+ const game=gameId?state.games.find(g=>g.id===gameId):null;
+ if(gameId&&!game)return alert('Game not found.');
+ const tA=game?teamById(game.aId).name:'________________________';
+ const tB=game?teamById(game.bId).name:'________________________';
+ const div=game?divisionLabel(game.division):'________________________';
+ const pool=game?poolDisplayName(game.division,game.pool):'________________';
+ const date=game?.date||'________________';const time=game?fmtTime(game.time):'____________';const court=game?.court||'____________';
+ const w=window.open('','_blank');if(!w)return alert('Please allow pop-ups to print a scoresheet.');
+ const lineRows=Array.from({length:12},(_,i)=>`<tr><td>${i+1}</td><td></td><td></td><td></td><td></td></tr>`).join('');
+ const base=window.location.href.replace(/[^/]*([?#].*)?$/,'');
+ w.document.write(`<!doctype html><html><head><meta charset="utf-8"><base href="${esc(base)}"><title>My Sport Space — Game Scoresheet</title><style>@page{size:letter portrait;margin:.45in}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#14254a;margin:0}header{display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #14254a;padding-bottom:10px;margin-bottom:12px}header img{max-width:220px;max-height:82px;object-fit:contain}h1{font-size:21px;margin:0;text-align:right}.sub{font-size:11px;color:#444;text-align:right;margin-top:5px}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:13px;font-size:12px}.meta div{border-bottom:1px solid #a6afbd;padding:7px 4px}.teams{display:grid;grid-template-columns:1fr 1fr;gap:12px}.team{border:2px solid #14254a;border-radius:5px;padding:10px}.team h2{font-size:15px;min-height:38px;margin:0 0 8px}.scorebox{border:2px solid #14254a;height:78px;text-align:center;padding:5px}.scorebox b{font-size:12px}.scorebox .blank{height:43px}.tracker{width:100%;border-collapse:collapse;margin-top:11px;color:#333;font-size:11px}.tracker th,.tracker td{border:1px solid #a6afbd;height:22px;text-align:center}.tracker th{background:#eef2f7;height:24px}.notes{border:1px solid #a6afbd;min-height:78px;margin-top:14px;padding:8px;font-size:12px}.sign{display:flex;gap:22px;margin-top:22px;font-size:12px}.sign span{flex:1;border-top:1px solid #333;padding-top:6px}button{margin:10px 0}@media print{button{display:none}}</style></head><body><header><img src="logo.png" alt="MY SPORT SPACE"><div><h1>OFFICIAL GAME SCORESHEET</h1><div class="sub">${esc(state.settings.leagueName||'Basketball League')} • Blank score entry form</div></div></header><div class="meta"><div><b>Date:</b> ${esc(date)}</div><div><b>Time:</b> ${esc(time)}</div><div><b>Division:</b> ${esc(div)}</div><div><b>Pool:</b> ${esc(pool)}</div><div><b>Court:</b> ${esc(court)}</div><div><b>Game #:</b> __________</div></div><div class="teams"><section class="team"><h2>TEAM A<br>${esc(tA)}</h2><div class="scorebox"><b>FINAL SCORE</b><div class="blank"></div></div><table class="tracker"><thead><tr><th>#</th><th>Player</th><th>Points</th><th>Fouls</th><th>Notes</th></tr></thead><tbody>${lineRows}</tbody></table></section><section class="team"><h2>TEAM B<br>${esc(tB)}</h2><div class="scorebox"><b>FINAL SCORE</b><div class="blank"></div></div><table class="tracker"><thead><tr><th>#</th><th>Player</th><th>Points</th><th>Fouls</th><th>Notes</th></tr></thead><tbody>${lineRows}</tbody></table></section></div><div class="notes"><b>Game Notes / Overtime / Incidents:</b></div><div class="sign"><span>Scorekeeper signature</span><span>Official / Court supervisor</span></div><button onclick="window.print()">Print Scoresheet</button><script>window.onload=()=>{setTimeout(()=>window.print(),350)}<\/script></body></html>`);
+ w.document.close();
+}
+
 function setScore(id,side,v){const g=state.games.find(x=>x.id===id);if(!g)return;const before=gameSnapshot(g),newValue=v===''?null:+v,oldValue=g['s'+side]??null;if(oldValue===newValue)return;const isCorrection=oldValue!=null||(g.sa!=null&&g.sb!=null);let reason='Initial score entry';if(isCorrection){reason=prompt('Enter the required reason for correcting this score:','')?.trim();if(!reason){renderAll();return}}g['s'+side]=newValue;if(g.sa!=null&&g.sb!=null)g.status='Completed';g.pending=true;state.scheduleChanges.unshift({id:uid('chg'),kind:'score',gameId:g.id,changedAt:new Date().toISOString(),before,after:gameSnapshot(g),reason,warnings:[]});if(g.sa!=null&&g.sb!=null)logActivity(`Score recorded: ${teamById(g.aId).name} ${g.sa}-${g.sb} ${teamById(g.bId).name}.`);persist();renderAll()}
 
 function createSampleScores(){
