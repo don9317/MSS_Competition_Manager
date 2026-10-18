@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.66</title>
+<title>MSS League Scheduler v11.11.86.67</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.66</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.67</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -155,6 +155,19 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     <p class="hint">The replacement inherits the dropped team's division, pool, and exact schedule slot. Games are not regenerated.</p>
     <div class="row"><div class="field"><label>Dropped Team</label><select id="replaceTeamOld"></select></div><div class="field"><label>Replacement Team Name</label><input id="replaceTeamName" placeholder="New team name"></div><div class="field"><label>Coach (optional)</label><input id="replaceTeamCoach" placeholder="Coach name"></div><button class="primary" id="replaceTeamBtn">Replace Team / Keep Schedule</button></div>
     <div id="replaceTeamStatus"></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h2>Future Team Changes — Change Division / Withdraw</h2>
+    <p class="hint">Preview before confirming. Completed games and scores remain unchanged. Affected future matchups are flagged for director repair, never automatically regenerated.</p>
+    <div class="row">
+      <div class="field"><label>Team</label><select id="futureTeamSelect"></select></div>
+      <div class="field"><label>Action</label><select id="futureTeamAction"><option value="move">Change Division</option><option value="withdraw">Withdraw Team</option></select></div>
+      <div class="field"><label>Effective Playing Date</label><select id="futureTeamDate"></select></div>
+      <div class="field" id="futureDivisionField"><label>New Division</label><select id="futureTeamDivision"></select></div>
+      <div class="field" id="futurePoolField"><label>New Pool</label><select id="futureTeamPool"></select></div>
+    </div>
+    <div class="toolbar"><button class="secondary" id="previewFutureTeamBtn">Preview Changes</button><button class="primary" id="commitFutureTeamBtn" disabled>Confirm Team Change</button></div>
+    <div id="futureTeamPreview" aria-live="polite"></div><div id="futureTeamAlerts"></div>
   </div>
   <div class="card" style="margin-top:14px">
     <h2>Registration List</h2>
@@ -336,7 +349,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.66</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.67</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -781,6 +794,64 @@ function renderTeams(){
   $('teamsList').innerHTML=list.map(t=>`<div class="item"><b>${esc(t.name)}</b> <span class="pill">${esc(divisionLabel(divisionKey(t)))}</span><br><span class="hint">Coach: ${esc(t.coach||'Not entered')}${t.request?' • '+requestLabel(t.request):''}</span> <button class="danger" data-remove-team="${t.id}">Remove</button></div>`).join('')||'<p class="hint">No teams imported.</p>';
   document.querySelectorAll('[data-remove-team]').forEach(b=>b.addEventListener('click',()=>removeTeam(b.dataset.removeTeam)));
 }
+
+// v86.67: date-effective team changes; no schedule generator invoked.
+let futureTeamPreviewSignature='';
+function futureTeamChangeDates(){
+  const configured=(state.settings?.playingDates||state.settings?.dates||[]).map(d=>typeof d==='string'?d:d?.date);
+  return [...new Set([...configured,...state.games.map(g=>g.date)].filter(Boolean))].sort().filter(d=>d>=todayISO());
+}
+function renderFutureTeamControls(){
+  const team=$('futureTeamSelect'),action=$('futureTeamAction'),date=$('futureTeamDate'),division=$('futureTeamDivision'),pool=$('futureTeamPool');if(!team)return;
+  const fill=(el,items)=>{const old=el.value;el.innerHTML=items.map(([v,label])=>`<option value="${esc(v)}">${esc(label)}</option>`).join('');if(items.some(([v])=>v===old))el.value=old};
+  fill(team,[['','Select team'],...state.teams.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(t=>[t.id,t.name])]);
+  fill(date,[['','Select future date'],...futureTeamChangeDates().map(d=>[d,d])]);
+  fill(division,[['','Select destination division'],...state.divisions.map(d=>[d.id,d.name])]);
+  const pools=Object.keys(state.pools?.[division.value]?.lists||{});
+  fill(pool,[['','Select destination pool'],...pools.map(k=>[k,poolDisplayName(division.value,k)])]);
+  const move=action.value==='move';$('futureDivisionField').style.display=move?'':'none';$('futurePoolField').style.display=move?'':'none';
+  $('futureTeamAlerts').innerHTML=state.teams.filter(t=>t.futureChangePending).map(t=>{
+    const n=state.games.filter(g=>g.date>=t.futureChangePending.effectiveDate&&(g.aId===t.id||g.bId===t.id)).length;
+    return `<div class="status warn"><b>${esc(t.name)}</b>: ${esc(t.futureChangePending.action)} effective ${esc(t.futureChangePending.effectiveDate)}. ${n} future matchup(s) need director review. Historical games retained.</div>`;
+  }).join('');
+}
+function futureTeamDraft(){
+  const t=state.teams.find(t=>t.id===$('futureTeamSelect').value),action=$('futureTeamAction').value,effectiveDate=$('futureTeamDate').value;
+  const division=$('futureTeamDivision').value,pool=$('futureTeamPool').value;
+  if(!t||!effectiveDate||effectiveDate<todayISO()||t.futureChangePending)return null;
+  if(action==='move'&&(!division||!pool||division===t.divisionId||!state.pools?.[division]?.lists?.[pool]))return null;
+  return {teamId:t.id,action,effectiveDate,division:action==='move'?division:'',pool:action==='move'?pool:''};
+}
+function previewFutureTeamChange(){
+  const draft=futureTeamDraft();futureTeamPreviewSignature='';$('commitFutureTeamBtn').disabled=true;
+  if(!draft){$('futureTeamPreview').innerHTML='<div class="status warn">Select a team without a pending change, a future date, and (for a move) a different division and destination pool.</div>';return}
+  const t=teamById(draft.teamId),affected=state.games.filter(g=>g.date>=draft.effectiveDate&&(g.aId===t.id||g.bId===t.id));
+  const past=state.games.filter(g=>g.date<draft.effectiveDate&&(g.aId===t.id||g.bId===t.id));
+  futureTeamPreviewSignature=JSON.stringify(draft);
+  $('futureTeamPreview').innerHTML=`<div class="status warn"><b>PREVIEW ONLY — nothing changed.</b><br>${esc(t.name)}: ${draft.action==='move'?'Move to '+esc(divisionLabel(draft.division))+' / '+esc(poolDisplayName(draft.division,draft.pool))+' (0–0 new-division record)':'Withdraw from future competition'} effective ${esc(draft.effectiveDate)}.<br><b>${past.length} earlier game(s) preserved; ${affected.length} future matchup(s) require manual repair.</b> Existing future games will NOT be deleted or regenerated.</div>`+
+  (affected.length?'<div style="max-height:250px;overflow:auto"><table><thead><tr><th>Date</th><th>Time</th><th>Court</th><th>Division</th><th>Matchup</th></tr></thead><tbody>'+affected.map(g=>`<tr><td>${esc(g.date)}</td><td>${esc(fmtTime(g.time))}</td><td>${esc(g.court||'')}</td><td>${esc(divisionLabel(g.division))}</td><td>${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</td></tr>`).join('')+'</tbody></table></div>':'');
+  $('commitFutureTeamBtn').disabled=false;
+}
+function commitFutureTeamChange(){
+  const draft=futureTeamDraft();if(!draft||JSON.stringify(draft)!==futureTeamPreviewSignature)return alert('Preview the current selection first.');
+  const t=teamById(draft.teamId),affected=state.games.filter(g=>g.date>=draft.effectiveDate&&(g.aId===t.id||g.bId===t.id));
+  if(!confirm(`Confirm ${draft.action} for ${t.name} effective ${draft.effectiveDate}?\n\n${affected.length} future games will be FLAGGED for manual repair. No games will be deleted or regenerated.`))return;
+  const originalDivision=t.divisionId,originalPool=Object.entries(state.pools?.[originalDivision]?.lists||{}).find(([k,ids])=>ids.includes(t.id))?.[0]||t.pool||'';
+  if(draft.action==='move'){
+    t.divisionHistory=t.divisionHistory||[];
+    t.divisionHistory.push({divisionId:originalDivision,pool:originalPool,toDivisionId:draft.division,toPool:draft.pool,effectiveDate:draft.effectiveDate});
+    t.divisionId=draft.division;t.pool=draft.pool;
+    Object.values(state.pools).forEach(p=>Object.keys(p.lists||{}).forEach(k=>p.lists[k]=p.lists[k].filter(id=>id!==t.id)));
+    state.pools[draft.division].lists[draft.pool].push(t.id);
+  }else{t.withdrawnEffectiveDate=draft.effectiveDate;}
+  t.futureChangePending={action:draft.action,effectiveDate:draft.effectiveDate,division:draft.division,pool:draft.pool};
+  affected.forEach(g=>{g.teamChangeReview=true;g.teamChangeReviewNote=`${t.name}: ${draft.action} effective ${draft.effectiveDate}; director must repair this matchup.`});
+  logActivity(`${t.name}: ${draft.action} effective ${draft.effectiveDate}; ${affected.length} future games flagged for review.`);
+  futureTeamPreviewSignature='';$('commitFutureTeamBtn').disabled=true;
+  $('futureTeamPreview').innerHTML='<div class="status warn"><b>Team change recorded.</b> Existing games are unchanged. You MUST repair affected future games before using or distributing those schedules.</div>';
+  persist();renderAll();
+}
+
 function parseCSV(text){const rows=[];let row=[],v='',q=false;for(let i=0;i<text.length;i++){const ch=text[i],n=text[i+1];if(ch==='"'&&q&&n==='"'){v+='"';i++}else if(ch==='"')q=!q;else if(ch===','&&!q){row.push(v);v=''}else if((ch==='\n'||ch==='\r')&&!q){if(ch==='\r'&&n==='\n')i++;row.push(v);if(row.some(x=>x.trim()))rows.push(row);row=[];v=''}else v+=ch}if(v||row.length){row.push(v);rows.push(row)}return rows}
 
 function clearCompetitionData(){
@@ -4970,7 +5041,7 @@ function teamGameHistory(teamId){
 function openTeamModal(teamId){
   const t=teamById(teamId),games=teamGameHistory(teamId),completed=games.filter(g=>g.sa!=null&&g.sb!=null);
   let w=0,l=0,pf=0,pa=0;
-  completed.forEach(g=>{
+  completed.filter(g=>!(t.divisionHistory||[]).some(h=>g.date<h.effectiveDate)).forEach(g=>{
     const isA=g.aId===teamId,forPts=isA?g.sa:g.sb,against=isA?g.sb:g.sa;
     pf+=forPts;pa+=against;if(forPts>against)w++;else if(forPts<against)l++
   });
@@ -4994,7 +5065,7 @@ function openTeamModal(teamId){
   $('teamModal').classList.remove('hidden');$('teamModal').style.display='block'
 }
 function closeTeamModal(){const m=$('teamModal');m.classList.add('hidden');m.style.display='none'}
-function standingsData(games=state.games){const by={};Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{const k=poolKey(d,pool);by[k]=Object.fromEntries(ids.map(id=>[id,{id,name:teamById(id).name,gp:0,w:0,l:0,pf:0,pa:0,pd:0}]))}));games.forEach(g=>{if(g.sa==null||g.sb==null)return;const s=by[poolKey(g.division,g.pool)],a=s?.[g.aId],b=s?.[g.bId];if(!a||!b)return;a.gp++;b.gp++;a.pf+=g.sa;a.pa+=g.sb;b.pf+=g.sb;b.pa+=g.sa;if(g.sa>g.sb){a.w++;b.l++}else if(g.sb>g.sa){b.w++;a.l++}});Object.values(by).forEach(s=>Object.values(s).forEach(x=>x.pd=x.pf-x.pa));return by}
+function standingsData(games=state.games){const by={};Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{const k=poolKey(d,pool);by[k]=Object.fromEntries(ids.map(id=>[id,{id,name:teamById(id).name,gp:0,w:0,l:0,pf:0,pa:0,pd:0}]))}));state.teams.forEach(t=>(t.divisionHistory||[]).forEach(h=>{const k=poolKey(h.divisionId,h.pool);if(by[k]&&!by[k][t.id])by[k][t.id]={id:t.id,name:t.name+" (historical)",gp:0,w:0,l:0,pf:0,pa:0,pd:0}}));games.forEach(g=>{if(g.sa==null||g.sb==null)return;const s=by[poolKey(g.division,g.pool)],a=s?.[g.aId],b=s?.[g.bId];if(!a||!b)return;for(const id of [g.aId,g.bId]){const t=teamById(id);for(const h of t.divisionHistory||[]){if(g.division===h.divisionId&&g.date>=h.effectiveDate)return;if(g.division===h.toDivisionId&&g.date<h.effectiveDate)return;}}a.gp++;b.gp++;a.pf+=g.sa;a.pa+=g.sb;b.pf+=g.sb;b.pa+=g.sa;if(g.sa>g.sb){a.w++;b.l++}else if(g.sb>g.sa){b.w++;a.l++}});Object.values(by).forEach(s=>Object.values(s).forEach(x=>x.pd=x.pf-x.pa));return by}
 function standingsHTML(filter='ALL',games=state.games){const by=standingsData(games);return Object.entries(by).filter(([k])=>filter==='ALL'||k===filter).map(([k,s])=>{const[d,p]=k.split('::'),rows=Object.values(s).sort((a,b)=>b.w-a.w||b.pd-a.pd||a.pa-b.pa||a.name.localeCompare(b.name));return `<div class="card" style="margin-bottom:14px"><h3>${esc(divisionLabel(d))} — ${esc(poolDisplayName(d,p))}</h3><div class="table-wrap"><table><thead><tr><th>Rank</th><th>Team</th><th>GP</th><th>W</th><th>L</th><th>PF</th><th>PA</th><th>PD</th></tr></thead><tbody>${rows.map((x,i)=>`<tr><td>${i+1}</td><td><button class="team-link" data-team-detail="${x.id}">${esc(x.name)}</button></td><td>${x.gp}</td><td>${x.w}</td><td>${x.l}</td><td>${x.pf}</td><td>${x.pa}</td><td>${x.pd}</td></tr>`).join('')}</tbody></table></div></div>`}).join('')||'<p class="hint">No pools available.</p>'}
 function bindTeamLinks(){document.querySelectorAll('[data-team-detail]').forEach(b=>b.addEventListener('click',()=>openTeamModal(b.dataset.teamDetail)))}
 function renderStandings(){$('standingsAdmin').innerHTML=standingsHTML();bindTeamLinks()}
@@ -5319,7 +5390,7 @@ function reportRuntimeIssue(label,err){
 }
 function renderAll(){
   const steps=[
-    ['Division Setup',renderDivisionSetup],['Director Dashboard',renderDashboard],['Registrations',()=>{renderManualDivisionOptions();renderTeams();renderReplaceTeamOptions()}],['Duplicate Check',renderDuplicateNameStatus],
+    ['Division Setup',renderDivisionSetup],['Director Dashboard',renderDashboard],['Registrations',()=>{renderManualDivisionOptions();renderTeams();renderReplaceTeamOptions();renderFutureTeamControls()}],['Duplicate Check',renderDuplicateNameStatus],
     ['Resources',()=>{renderSettings();renderCourtExceptions()}],['Division & Pool Board',renderBoard],['Schedule',renderSchedule],['Court Calendar',renderCourtCalendar],['Schedule Management',renderManagement],
     ['Results',renderResults],['Standings',renderStandings],['Coach Selectors',renderCoachSelectors],['Coach Tools',renderCoach],['League Portal',renderPublic]
   ];
@@ -5344,7 +5415,7 @@ load().catch(err=>{
 function safeBind(id,event,handler){try{const el=$(id);if(!el)return false;el.addEventListener(event,handler);return true}catch(err){console.error('Binding failed',id,err);showActionFeedback(`Control ${id} could not be initialized: ${err.message}`,false);return false}}
 try{
 $('startNewLeagueBtn')&&$('startNewLeagueBtn').addEventListener('click',startNewLeague);$('resetStorageBtn')&&$('resetStorageBtn').addEventListener('click',resetSavedLeagueStorage);$('addTeamBtn').addEventListener('click',addTeam);$('loadDemoBtn').addEventListener('click',loadCompleteDemo);$('importCsvBtn').addEventListener('click',importCSV);$('csvFile').addEventListener('change',e=>previewCSVFile(e.target.files[0]));$('clearRegistrationsBtn').addEventListener('click',clearRegistrations);$('loadSampleBtn').addEventListener('click',()=>{const r=importCSVText(sampleCSV,'replace');$('importStatus').innerHTML=`<div class="status ok">${r.added} sample teams loaded into ${r.divisionCount} divisions, replacing prior registrations.</div>`;renderDuplicateNameStatus()});
-$('teamSearch').addEventListener('input',renderTeams);safeBind('replaceTeamBtn','click',replaceTeamKeepSchedule);$('boardPrevBtn')&&$('boardPrevBtn').addEventListener('click',()=>$('bigBoard').scrollBy({left:-460,behavior:'smooth'}));$('boardNextBtn')&&$('boardNextBtn').addEventListener('click',()=>$('bigBoard').scrollBy({left:460,behavior:'smooth'}));$('rebalanceBtn').addEventListener('click',rebalancePools);$('approveBtn').addEventListener('click',approveBoard);$('unlockBtn').addEventListener('click',unlockBoard);
+$('teamSearch').addEventListener('input',renderTeams);safeBind('replaceTeamBtn','click',replaceTeamKeepSchedule);safeBind('previewFutureTeamBtn','click',previewFutureTeamChange);safeBind('commitFutureTeamBtn','click',commitFutureTeamChange);['futureTeamSelect','futureTeamAction','futureTeamDate','futureTeamDivision','futureTeamPool'].forEach(id=>safeBind(id,'change',()=>{futureTeamPreviewSignature='';$('commitFutureTeamBtn').disabled=true;$('futureTeamPreview').innerHTML='';renderFutureTeamControls()}));$('boardPrevBtn')&&$('boardPrevBtn').addEventListener('click',()=>$('bigBoard').scrollBy({left:-460,behavior:'smooth'}));$('boardNextBtn')&&$('boardNextBtn').addEventListener('click',()=>$('bigBoard').scrollBy({left:460,behavior:'smooth'}));$('rebalanceBtn').addEventListener('click',rebalancePools);$('approveBtn').addEventListener('click',approveBoard);$('unlockBtn').addEventListener('click',unlockBoard);
 safeBind('addExceptionBtn','click',addException);safeBind('addCourtBtn','click',addCourt);safeBind('addCourtExceptionBtn','click',addCourtException);safeBind('addCourtGroupBtn','click',addCourtGroup);safeBind('saveBtn','click',async()=>{await save()});safeBind('exportSetupBtn','click',exportSetup);
 $('setupFile').addEventListener('change',e=>e.target.files[0]&&importSetup(e.target.files[0]));$('resetBtn').addEventListener('click',resetAll);$('generateBtn').addEventListener('click',()=>generateSchedule());safeBind('optimizeBtn','click',optimizeSchedule);safeBind('generateReadyBtn','click',scheduleAllReadyDivisions);/* Audit buttons use inline safeRunScheduleAudit handlers so they remain functional even if another optional control binding fails. */
 ['managementDivision','managementWeek','managementStatus','managementCourt'].forEach(id=>$(id).addEventListener('change',renderManagement));

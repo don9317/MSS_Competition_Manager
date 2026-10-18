@@ -1,0 +1,1 @@
+v86.67: Registrations > Future Team Changes. Preview and confirm division move or withdrawal effective on a future playing date. Earlier games remain intact. Affected future games are flagged but NOT automatically repaired. Do not print/publish affected future dates until director repairs matchups. Back up league first.
