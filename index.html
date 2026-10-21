@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.71</title>
+<title>MSS League Scheduler v11.11.86.72</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.71</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.72</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -363,7 +363,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.71</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.72</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -443,6 +443,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <div class="field"><label>Status</label><select id="managementStatus"><option value="ALL">All statuses</option><option>Scheduled</option><option>Rescheduled</option><option>Postponed</option><option>Cancelled</option><option>Completed</option><option value="NEEDS_SCORE">Needs score</option><option value="UNPUBLISHED">Unpublished changes</option></select></div>
       <div class="field"><label>Court</label><select id="managementCourt"><option value="ALL">All courts</option></select></div>
     </div>
+    <div class="toolbar" style="margin:12px 0"><button class="primary" id="openManualAddGame" type="button">+ Add Game</button><span class="hint">Add a future game without regenerating the league. Preview validation before saving.</span></div>
     <div id="publishStatus"></div>
     <div class="table-wrap"><table id="managementTable"></table></div>
   </div>
@@ -483,6 +484,23 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   </div>
 </div>
 
+<div id="manualGameModal" class="hidden" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1200;padding:24px;overflow:auto">
+  <div class="card" style="max-width:800px;margin:24px auto">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">Add Future Game</h2><button class="secondary" id="manualGameClose" type="button">Close</button></div>
+    <p class="hint">Only new future games are added. Existing games, scores and historical dates are not changed. Hard conflicts block saving; opponent and game-count warnings require review.</p>
+    <div class="grid" style="margin-top:12px">
+      <div class="field"><label>Playing Date</label><select id="manualGameDate"></select></div>
+      <div class="field"><label>Division / Pool</label><select id="manualGamePool"></select></div>
+      <div class="field"><label>Team A</label><select id="manualGameA"></select></div>
+      <div class="field"><label>Team B</label><select id="manualGameB"></select></div>
+      <div class="field"><label>Start Time</label><input type="time" id="manualGameTime" value="17:45"></div>
+      <div class="field"><label>Court</label><select id="manualGameCourt"></select></div>
+    </div>
+    <label>Reason / Notes</label><textarea id="manualGameReason" rows="2" placeholder="Additional game requested by director"></textarea>
+    <div id="manualGameValidation" aria-live="polite"></div>
+    <div class="toolbar"><button class="secondary" id="manualGamePreview" type="button">Preview Game</button><button class="primary" id="manualGameSave" type="button" disabled>Add Approved Game</button></div>
+  </div>
+</div>
 <div id="editGameModal" class="hidden" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1100;padding:24px;overflow:auto">
   <div class="card" style="max-width:760px;margin:30px auto">
     <div class="row" style="justify-content:space-between"><h2 id="editGameTitle" style="margin:0">Edit Scheduled Game</h2><button class="secondary" id="closeEditGame">Close</button></div>
@@ -5087,6 +5105,100 @@ function renderCourtCalendar(){
 function renderSchedule(){renderGenerationDates();groupOptions($('scheduleFilter'));const f=$('scheduleFilter').value||'ALL',g=state.games.filter(x=>scopeMatchesGame(f,x)).sort((a,b)=>(a.date+a.time+a.court).localeCompare(b.date+b.time+b.court));$('scheduleTable').innerHTML='<thead><tr><th>Playing Date #</th><th>Date</th><th>Time</th><th>Court</th><th>Division / Pool</th><th>Matchup</th><th>Status</th><th>Result</th><th></th></tr></thead><tbody>'+g.map(x=>`<tr class="${x.pending?'pending-row':''}"><td>${x.week||''}</td><td>${x.date}</td><td>${fmtTime(x.time)}</td><td>${esc(x.court)}</td><td>${esc(divisionLabel(x.division))} — ${esc(poolDisplayName(x.division,x.pool))}</td><td>${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</td><td>${esc(x.status||'Scheduled')}${x.lockedManual?' • 🔒 Locked':''}${x.pending?' • Unpublished':''}</td><td>${x.sa==null?'—':x.sa+'–'+x.sb}</td><td><button class="edit-btn" data-edit-game="${x.id}">Edit</button></td></tr>`).join('')+'</tbody>';document.querySelectorAll('[data-edit-game]').forEach(b=>b.addEventListener('click',()=>openGameEditor(b.dataset.editGame)))}
 function sameSlot(g,date,time,court){return g.date===date&&g.time===time&&g.court===court}
 function gameWarnings(game,date,time,court,aId,bId){const warnings=[];if(aId===bId)warnings.push('A team cannot play itself.');const a=teamById(aId),b=teamById(bId);state.games.filter(g=>g.id!==game.id&&g.status!=='Cancelled').forEach(g=>{if(sameSlot(g,date,time,court))warnings.push(`Court conflict with ${teamById(g.aId).name} vs ${teamById(g.bId).name}.`);if(g.date===date&&g.time===time&&(g.aId===aId||g.bId===aId||g.aId===bId||g.bId===bId))warnings.push('One of the teams is already scheduled at that time.');const ga=teamById(g.aId),gb=teamById(g.bId),coaches=[a.coach,b.coach].filter(Boolean);if(g.date===date&&g.time===time&&coaches.some(c=>c===ga.coach||c===gb.coach))warnings.push('A shared coach is already scheduled at that time.')});const cfg=state.divisionConfig[game.division];if(cfg&&(time<cfg.start||time>=cfg.end))warnings.push(`Time is outside the division window (${fmtTime(cfg.start)}–${fmtTime(cfg.end)}).`);if(!state.courts.some(c=>c.name===court))warnings.push('The selected court is not an active playing surface.');return [...new Set(warnings)]}
+// v86.72: explicit director-created games; preview is read-only.
+let manualGameApprovedSignature='';
+function manualGameDraft(){
+  const scope=$('manualGamePool').value,sep=scope.indexOf('::');
+  if(sep<0)return null;
+  return {date:$('manualGameDate').value,division:scope.slice(0,sep),pool:scope.slice(sep+2),aId:$('manualGameA').value,bId:$('manualGameB').value,time:$('manualGameTime').value,court:$('manualGameCourt').value};
+}
+function manualGameSelects(){
+  const sel=$('manualGamePool'),old=sel.value;
+  sel.innerHTML=Object.entries(state.pools||{}).flatMap(([d,p])=>Object.keys(p.lists||{}).map(pool=>`<option value="${esc(d+'::'+pool)}">${esc(divisionLabel(d))} — ${esc(poolDisplayName(d,pool))}</option>`)).join('');
+  if([...sel.options].some(o=>o.value===old))sel.value=old;
+  const draft=manualGameDraft();if(!draft)return;
+  const ids=state.pools?.[draft.division]?.lists?.[draft.pool]||[];
+  for(const name of ['manualGameA','manualGameB']){
+    const el=$(name),previous=el.value;
+    el.innerHTML=ids.map(id=>`<option value="${esc(id)}">${esc(teamById(id).name)}</option>`).join('');
+    if(ids.includes(previous))el.value=previous;
+  }
+  if($('manualGameB').value===$('manualGameA').value&&ids.length>1)$('manualGameB').value=ids[1];
+}
+function openManualGame(){
+  const dates=seasonDatesRaw().filter(d=>d>=todayISO());
+  $('manualGameDate').innerHTML=dates.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
+  if(dates.includes($('managementWeek').value))$('manualGameDate').value=$('managementWeek').value;
+  const scope=$('managementDivision').value;
+  if(scope&&scope!=='ALL'&&!scope.startsWith('DIV::'))$('manualGamePool').value=scope;
+  manualGameSelects();
+  if(scope&&scope!=='ALL'&&!scope.startsWith('DIV::')&&[...$('manualGamePool').options].some(o=>o.value===scope)){$('manualGamePool').value=scope;manualGameSelects()}
+  $('manualGameCourt').innerHTML=state.courts.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+  $('manualGameReason').value='';manualGameApprovedSignature='';$('manualGameSave').disabled=true;
+  $('manualGameValidation').innerHTML='<p class="hint">Select a matchup and click Preview Game.</p>';
+  $('manualGameModal').classList.remove('hidden');
+}
+function manualGameCheck(d){
+  const errors=[],warnings=[],length=Number(state.settings.gameLength||15),start=minutes(d.time),end=start+length;
+  const ids=state.pools?.[d.division]?.lists?.[d.pool]||[];
+  if(!d.date||!seasonDatesRaw().includes(d.date)||d.date<todayISO())errors.push('Select a future configured playing date.');
+  if(!ids.includes(d.aId)||!ids.includes(d.bId)||!d.aId||!d.bId||d.aId===d.bId)errors.push('Choose two distinct registered teams from the same pool.');
+  const a=teamById(d.aId),b=teamById(d.bId);
+  if([a,b].some(t=>t.withdrawnEffectiveDate&&d.date>=t.withdrawnEffectiveDate))errors.push('A selected team is withdrawn on this date.');
+  if(!d.time||!/^\d\d:\d\d$/.test(d.time))errors.push('Choose a valid start time.');
+  const win=effectivePoolWindow(d.division,d.pool);
+  if(!win||start<minutes(win.effectiveStart)||end>minutes(win.effectiveEnd))errors.push('Game is outside the approved division/pool time window.');
+  const court=state.courts.find(c=>c.name===d.court);
+  if(!court)errors.push('Select an active playing surface.');
+  if(court&&!courtExceptionAllows(court.id,d.date,d.time,length))errors.push('Court is closed or outside its date-specific availability.');
+  if(a&&b&&(!allowed(a,{date:d.date,time:d.time})||!allowed(b,{date:d.date,time:d.time})))errors.push('A selected team has a schedule request restricting this start time.');
+  for(const g of state.games){
+    if(g.status==='Cancelled'||g.date!==d.date)continue;
+    const gs=minutes(g.time),ge=gs+length;
+    if(start<ge&&gs<end){
+      if(g.court===d.court)errors.push(`Court ${d.court} already has a game overlapping ${fmtTime(g.time)}.`);
+      if([g.aId,g.bId].some(id=>id===d.aId||id===d.bId))errors.push(`A team already plays in an overlapping slot at ${fmtTime(g.time)}.`);
+    }
+    if([g.aId,g.bId].some(id=>id===d.aId||id===d.bId)){
+      const extra=Number(state.settings.minRestMinutes||0);
+      if(extra>0&&start>=ge&&start-ge<extra||extra>0&&gs>=end&&gs-end<extra)errors.push('Additional team rest requirement is not met.');
+      if(!state.settings.allowBackToBack&&((start===ge)||(gs===end)))errors.push('Back-to-back games are disabled.');
+    }
+  }
+  const played=state.games.filter(g=>g.status!=='Cancelled'&&g.division===d.division&&g.pool===d.pool&&((g.aId===d.aId&&g.bId===d.bId)||(g.aId===d.bId&&g.bId===d.aId)));
+  if(played.length)warnings.push(`These teams have met ${played.length} time(s) already; review opponent diversity and immediate rematch rules.`);
+  for(const id of [d.aId,d.bId]){
+    const count=state.games.filter(g=>g.status!=='Cancelled'&&g.date===d.date&&(g.aId===id||g.bId===id)).length;
+    const max=Number(state.divisionConfig?.[d.division]?.maxGamesPerWeek||state.settings.maxGamesPerWeek||4);
+    if(count+1>max)errors.push(`${teamById(id).name} would exceed the configured maximum of ${max} games.`);
+  }
+  if(a&&b&&a.coach&&a.coach===b.coach)warnings.push('Both teams have the same coach.');
+  return {errors:[...new Set(errors)],warnings:[...new Set(warnings)]};
+}
+function previewManualGame(){
+  const d=manualGameDraft();if(!d)return;
+  const result=manualGameCheck(d);manualGameApprovedSignature=result.errors.length?'':JSON.stringify(d);
+  $('manualGameSave').disabled=!!result.errors.length;
+  $('manualGameValidation').innerHTML=`<div class="status ${result.errors.length?'bad':result.warnings.length?'warn':'ok'}"><b>${result.errors.length?'Cannot add this game':result.warnings.length?'No hard conflicts; review warnings':'No conflicts found'}.</b><br>${esc(teamById(d.aId).name)} vs ${esc(teamById(d.bId).name)} — ${esc(d.date)} ${esc(fmtTime(d.time))} — ${esc(d.court)}${[...result.errors.map(x=>'BLOCK: '+x),...result.warnings.map(x=>'WARNING: '+x)].map(x=>'<br>'+esc(x)).join('')}</div>`;
+}
+function saveManualGame(){
+  const d=manualGameDraft();if(!d||manualGameApprovedSignature!==JSON.stringify(d))return alert('Preview the current selections before saving.');
+  const check=manualGameCheck(d);if(check.errors.length){previewManualGame();return alert('The proposed game has a hard conflict.');}
+  if(!confirm(`Add ${teamById(d.aId).name} vs ${teamById(d.bId).name}\n${d.date} ${fmtTime(d.time)} on ${d.court}?\n\n${check.warnings.length?check.warnings.join('\n')+'\n\n':''}All existing games remain unchanged.`))return;
+  const week=seasonDatesRaw().indexOf(d.date)+1;
+  const game={...d,id:uid('g'),week,status:'Scheduled',sa:null,sb:null,pending:true,lockedManual:true};
+  state.games.push(game);
+  state.scheduleChanges=state.scheduleChanges||[];
+  state.scheduleChanges.unshift({id:uid('chg'),kind:'manual-add',gameId:game.id,changedAt:new Date().toISOString(),before:{},after:gameSnapshot(game),reason:$('manualGameReason').value.trim()||'Director manually added game',warnings:check.warnings});
+  persist();$('manualGameModal').classList.add('hidden');renderAll();setTab('management');showActionFeedback('New game added and locked. Run Audit Selected Future Dates before publishing.');
+}
+function deleteFutureGame(id){
+  const g=state.games.find(x=>x.id===id);if(!g||isHistoricalGame(g))return alert('Historical or scored games cannot be deleted.');
+  if(!confirm(`Permanently remove this future game?\n${teamById(g.aId).name} vs ${teamById(g.bId).name}\n${g.date} ${fmtTime(g.time)} — ${g.court}\n\nThis does not delete the teams or any other games.`))return;
+  state.scheduleChanges=state.scheduleChanges||[];
+  state.scheduleChanges.unshift({id:uid('chg'),kind:'manual-delete',gameId:g.id,changedAt:new Date().toISOString(),before:gameSnapshot(g),after:{deleted:true},reason:'Director removed future game',warnings:[]});
+  state.games=state.games.filter(x=>x.id!==id);persist();renderAll();setTab('management');showActionFeedback('Future game removed. Re-run the schedule audit to check game minimums.');
+}
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function gameSnapshot(g){return {date:g.date,time:g.time,court:g.court,aId:g.aId,bId:g.bId,status:g.status||'Scheduled',sa:g.sa??null,sb:g.sb??null,lockedManual:!!g.lockedManual}}
 function isHistoricalGame(g){return g.date<todayISO()||g.status==='Completed'||g.sa!=null||g.sb!=null}
