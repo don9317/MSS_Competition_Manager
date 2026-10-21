@@ -1,0 +1,1 @@
+v86.71 Team Schedule Requests: Registrations entry form supports team/date or all remaining dates, unavailable before/after, and blocked time ranges. Requests are honored by scheduling and audit when the rule is enabled. Existing games are not modified. Back up league before updating.
