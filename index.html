@@ -443,7 +443,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <div class="field"><label>Status</label><select id="managementStatus"><option value="ALL">All statuses</option><option>Scheduled</option><option>Rescheduled</option><option>Postponed</option><option>Cancelled</option><option>Completed</option><option value="NEEDS_SCORE">Needs score</option><option value="UNPUBLISHED">Unpublished changes</option></select></div>
       <div class="field"><label>Court</label><select id="managementCourt"><option value="ALL">All courts</option></select></div>
     </div>
-    <div class="toolbar" style="margin:12px 0"><button class="primary" id="openManualAddGame" type="button">+ Add Game</button><span class="hint">Add a future game without regenerating the league. Preview validation before saving.</span></div>
+    <div class="toolbar" style="margin:12px 0"><button class="primary" id="openManualAddGame" type="button" onclick="openManualGame()">+ Add Game</button><span class="hint">Add a future game without regenerating the league. Preview validation before saving.</span></div>
     <div id="publishStatus"></div>
     <div class="table-wrap"><table id="managementTable"></table></div>
   </div>
@@ -486,7 +486,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 
 <div id="manualGameModal" class="hidden" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1200;padding:24px;overflow:auto">
   <div class="card" style="max-width:800px;margin:24px auto">
-    <div class="row" style="justify-content:space-between"><h2 style="margin:0">Add Future Game</h2><button class="secondary" id="manualGameClose" type="button">Close</button></div>
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">Add Future Game</h2><button class="secondary" id="manualGameClose" type="button" onclick="document.getElementById('manualGameModal').classList.add('hidden')">Close</button></div>
     <p class="hint">Only new future games are added. Existing games, scores and historical dates are not changed. Hard conflicts block saving; opponent and game-count warnings require review.</p>
     <div class="grid" style="margin-top:12px">
       <div class="field"><label>Playing Date</label><select id="manualGameDate"></select></div>
@@ -498,7 +498,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>
     <label>Reason / Notes</label><textarea id="manualGameReason" rows="2" placeholder="Additional game requested by director"></textarea>
     <div id="manualGameValidation" aria-live="polite"></div>
-    <div class="toolbar"><button class="secondary" id="manualGamePreview" type="button">Preview Game</button><button class="primary" id="manualGameSave" type="button" disabled>Add Approved Game</button></div>
+    <div class="toolbar"><button class="secondary" id="manualGamePreview" type="button" onclick="previewManualGame()">Preview Game</button><button class="primary" id="manualGameSave" type="button" disabled onclick="saveManualGame()">Add Approved Game</button></div>
   </div>
 </div>
 <div id="editGameModal" class="hidden" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1100;padding:24px;overflow:auto">
@@ -5691,10 +5691,10 @@ load().catch(err=>{
 function safeBind(id,event,handler){try{const el=$(id);if(!el)return false;el.addEventListener(event,handler);return true}catch(err){console.error('Binding failed',id,err);showActionFeedback(`Control ${id} could not be initialized: ${err.message}`,false);return false}}
 try{
 $('startNewLeagueBtn')&&$('startNewLeagueBtn').addEventListener('click',startNewLeague);$('resetStorageBtn')&&$('resetStorageBtn').addEventListener('click',resetSavedLeagueStorage);$('addTeamBtn').addEventListener('click',addTeam);$('loadDemoBtn').addEventListener('click',loadCompleteDemo);$('importCsvBtn').addEventListener('click',importCSV);$('csvFile').addEventListener('change',e=>previewCSVFile(e.target.files[0]));$('clearRegistrationsBtn').addEventListener('click',clearRegistrations);$('loadSampleBtn').addEventListener('click',()=>{const r=importCSVText(sampleCSV,'replace');$('importStatus').innerHTML=`<div class="status ok">${r.added} sample teams loaded into ${r.divisionCount} divisions, replacing prior registrations.</div>`;renderDuplicateNameStatus()});
-$('teamSearch').addEventListener('input',renderTeams);safeBind('replaceTeamBtn','click',replaceTeamKeepSchedule);safeBind('addTeamRequestBtn','click',addTeamScheduleRequest);safeBind('openManualAddGame','click',openManualGame);
-safeBind('manualGameClose','click',()=>{$('manualGameModal').classList.add('hidden')});
-safeBind('manualGamePreview','click',previewManualGame);
-safeBind('manualGameSave','click',saveManualGame);
+$('teamSearch').addEventListener('input',renderTeams);safeBind('replaceTeamBtn','click',replaceTeamKeepSchedule);safeBind('addTeamRequestBtn','click',addTeamScheduleRequest);/* Add Game uses direct onclick so unrelated startup binding failures cannot disable it. */
+/* Direct modal close handler. */
+/* Direct modal preview handler. */
+/* Direct modal save handler. */
 safeBind('manualGamePool','change',()=>{manualGameSelects();manualGameApprovedSignature='';$('manualGameSave').disabled=true});
 ['manualGameDate','manualGameA','manualGameB','manualGameTime','manualGameCourt'].forEach(id=>safeBind(id,'change',()=>{manualGameApprovedSignature='';$('manualGameSave').disabled=true}));
 safeBind('viewTeamRequestsBtn','click',showTeamRequestsInManagement);safeBind('previewFutureTeamBtn','click',previewFutureTeamChange);safeBind('commitFutureTeamBtn','click',commitFutureTeamChange);safeBind('previewWithdrawCleanupBtn','click',previewWithdrawCleanup);safeBind('confirmWithdrawCleanupBtn','click',confirmWithdrawCleanup);['futureTeamSelect','futureTeamAction','futureTeamDate','futureTeamDivision','futureTeamPool'].forEach(id=>safeBind(id,'change',()=>{futureTeamPreviewSignature='';$('commitFutureTeamBtn').disabled=true;$('futureTeamPreview').innerHTML='';renderFutureTeamControls()}));$('boardPrevBtn')&&$('boardPrevBtn').addEventListener('click',()=>$('bigBoard').scrollBy({left:-460,behavior:'smooth'}));$('boardNextBtn')&&$('boardNextBtn').addEventListener('click',()=>$('bigBoard').scrollBy({left:460,behavior:'smooth'}));$('rebalanceBtn').addEventListener('click',rebalancePools);$('approveBtn').addEventListener('click',approveBoard);$('unlockBtn').addEventListener('click',unlockBoard);
