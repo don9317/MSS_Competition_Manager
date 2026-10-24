@@ -1,0 +1,11 @@
+MSS League Scheduler v11.11.86.73 — targeted rule/audit update
+
+1. Allows up to TWO adjacent scheduled game slots for each team; prohibits THREE or more adjacent game slots. This uses the league's configured game slot length rather than hard-coded 15 minutes. Overlapping starts are also reported.
+2. The bounded game placement solver enforces the two-consecutive-game cap even when relaxing other preferences. Court optimization and the earlier-slot cleanup also check this cap.
+3. Audit Selected Scope and Audit Entire League now evaluate selected future dates only. Completed past dates are not re-audited. Prior games remain available for chronological opponent-history comparisons.
+4. Minimum games per date and maximum games per date remain configured by the existing league/division settings (e.g. minimum 3, maximum 4).
+5. Leave Allow Back-to-Back Games ON and Additional Minimum Rest set to No extra rest to allow two consecutive games. If Back-to-Back is OFF, the existing more restrictive no-back-to-back behavior still applies.
+
+SAFETY: Export a full schedule backup before loading a new version. Test on a copy, then generate only October 25 if desired. Do not publish until audit and manual review pass. Existing locked manual changes may constrain feasible schedules.
+
+NOTE: This is a targeted source-code patch, not a full end-to-end browser simulation of your league data. Confirm the audit and generated schedule before production use.

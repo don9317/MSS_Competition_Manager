@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.72.1</title>
+<title>MSS League Scheduler v11.11.86.73</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.72.1</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.73</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -321,7 +321,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
         <div class="field"><label>Default Max Teams / Pool</label><input id="defaultPoolMax" type="number" min="2" max="16" value="8"></div>
       </div>
       <div class="rule-grid" style="margin-top:12px">
-        <div class="rule-row"><div><b>Allow Back-to-Back Games</b><span class="hint">YES permits a team to play again in the immediately following time slot.</span></div><label class="toggle" title="Allow Back-to-Back Games"><input id="allowBackToBack" type="checkbox"><span></span></label></div>
+        <div class="rule-row"><div><b>Allow Back-to-Back Games</b><span class="hint">YES permits two consecutive games; three or more consecutive games are never allowed.</span></div><label class="toggle" title="Allow Back-to-Back Games"><input id="allowBackToBack" type="checkbox"><span></span></label></div>
         <div class="rule-row"><div><b>Play Every Pool Opponent Before Repeats</b><span class="hint">Prioritizes playing all available teams at least once before repeat matchups.</span></div><label class="toggle"><input id="playAllTeamsOnce" type="checkbox" checked><span></span></label></div>
         <div class="rule-row"><div><b>Avoid Immediate Rematches</b><span class="hint">A team’s next chronological game may not be against the same opponent as its previous game, regardless of elapsed time or date.</span></div><label class="toggle"><input id="avoidImmediateRematches" type="checkbox" checked><span></span></label></div>
         <div class="rule-row"><div><b>Protect Shared Coaches</b><span class="hint">Prevents teams with the same coach from being scheduled at the same time.</span></div><label class="toggle"><input id="protectSharedCoaches" type="checkbox" checked><span></span></label></div>
@@ -363,7 +363,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.72.1</b> — SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.73</b> — MAX TWO CONSECUTIVE GAMES + FUTURE-ONLY AUDIT; SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -372,8 +372,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <button class="secondary" id="generateReadyBtn" type="button">Schedule All Approved / Ready Divisions</button>
       <button id="optimizeBtn" class="primary">Re-Optimize Schedule</button>
       <button id="courtOptimizeAllBtn" type="button" onclick="optimizeAllPlayingDates()">Optimize All Playing Dates</button>
-      <button class="secondary" id="auditScopeBtn" type="button" onclick="runAuditWithConfirmation(false)">Audit Selected Scope</button>
-      <button class="secondary" id="repairOpponents55" type="button" onclick="void repairFutureOpponentsV59()">Repair Future Opponents</button> <button class="secondary" id="auditFutureBtn" type="button" onclick="runFutureDatesAudit()">Audit Selected Future Dates</button> <button class="secondary" id="auditAllBtn" type="button" onclick="runAuditWithConfirmation(true)">Audit Entire League</button>
+      <button class="secondary" id="auditScopeBtn" type="button" onclick="runAuditWithConfirmation(false)">Audit Selected Future Scope</button>
+      <button class="secondary" id="repairOpponents55" type="button" onclick="void repairFutureOpponentsV59()">Repair Future Opponents</button> <button class="secondary" id="auditFutureBtn" type="button" onclick="runFutureDatesAudit()">Audit Selected Future Dates</button> <button class="secondary" id="auditAllBtn" type="button" onclick="runAuditWithConfirmation(true)">Audit Entire League (Future Dates)</button>
       <button class="secondary" id="previewMinimumRepairBtn" type="button" onclick="previewMinimumRepairV70()">Preview Missing-Game Repair</button>
       <button class="primary" id="applyMinimumRepairBtn" type="button" onclick="applyMinimumRepairV70()" disabled>Confirm Proposed Games</button>
       <button class="secondary" id="exportScheduleBtn">Export CSV</button>
@@ -2320,7 +2320,10 @@ function repairScoreForSchedule(allGames,touchedPools){
   Object.entries(byTeam).forEach(([id,games])=>{
     const seq=[...games].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
     for(let i=1;i<seq.length;i++){
-      if(seq[i].date===seq[i-1].date){const diff=minutes(seq[i].time)-minutes(seq[i-1].time);if(diff<minGap)out.rest++}
+      if(seq[i].date===seq[i-1].date&&minutes(seq[i].time)===minutes(seq[i-1].time))out.rest++
+    }
+    for(const date of [...new Set(seq.map(g=>g.date))]){
+      out.rest+=consecutiveStreaksV73(seq.filter(g=>g.date===date).map(g=>minutes(g.time)),gameLen).length;
     }
     // Opponent-order rules are scored only for pools being regenerated in this operation.
     const relevant=seq.filter(g=>touched.has(`${g.division}|${g.pool}`));
@@ -2805,6 +2808,11 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     const extA=teamTimes[a]||new Set(),extB=teamTimes[b]||new Set();
     const locA=localTeamTimes[a]||[],locB=localTeamTimes[b]||[];
     if(extA.has(sl.stamp)||extB.has(sl.stamp)||locA.includes(sl.stamp)||locB.includes(sl.stamp))return false;
+
+    // Hard constraint even in fallback solver tiers: never place a third
+    // consecutive game for either team, including existing locked games.
+    if(wouldMakeThreeConsecutiveV73(sl.stamp,[...extA,...locA],gameLength)||
+       wouldMakeThreeConsecutiveV73(sl.stamp,[...extB,...locB],gameLength))return false;
 
     if(!tier.relaxCoach&&state.settings.protectSharedCoaches){
       if(ta?.coach&&((coachTimes[ta.coach]||new Set()).has(sl.stamp)||(localCoachTimes[ta.coach]||[]).includes(sl.stamp)))return false;
@@ -3839,7 +3847,7 @@ async function runAuditWithConfirmation(allLeague=false){
     setOptimizationResults(`<div class="status info"><b>Audit running — ${scopeLabel}…</b><br>Checking the current saved schedule now.</div>`,true);
     setGenerationStage(`Audit running — ${scopeLabel}`);
     await yieldToBrowser();
-    const result=runScheduleAudit(allLeague);
+    const result=runScheduleAudit(allLeague,true);
     await yieldToBrowser();
     const ms=performance.now()-started,stamp=new Date().toLocaleTimeString();
     const runtime=ms<1000?`${ms.toFixed(0)} ms`:`${(ms/1000).toFixed(2)} sec`;
@@ -4087,6 +4095,23 @@ function applyMinimumRepairV70(){
  minimumRepairPlanV70=null;$('applyMinimumRepairBtn').disabled=true;persist();renderAll();
  $('minimumRepairPreviewV70').innerHTML=`<div class="status ok">Added ${result.proposals.length} games. Run Audit Selected Future Dates now. Any remaining shortages or opponent warnings require director review.</div>`;
 }
+// v11.11.86.73: consecutive means adjacent game slots, regardless of clock time.
+// Each game start occupies one slot of the configured game length. A two-game
+// streak is permitted, but a third adjacent start is a hard violation.
+function consecutiveStreaksV73(starts,slotMinutes=Number(state.settings.gameLength||15)){
+  const slot=Math.max(1,Number(slotMinutes)||15);
+  const sorted=[...starts].map(Number).filter(Number.isFinite).sort((a,b)=>a-b);
+  const bad=[];let streak=[];
+  for(const start of sorted){
+    if(streak.length&&start-streak[streak.length-1]>slot+0.001)streak=[];
+    streak.push(start);
+    if(streak.length>=3)bad.push([...streak]);
+  }
+  return bad;
+}
+function wouldMakeThreeConsecutiveV73(candidateStamp,otherStamps,slotMinutes=Number(state.settings.gameLength||15)){
+  return consecutiveStreaksV73([...otherStamps,candidateStamp].map(x=>Number(x)/60000),slotMinutes).length>0;
+}
 function runScheduleAudit(allLeague=false,futureOnly=false){
   syncSettings();const selected=allLeague?'ALL':($('scheduleFilter').value||'ALL');
   const auditDateSet=futureOnly?new Set(selectedGenerationDates()):null;
@@ -4127,7 +4152,20 @@ function runScheduleAudit(allLeague=false,futureOnly=false){
       const team=teamById(id),activeDates=dates.filter(date=>!team.withdrawnEffectiveDate||date<team.withdrawnEffectiveDate),effectiveGuarantee=minimum*Math.max(0,activeDates.length);const tg=pg.filter(g=>(g.aId===id||g.bId===id)&&(!team.withdrawnEffectiveDate||g.date<team.withdrawnEffectiveDate)),name=team.name;if(tg.length<effectiveGuarantee)guaranteeBad.push(`${name}: ${tg.length}/${effectiveGuarantee}`);
       const byDate={};tg.forEach(g=>(byDate[g.date]??=[]).push(g));activeDates.forEach(date=>{const arr=byDate[date]||[];const hasAvailability=divisionSlots(d,date).some(sl=>allowed(teamById(id),sl));if(hasAvailability&&arr.length<minimum)minimumDateBad.push(`${name}: ${arr.length} games on ${date} (minimum ${minimum})`);if(arr.length>max)maxBad.push(`${name}: ${arr.length} games on ${date} (max ${max})`);else if(arr.length>minimum)overflowWarn.push(`${name}: ${arr.length} games on ${date} (minimum ${minimum}; max ${max})`)});
       const prior=futureOnly?state.games.filter(g=>g.status!=='Cancelled'&&g.division===d&&g.pool===pool&&g.date<dates[0]&&(g.aId===id||g.bId===id)):[];const seq=[...prior,...tg].sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));let seen=new Set();const auditPrefix=`${divisionLabel(d)} — ${poolDisplayName(d,pool)} — `;for(let i=0;i<seq.length;i++){const g=seq[i],opp=g.aId===id?g.bId:g.aId;if(i&&opp===(seq[i-1].aId===id?seq[i-1].bId:seq[i-1].aId)&&state.settings.avoidImmediateRematches&&(!futureOnly||dates.includes(g.date))){const prev=seq[i-1],pair=[id,opp].sort().join('|'),boundary=`${prev.date}|${prev.time}|${g.date}|${g.time}`,k=`${d}|${pool}|${pair}|${boundary}`;const entry=immediateKeys.get(k)||{division:d,pool,a:id,b:opp,teams:new Set(),prev,next:g};entry.teams.add(id);entry.prev=prev;entry.next=g;immediateKeys.set(k,entry)}if((!futureOnly||dates.includes(g.date))&&state.settings.playAllTeamsOnce&&activeIds.filter(x=>!teamById(x).withdrawnEffectiveDate||g.date<teamById(x).withdrawnEffectiveDate).length>3&&seen.has(opp)){const possible=activeIds.filter(x=>x!==id&&(!teamById(x).withdrawnEffectiveDate||g.date<teamById(x).withdrawnEffectiveDate)),unplayed=possible.filter(x=>!seen.has(x)&&x!==opp);if(unplayed.length){const oppName=teamById(opp)?.name||opp;const unplayedNames=unplayed.map(x=>teamById(x)?.name||x).join(', ');allBeforeRepeatBad.push(`${auditPrefix}${name}: repeated ${oppName} on ${g.date} ${fmtTime(g.time)} before facing all pool opponents — not yet faced: ${unplayedNames}`)}}seen.add(opp)}
-      for(let i=1;i<seq.length;i++){if(futureOnly&&!auditDateSet.has(seq[i].date))continue;if(seq[i].date!==seq[i-1].date)continue;const t1=new Date(`${seq[i-1].date}T${seq[i-1].time}:00`).getTime(),t2=new Date(`${seq[i].date}T${seq[i].time}:00`).getTime(),diff=(t2-t1)/60000;const minGap=(state.settings.allowBackToBack?Number(state.settings.minRest||0)+1:Math.max(2,Number(state.settings.minRest||0)+1))*gameLen;if(diff<minGap)restBad.push(`${name}: ${diff} min between games on ${seq[i].date}; requires ${minGap} min`)}
+      // Evaluate only dates actually in this audit, not protected historical dates.
+      const byAuditDate=new Map();
+      for(const g of seq){
+        if(futureOnly&&!auditDateSet.has(g.date))continue;
+        if(!byAuditDate.has(g.date))byAuditDate.set(g.date,[]);
+        byAuditDate.get(g.date).push(g);
+      }
+      for(const [date,dayGames] of byAuditDate){
+        const starts=dayGames.map(g=>minutes(g.time)).sort((a,b)=>a-b);
+        for(let i=1;i<starts.length;i++)if(starts[i]===starts[i-1])restBad.push(`${name}: simultaneous games on ${date} at ${fmtTime(dayGames.find(g=>minutes(g.time)===starts[i]).time)}`);
+        const triples=consecutiveStreaksV73(starts,gameLen);
+        // Report each violating streak once (including a four-game streak).
+        if(triples.length){const longest=triples[triples.length-1];restBad.push(`${name}: ${longest.length} consecutive games on ${date}, starting ${longest.map(m=>fmtTime(String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'))).join(', ')}`)}
+      }
     })
   });
   // Time-slot fairness across pools in the same division.
@@ -4140,7 +4178,7 @@ function runScheduleAudit(allLeague=false,futureOnly=false){
   });
   const row=(label,viol,detail,soft=false)=>results.push(auditResult(label,viol.length?(soft?'WARN':'FAIL'):'PASS',viol.length?`${viol.length} issue(s)`:detail,viol));
   immediateBad=[...immediateKeys.values()].map(x=>{const a=teamById(x.a)?.name||x.a,b=teamById(x.b)?.name||x.b;const both=x.teams.size>1?' — consecutive matchup for both teams':'';return `${divisionLabel(x.division)} — ${poolDisplayName(x.division,x.pool)} — ${a} vs ${b}${both} (${x.prev.date} ${x.prev.time} → ${x.next.date} ${x.next.time})`});
-  const courtExceptionBad=games.filter(g=>{const sid=g.courtId||state.courts.find(c=>c.name===g.court)?.id;return sid&&!courtExceptionAllows(sid,g.date,g.time,Number(state.settings.gameLength||20))}).map(g=>`${g.date} ${fmtTime(g.time)} — ${g.court}: ${teamById(g.teamA||g.teamAId).name} vs ${teamById(g.teamB||g.teamBId).name}`);row('Court availability exceptions',courtExceptionBad,'No games use a court during a date-specific blackout or outside its custom window');row('No self-matchups',self,'No self-games');row('No team double-booking',teamDouble,'No teams scheduled twice in the same slot');row('No court double-booking',courtDouble,'No courts double-booked');row('Division time windows',windowBad,'All games inside assigned division windows');row('Assigned court groups',courtBad,'All games use primary courts or Director-approved overflow courts');row('Overflow court usage',overflowCourtInfo,overflowCourtInfo.length?'Director-approved overflow courts were used':'No overflow courts used',true);row('Team schedule requests',requestBad,state.settings.honorScheduleRequests?'All requests honored':'Rule is OFF',false);row('Shared-coach conflicts',coachBad,state.settings.protectSharedCoaches?'No shared-coach conflicts':'Rule is OFF',true);row('Minimum games per playing date',minimumDateBad,'Every available team receives at least its minimum games on every playing date');row('Calculated season minimum',guaranteeBad,'Every team meets the calculated season minimum');row('Maximum games per playing date',maxBad,'No team exceeds its maximum');row('Immediate rematches',immediateBad,state.settings.avoidImmediateRematches?'No immediate rematches':'Rule is OFF',!state.settings.avoidImmediateRematches);row('All opponents before repeats',allBeforeRepeatBad,state.settings.playAllTeamsOnce?'Opponent rotation satisfied chronologically — pools with 4+ teams must use unplayed opponents before repeats; 3-team pools are exempt because repeats are mathematically required':'Rule is OFF',!state.settings.playAllTeamsOnce);const opponentBalanceBad=opponentBalanceViolationsV71(games);row('Opponent balance',opponentBalanceBad,opponentBalanceBad.length?'Opponent meeting-count imbalance or same-date duplicate opponent found':'Opponent meeting counts are reasonably balanced and no same-date duplicate opponent was found',true);row('Rest / back-to-back rule',restBad,'Rest rule satisfied');row('Time-slot fairness',fairnessWarn,'Pools are reasonably balanced across early, middle, and late slots',true);
+  const courtExceptionBad=games.filter(g=>{const sid=g.courtId||state.courts.find(c=>c.name===g.court)?.id;return sid&&!courtExceptionAllows(sid,g.date,g.time,Number(state.settings.gameLength||20))}).map(g=>`${g.date} ${fmtTime(g.time)} — ${g.court}: ${teamById(g.teamA||g.teamAId).name} vs ${teamById(g.teamB||g.teamBId).name}`);row('Court availability exceptions',courtExceptionBad,'No games use a court during a date-specific blackout or outside its custom window');row('No self-matchups',self,'No self-games');row('No team double-booking',teamDouble,'No teams scheduled twice in the same slot');row('No court double-booking',courtDouble,'No courts double-booked');row('Division time windows',windowBad,'All games inside assigned division windows');row('Assigned court groups',courtBad,'All games use primary courts or Director-approved overflow courts');row('Overflow court usage',overflowCourtInfo,overflowCourtInfo.length?'Director-approved overflow courts were used':'No overflow courts used',true);row('Team schedule requests',requestBad,state.settings.honorScheduleRequests?'All requests honored':'Rule is OFF',false);row('Shared-coach conflicts',coachBad,state.settings.protectSharedCoaches?'No shared-coach conflicts':'Rule is OFF',true);row('Minimum games per playing date',minimumDateBad,'Every available team receives at least its minimum games on every playing date');row('Calculated season minimum',guaranteeBad,'Every team meets the calculated season minimum');row('Maximum games per playing date',maxBad,'No team exceeds its maximum');row('Immediate rematches',immediateBad,state.settings.avoidImmediateRematches?'No immediate rematches':'Rule is OFF',!state.settings.avoidImmediateRematches);row('All opponents before repeats',allBeforeRepeatBad,state.settings.playAllTeamsOnce?'Opponent rotation satisfied chronologically — pools with 4+ teams must use unplayed opponents before repeats; 3-team pools are exempt because repeats are mathematically required':'Rule is OFF',!state.settings.playAllTeamsOnce);const opponentBalanceBad=opponentBalanceViolationsV71(games);row('Opponent balance',opponentBalanceBad,opponentBalanceBad.length?'Opponent meeting-count imbalance or same-date duplicate opponent found':'Opponent meeting counts are reasonably balanced and no same-date duplicate opponent was found',true);row('Rest / back-to-back rule',restBad,'No simultaneous or three-or-more consecutive games');row('Time-slot fairness',fairnessWarn,'Pools are reasonably balanced across early, middle, and late slots',true);
   // An odd-sized pool with an odd nightly minimum mathematically requires at least one
   // team to take an extra game. Report those expected overflow games as PASS rather than WARN.
   const unexpectedOverflow=overflowWarn.filter(msg=>{
@@ -4568,7 +4606,7 @@ function makeBlockCandidate(block,mode='early'){
       const m=minutes(time);
       for(const id of [g.aId,g.bId]){
         const ts=teamTimes.get(id)||[];
-        if(ts.some(x=>x===m||Math.abs(x-m)<minGap))return false;
+        if(ts.some(x=>x===m||Math.abs(x-m)<minGap)||consecutiveStreaksV73([...ts,m],Number(state.settings.gameLength||15)).length)return false;
       }
       return true;
     });
@@ -4582,7 +4620,7 @@ function makeBlockCandidate(block,mode='early'){
         const m=minutes(time);
         return [g.aId,g.bId].every(id=>{
           const ts=teamTimes.get(id)||[];
-          return !ts.some(x=>x===m||Math.abs(x-m)<minGap);
+          return !ts.some(x=>x===m||Math.abs(x-m)<minGap)&&!consecutiveStreaksV73([...ts,m],Number(state.settings.gameLength||15)).length;
         });
       });
       if(idx<0)break;
@@ -4738,7 +4776,9 @@ function earliestLegalEarlierSlotForGame(game,movableIds){
         if(g.aId!==id&&g.bId!==id)return false;
         return Math.abs(minutes(g.time)-m)<minGap;
       });
-      if(conflicts){teamBlocked=true;break}
+      if(conflicts||consecutiveStreaksV73([
+        ...state.games.filter(g=>g.status!=='Cancelled'&&g.id!==game.id&&g.date===game.date&&(g.aId===id||g.bId===id)).map(g=>minutes(g.time)),m
+      ],Number(state.settings.gameLength||15)).length){teamBlocked=true;break}
     }
     if(teamBlocked)continue;
     return sl;
