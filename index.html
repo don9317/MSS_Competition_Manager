@@ -498,7 +498,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>
     <label>Reason / Notes</label><textarea id="manualGameReason" rows="2" placeholder="Additional game requested by director"></textarea>
     <div id="manualGameValidation" aria-live="polite"></div>
-    <div class="toolbar"><button class="secondary" id="manualGamePreview" type="button" onclick="previewManualGame()">Preview Game</button><button class="primary" id="manualGameSave" type="button" disabled onclick="saveManualGame()">Add Approved Game</button></div>
+    <div class="toolbar"><button class="secondary" id="manualGamePreview" type="button" onclick="previewManualGame()">Preview Game</button><button class="primary" id="manualGameSave" type="button" disabled onclick="try{saveManualGame()}catch(err){console.error(err);document.getElementById('manualGameValidation').textContent='Unable to add game: '+(err.message||err);alert('Unable to add game: '+(err.message||err))}">Add Approved Game</button></div>
   </div>
 </div>
 <div id="editGameModal" class="hidden" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:1100;padding:24px;overflow:auto">
@@ -5230,7 +5230,10 @@ function saveManualGame(){
   state.games.push(game);
   state.scheduleChanges=state.scheduleChanges||[];
   state.scheduleChanges.unshift({id:uid('chg'),kind:'manual-add',gameId:game.id,changedAt:new Date().toISOString(),before:{},after:gameSnapshot(game),reason:$('manualGameReason').value.trim()||'Director manually added game',warnings:check.warnings});
-  persist();$('manualGameModal').classList.add('hidden');renderAll();setTab('management');showActionFeedback('New game added and locked. Run Audit Selected Future Dates before publishing.');
+  try { persist(); } catch(err) { state.games=state.games.filter(g=>g.id!==game.id);state.scheduleChanges=state.scheduleChanges.filter(c=>c.gameId!==game.id);throw new Error('Save failed: '+(err.message||err)); }
+  $('manualGameModal').classList.add('hidden');
+  try { renderAll();setTab('management');showActionFeedback('New game added and locked. Run Audit Selected Future Dates before publishing.'); }
+  catch(err) { alert('Game saved, but screen refresh failed. Reload to verify: '+(err.message||err)); }
 }
 function deleteFutureGame(id){
   const g=state.games.find(x=>x.id===id);if(!g||isHistoricalGame(g))return alert('Historical or scored games cannot be deleted.');
