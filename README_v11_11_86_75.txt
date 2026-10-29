@@ -1,0 +1,2 @@
+MSS League Scheduler v11.11.86.75 - Generation diagnostics only.
+Fixes hidden hard nightly minimum failure details by writing to visible genSummary. Lists all affected teams, dates, and placement diagnostics. No scheduler rules, algorithms, or stored league data changed. Backup before updating.
