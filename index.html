@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.75</title>
+<title>MSS League Scheduler v11.11.86.76</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.75</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.76</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -363,7 +363,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.75</b> — MAX TWO CONSECUTIVE GAMES + FUTURE-ONLY AUDIT; SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.76</b> — MAX TWO CONSECUTIVE GAMES + FUTURE-ONLY AUDIT; SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -2855,7 +2855,11 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     }
     const order=Number(game.roundOrder??game._idx??0);
     const sequenceBias=order*0.25;
-    return gap/60000 - rematchPenalty - sl.stamp/1e14 - sequenceBias;
+    // v11.11.86.76: prefer nearby legal slots, not the most distant slot.
+    // The old positive gap score spread games apart and greatly enlarged search.
+    // No hard rule is relaxed here.
+    const compactness=stamps.length ? -Math.min(gap/60000,120) : 0;
+    return compactness - rematchPenalty - sl.stamp/1e14 - sequenceBias;
   }
 
   for(let tierIndex=0;tierIndex<tiers.length;tierIndex++){
@@ -2909,7 +2913,10 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
       const next=remaining.slice(0,pickIndex).concat(remaining.slice(pickIndex+1));
 
       // Keep branching bounded. Candidate ordering is already heuristic.
-      const branchLimit=Math.min(pickCandidates.length,24);
+      // v11.11.86.76: explore all legal candidate slots within the existing
+      // node/time bounds. The previous 24-slot cutoff could exclude valid
+      // placements on larger multi-court schedules.
+      const branchLimit=pickCandidates.length;
       for(let ci=0;ci<branchLimit;ci++){
         const sl=pickCandidates[ci],sk=`${sl.date}|${sl.time}|${sl.court}`;
         localUsed.add(sk);
@@ -3158,7 +3165,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   if(commitMinimumFailures.length){
     const msg=`HARD RULE #1 BLOCKED COMMIT: ${commitMinimumFailures.length} nightly minimum/maximum violation(s). The incomplete generated scope was NOT saved.\n\n`+commitMinimumFailures.slice(0,20).join('\n');
     setGenerationStage('Generation stopped — hard nightly minimum not met');
-    // v11.11.86.75: Use the real, visible Schedule status element (genSummary).
+    // v11.11.86.76: Use the real, visible Schedule status element (genSummary).
     // The previous code wrote to nonexistent generationSummary, hiding the actual blocker.
     const out=$('genSummary');
     if(out){
@@ -4103,7 +4110,7 @@ function applyMinimumRepairV70(){
  minimumRepairPlanV70=null;$('applyMinimumRepairBtn').disabled=true;persist();renderAll();
  $('minimumRepairPreviewV70').innerHTML=`<div class="status ok">Added ${result.proposals.length} games. Run Audit Selected Future Dates now. Any remaining shortages or opponent warnings require director review.</div>`;
 }
-// v11.11.86.75: consecutive means adjacent game slots, regardless of clock time.
+// v11.11.86.76: consecutive means adjacent game slots, regardless of clock time.
 // Each game start occupies one slot of the configured game length. A two-game
 // streak is permitted, but a third adjacent start is a hard violation.
 function consecutiveStreaksV73(starts,slotMinutes=Number(state.settings.gameLength||15)){
@@ -4296,7 +4303,7 @@ function setGenerationStage(message){
 }
 
 
-// v11.11.86.75 — scoped bulk unlock. No game fields other than lockedManual change.
+// v11.11.86.76 — scoped bulk unlock. No game fields other than lockedManual change.
 function unlockSelectedFutureDateGames(){
   const dates=selectedGenerationDates();
   if(!dates.length)return alert('Select at least one future Playing Date to Schedule first.');
