@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.82</title>
+<title>MSS League Scheduler v11.11.86.83</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.82</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.83</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -236,7 +236,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <section id="admin-settings" class="panel">
   <div class="card">
     <h2>Resources & Scheduling Setup</h2>
-    <div class="status info" style="margin:8px 0"><b>v11.11.86.82:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
+    <div class="status info" style="margin:8px 0"><b>v11.11.86.83:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
     <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
   </div>
 
@@ -333,7 +333,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>  </div>
 
   <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
-    <h2>🔎 Scheduling Diagnostics — v11.11.86.82</h2>
+    <h2>🔎 Scheduling Diagnostics — v11.11.86.83</h2>
     <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
     <div class="toolbar" style="margin:10px 0"><button type="button" class="secondary" onclick="refreshSchedulingDiagnosticsV80()">Refresh Scheduling Diagnostics</button></div>
     <div id="schedulingDiagnosticsV80Status" class="section-note">Click Refresh to check November 1 court slots and date boundaries.</div>
@@ -365,7 +365,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.82</b> — MAX TWO CONSECUTIVE GAMES + FUTURE-ONLY AUDIT; SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.83</b> — MAX TWO CONSECUTIVE GAMES + FUTURE-ONLY AUDIT; SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -950,19 +950,38 @@ function previewWithdrawCleanup(){
   out.innerHTML='<div class="status warn"><b>Preview only — no games have been removed.</b><br>'+entries.map(e=>`${esc(e.team.name)} — ${esc(divisionLabel(e.team.divisionId))} — withdrawn ${esc(e.effectiveDate)}: <b>${e.games.length} future games</b>`).join('<br>')+`<br><b>${gameIds.length} distinct scheduled games will be removed.</b> Other teams in those matchups will need replacement games to meet their minimums. No replacement games will be generated automatically.</div>`+
     '<div style="max-height:250px;overflow:auto"><table><thead><tr><th>Date</th><th>Time</th><th>Court</th><th>Matchup</th></tr></thead><tbody>'+entries.flatMap(e=>e.games).filter((g,i,a)=>a.findIndex(x=>x.id===g.id)===i).sort((a,b)=>a.date.localeCompare(b.date)||String(a.time).localeCompare(String(b.time))).map(g=>`<tr><td>${esc(g.date)}</td><td>${esc(fmtTime(g.time))}</td><td>${esc(g.court||'')}</td><td>${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</td></tr>`).join('')+'</tbody></table></div>';
 }
-function confirmWithdrawCleanup(){
+async function confirmWithdrawCleanup(){
   const entries=pendingWithdrawalGames();
   const current=JSON.stringify(entries.map(e=>({teamId:e.team.id,date:e.effectiveDate,gameIds:e.games.map(g=>g.id).sort()})));
   if(!entries.length||current!==withdrawCleanupSnapshot){alert('Preview the latest withdrawal cleanup first.');return;}
   const ids=new Set(entries.flatMap(e=>e.games.map(g=>g.id)));
-  if(!confirm(`Remove ${ids.size} future games involving withdrawn teams?\n\nThis preserves all games before each withdrawal effective date, and does not remove team registrations. Other teams will need new games scheduled separately.\n\nMake sure you have exported a league backup.`))return;
-  // Only scheduled games for the withdrawn team's effective date onward are removed.
-  state.games=state.games.filter(g=>!ids.has(g.id));
+  if(!confirm(`Remove ${ids.size} future games involving withdrawn teams?\n\nHistorical games will be preserved. Opponents will need replacement games.\n\nMake sure you have exported a league backup.`))return;
+  const before=state.games.length;
+  const removed=state.games.filter(g=>entries.some(e=>g.date>=e.effectiveDate&&(g.aId===e.team.id||g.bId===e.team.id)));
+  // Match exact withdrawn-team IDs and dates, not only game IDs.
+  state.games=state.games.filter(g=>!entries.some(e=>g.date>=e.effectiveDate&&(g.aId===e.team.id||g.bId===e.team.id)));
+  const remaining=state.games.filter(g=>entries.some(e=>g.date>=e.effectiveDate&&(g.aId===e.team.id||g.bId===e.team.id)));
+  if(remaining.length||before-state.games.length!==removed.length){
+    alert('Cleanup verification failed; do not proceed.');return;
+  }
   entries.forEach(e=>{e.team.futureChangePending={...e.team.futureChangePending,cleanupCompleted:true,removedGames:e.games.length};});
-  logActivity(`Withdrawal cleanup: removed ${ids.size} future games; historical games preserved; remaining teams require schedule repair.`);
+  logActivity(`Withdrawal cleanup: removed ${removed.length} future games; historical games preserved.`);
   withdrawCleanupSnapshot='';$('confirmWithdrawCleanupBtn').disabled=true;
-  persist();renderAll();
-  $('withdrawCleanupPreview').innerHTML=`<div class="status ok"><b>Removed ${ids.size} future games.</b> Historical games preserved. Review remaining teams' game counts and repair gaps before publishing or printing.</div>`;
+  renderAll();
+  const out=$('withdrawCleanupPreview');
+  if(out)out.innerHTML='<div class="status warn"><b>Removal verified in memory.</b> Saving and verifying permanent storage…</div>';
+  try{
+    await queueSave(true);
+    const saved=await withTimeout(readStateFromDB(),STORAGE_TIMEOUT_MS,'Withdrawal cleanup verification');
+    const savedRemaining=(saved?.games||[]).filter(g=>entries.some(e=>g.date>=e.effectiveDate&&(g.aId===e.team.id||g.bId===e.team.id)));
+    if(savedRemaining.length)throw new Error(`${savedRemaining.length} withdrawn-team future games remain in saved data.`);
+    if(!saved||saved.games.length!==state.games.length)throw new Error('Saved game count differs from the current schedule.');
+    renderAll();
+    $('withdrawCleanupPreview').innerHTML=`<div class="status ok"><b>Removed ${removed.length} future games and verified saved data.</b> Historical games preserved. Repair opponents' missing games before publishing.</div>`;
+  }catch(err){
+    console.error('Withdrawal cleanup save verification',err);
+    $('withdrawCleanupPreview').innerHTML=`<div class="status bad"><b>WARNING: Cleanup is not verified as saved.</b> ${esc(err.message||String(err))}. Do not refresh or regenerate. Export a backup and check storage.</div>`;
+  }
 }
 function parseCSV(text){const rows=[];let row=[],v='',q=false;for(let i=0;i<text.length;i++){const ch=text[i],n=text[i+1];if(ch==='"'&&q&&n==='"'){v+='"';i++}else if(ch==='"')q=!q;else if(ch===','&&!q){row.push(v);v=''}else if((ch==='\n'||ch==='\r')&&!q){if(ch==='\r'&&n==='\n')i++;row.push(v);if(row.some(x=>x.trim()))rows.push(row);row=[];v=''}else v+=ch}if(v||row.length){row.push(v);rows.push(row)}return rows}
 
@@ -1763,7 +1782,7 @@ function diagRow(d,pool=null){
     </div>
   </div>`;
 }
-// v11.11.86.82: standalone, read-only date and court capacity inspection.
+// v11.11.86.83: standalone, read-only date and court capacity inspection.
 function refreshSchedulingDiagnosticsV80(){
   const status=$('schedulingDiagnosticsV80Status');
   try{
@@ -2214,7 +2233,16 @@ function selectedScheduleTargets(scopeOverride=null){
   // never depends on the visible dropdown while Schedule All is running.
   const scope=scopeOverride||$('scheduleFilter').value||'ALL',targets=[];
   Object.entries(state.pools).forEach(([d,p])=>Object.entries(p.lists).forEach(([pool,ids])=>{
-    if(scopeMatches(scope,d,pool))targets.push({division:d,pool,ids})
+    if(scopeMatches(scope,d,pool)){
+      // v86.83: exclude withdrawn teams from regenerated dates. Previously the
+      // planner consumed the raw pool roster and re-created cleaned-up games.
+      const dates=selectedGenerationDates();
+      const activeIds=ids.filter(id=>{
+        const t=state.teams.find(team=>team.id===id);
+        return t&&(!t.withdrawnEffectiveDate||!dates.length||dates.some(date=>date<t.withdrawnEffectiveDate));
+      });
+      targets.push({division:d,pool,ids:activeIds});
+    }
   }));
   return {scope,targets}
 }
@@ -2822,7 +2850,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     {name:'rematch-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:true,relaxRematch:true,timeMs:12000,nodeLimit:70000}
   ];
   let overallBest=[],overallBestTier='strict',totalNodes=0;
-  // v11.11.86.82 — root-level diagnostics, including final-date and empty-slot checks.
+  // v11.11.86.83 — root-level diagnostics, including final-date and empty-slot checks.
   const rootDiagnostics={date, dateIndex, planned:games.length, available:available.length,
     baseSlots:baseSlots.length, availableDates:[...new Set(available.map(sl=>sl.date))],
     firstSlot:baseSlots[0] ? `${baseSlots[0].date} ${baseSlots[0].time} ${baseSlots[0].court}` : '(none)',
@@ -2910,7 +2938,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     }
     const order=Number(game.roundOrder??game._idx??0);
     const sequenceBias=order*0.25;
-    // v11.11.86.82: prefer nearby legal slots, not the most distant slot.
+    // v11.11.86.83: prefer nearby legal slots, not the most distant slot.
     // The old positive gap score spread games apart and greatly enlarged search.
     // No hard rule is relaxed here.
     const compactness=stamps.length ? -Math.min(gap/60000,120) : 0;
@@ -2984,7 +3012,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
       const next=remaining.slice(0,pickIndex).concat(remaining.slice(pickIndex+1));
 
       // Keep branching bounded. Candidate ordering is already heuristic.
-      // v11.11.86.82: explore all legal candidate slots within the existing
+      // v11.11.86.83: explore all legal candidate slots within the existing
       // node/time bounds. The previous 24-slot cutoff could exclude valid
       // placements on larger multi-court schedules.
       const branchLimit=pickCandidates.length;
@@ -3237,7 +3265,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   if(commitMinimumFailures.length){
     const msg=`HARD RULE #1 BLOCKED COMMIT: ${commitMinimumFailures.length} nightly minimum/maximum violation(s). The incomplete generated scope was NOT saved.\n\n`+commitMinimumFailures.slice(0,20).join('\n');
     setGenerationStage('Generation stopped — hard nightly minimum not met');
-    // v11.11.86.82: Use the real, visible Schedule status element (genSummary).
+    // v11.11.86.83: Use the real, visible Schedule status element (genSummary).
     // The previous code wrote to nonexistent generationSummary, hiding the actual blocker.
     const out=$('genSummary');
     if(out){
@@ -4182,7 +4210,7 @@ function applyMinimumRepairV70(){
  minimumRepairPlanV70=null;$('applyMinimumRepairBtn').disabled=true;persist();renderAll();
  $('minimumRepairPreviewV70').innerHTML=`<div class="status ok">Added ${result.proposals.length} games. Run Audit Selected Future Dates now. Any remaining shortages or opponent warnings require director review.</div>`;
 }
-// v11.11.86.82: consecutive means adjacent game slots, regardless of clock time.
+// v11.11.86.83: consecutive means adjacent game slots, regardless of clock time.
 // Each game start occupies one slot of the configured game length. A two-game
 // streak is permitted, but a third adjacent start is a hard violation.
 function consecutiveStreaksV73(starts,slotMinutes=Number(state.settings.gameLength||15)){
@@ -4197,7 +4225,7 @@ function consecutiveStreaksV73(starts,slotMinutes=Number(state.settings.gameLeng
   return bad;
 }
 function wouldMakeThreeConsecutiveV73(candidateStamp,otherStamps,slotMinutes=Number(state.settings.gameLength||15)){
-  // v11.11.86.82: reject only if the NEW candidate itself creates a three-game
+  // v11.11.86.83: reject only if the NEW candidate itself creates a three-game
   // streak. Historical violations must not make every future slot impossible.
   // Keep the check confined to the candidate's calendar day.
   const candidate=Number(candidateStamp)/60000;
@@ -4389,7 +4417,7 @@ function setGenerationStage(message){
 }
 
 
-// v11.11.86.82 — scoped bulk unlock. No game fields other than lockedManual change.
+// v11.11.86.83 — scoped bulk unlock. No game fields other than lockedManual change.
 function unlockSelectedFutureDateGames(){
   const dates=selectedGenerationDates();
   if(!dates.length)return alert('Select at least one future Playing Date to Schedule first.');
