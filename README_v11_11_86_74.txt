@@ -1,0 +1,11 @@
+MSS League Scheduler v11.11.86.74 — Scoped Future-Date Unlock
+
+Changes from v11.11.86.73:
+- Added Unlock Games for Selected Future Date(s) on the Schedule page.
+- Requires selected future date(s), shows counts by date, and asks for confirmation.
+- Changes only lockedManual on eligible future games; retains all dates, games, matchups, courts, times, scores and historical data.
+- Logs each unlock in schedule change history and persists state.
+- Production Preflight lock count now counts only selected future dates, not historical games.
+- No changes to the scheduling generator, optimizer or audit logic.
+
+IMPORTANT: Export Schedule Backup before unlocking. Re-run Production Preflight after unlocking. Unlocking does not guarantee that the schedule generator can meet all hard constraints.
