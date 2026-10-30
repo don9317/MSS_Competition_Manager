@@ -373,7 +373,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <button class="primary" id="generateBtn">Generate Schedule</button>
       <button class="secondary" id="generateReadyBtn" type="button">Schedule All Approved / Ready Divisions</button>
       <button id="optimizeBtn" class="primary">Re-Optimize Schedule</button>
-      <button class="primary" type="button" id="smartCompressPreviewBtn" onclick="smartCompressV85(false)">Preview Smart Schedule Compression (.86)</button>
+      <button class="primary" type="button" id="smartCompressPreviewBtn" onclick="smartCompressV85(false)">Preview Smart Schedule Compression (.86.1)</button>
       <button type="button" id="smartCompressApplyBtn" onclick="smartCompressV85(true)" disabled>Apply Previewed Compression</button>
       <label style="display:inline-flex;align-items:center;gap:5px">Flag waits ≥ <select id="smartCompressThreshold"><option value="45" selected>45 min</option><option value="30">30 min</option><option value="60">60 min</option></select></label>
       <button id="courtOptimizeAllBtn" type="button" onclick="optimizeAllPlayingDates()">Optimize All Playing Dates</button>
@@ -4623,7 +4623,7 @@ function smartCompressMetricsV85(date,threshold=45){
 }
 function smartCompressReportV85(date,before,after,moves,threshold,preview){
   const fmt=m=>fmtTime(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
-  return `<div class="status ${after.triples?'warn':'ok'}"><b>Smart Schedule Compression .86 — ${preview?'PREVIEW ONLY':'APPLIED'} (${esc(date)})</b><br>
+  return `<div class="status ${after.triples?'warn':'ok'}"><b>Smart Schedule Compression .86.1 — ${preview?'PREVIEW ONLY':'APPLIED'} (${esc(date)})</b><br>
   Games: ${before.games} • Teams: ${before.teams} • Wait threshold: ${threshold} minutes<br>
   Three-consecutive violations: <b>${before.triples} → ${after.triples}</b><br>
   Long waits ≥${threshold} min: <b>${before.bad} → ${after.bad}</b><br>
@@ -4667,7 +4667,7 @@ async function smartCompressV85(apply=false){
     // Optimize the complete selected date, never mutate opponents or earlier dates.
     // Every accepted candidate must pass the protected full audit and resource rules.
     let current=before,checks=0;
-    const maxChecks=2600;
+    const maxChecks=1200;
     const legalTrial=()=>{
       const trial=runScheduleAudit(true);
       return protectedAuditDidNotWorsen(baseline,trial) &&
@@ -4704,6 +4704,12 @@ async function smartCompressV85(apply=false){
           g.time=sl.time;g.court=sl.court;
           if(occupant){occupant.time=oldTime;occupant.court=oldCourt;}
           const metric=evaluate();
+          // .86.1: return control to the browser during the INNER search loop.
+          // Otherwise thousands of full audits can make Preview appear inert.
+          if(checks%8===0){
+            setOptimizationResults(`<div class="status info">Smart compression is working: ${checks} candidate placements checked. Please wait; no games have been saved.</div>`);
+            await yieldToBrowser();
+          }
           if(metric&&metric.score<bestScore){best={time:sl.time,court:sl.court,occupant,metric};bestScore=metric.score;}
           g.time=oldTime;g.court=oldCourt;
           if(occupant){occupant.time=occTime;occupant.court=occCourt;}
