@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.86.3</title>
+<title>MSS League Scheduler v11.11.86.86.4</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.86.3</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.86.4</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -373,7 +373,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <button class="primary" id="generateBtn">Generate Schedule</button>
       <button class="secondary" id="generateReadyBtn" type="button">Schedule All Approved / Ready Divisions</button>
       <button id="optimizeBtn" class="primary">Re-Optimize Schedule</button>
-      <button class="primary" type="button" id="smartCompressPreviewBtn" onclick="smartCompressV85(false)">Preview Smart Schedule Compression (.86.3)</button>
+      <button class="primary" type="button" id="smartCompressPreviewBtn" onclick="smartCompressV85(false)">Preview Smart Schedule Compression (.86.4)</button>
       <button type="button" id="smartCompressApplyBtn" onclick="smartCompressV85(true)" disabled>Apply Previewed Compression</button>
       <label style="display:inline-flex;align-items:center;gap:5px">Flag waits ≥ <select id="smartCompressThreshold"><option value="45" selected>45 min</option><option value="30">30 min</option><option value="60">60 min</option></select></label>
       <button id="courtOptimizeAllBtn" type="button" onclick="optimizeAllPlayingDates()">Optimize All Playing Dates</button>
@@ -4623,13 +4623,14 @@ function smartCompressMetricsV85(date,threshold=45){
 }
 function smartCompressReportV85(date,before,after,moves,threshold,preview){
   const fmt=m=>fmtTime(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
-  return `<div class="status ${after.triples?'warn':'ok'}"><b>Smart Schedule Compression .86.3 — ${preview?'PREVIEW ONLY':'APPLIED'} (${esc(date)})</b><br>
+  return `<div class="status ${after.triples?'warn':'ok'}"><b>Smart Schedule Compression .86.4 — ${preview?'PREVIEW ONLY':'APPLIED'} (${esc(date)})</b><br>
   Games: ${before.games} • Teams: ${before.teams} • Wait threshold: ${threshold} minutes<br>
   Three-consecutive violations: <b>${before.triples} → ${after.triples}</b><br>
   Long waits ≥${threshold} min: <b>${before.bad} → ${after.bad}</b><br>
   Total team idle minutes: ${before.total} → ${after.total}<br>
   Last game ends: ${fmt(before.finish)} → ${fmt(after.finish)}<br>
   Moves proposed: ${moves.length}. Opponents and game counts remain unchanged.<br>
+  ${after.triples?'<b>WARNING: Consecutive-game violations remain. Do not apply until reviewed.</b><br>':''}
   ${moves.slice(0,80).map(m=>`${esc(teamById(m.aId)?.name||m.aId)} vs ${esc(teamById(m.bId)?.name||m.bId)}: ${esc(fmtTime(m.fromTime))} ${esc(m.fromCourt)} → <b>${esc(fmtTime(m.toTime))} ${esc(m.toCourt)}</b>`).join('<br>')||'No safe improvement found.'}
   <br><span class="hint">${preview?'No games have been changed. Apply only after reviewing this proposal.':'Only the selected date was changed. Export a fresh backup and run Final Audit before publishing.'}</span></div>`;
 }
@@ -4661,6 +4662,8 @@ async function smartCompressV85(apply=false){
     return;
   }
   previewBtn.disabled=true;applyBtn.disabled=true;smartCompressProposalV85=null;
+  const oldPreviewLabel=previewBtn.textContent;
+  previewBtn.textContent='Working… Preview (.86.4)';
   const original=JSON.parse(JSON.stringify(state.games));
   const fingerprint=JSON.stringify(state.games.map(g=>[g.id,g.date,g.time,g.court,g.lockedManual]));
   const baseline=runScheduleAudit(true),before=smartCompressMetricsV85(date,threshold),moves=[];
@@ -4673,7 +4676,7 @@ async function smartCompressV85(apply=false){
     // Optimize the complete selected date, never mutate opponents or earlier dates.
     // Every accepted candidate must pass the protected full audit and resource rules.
     let current=before,checks=0;
-    const maxChecks=1200;
+    const maxChecks=2600;
     // .86.2: detailed diagnostics and a verified-safe fallback snapshot.
     const placementSnapshot=()=>state.games.map(g=>({id:g.id,time:g.time,court:g.court,pending:g.pending}));
     const restorePlacements=snapshot=>{const map=new Map(snapshot.map(g=>[g.id,g]));for(const g of state.games){const p=map.get(g.id);if(p){g.time=p.time;g.court=p.court;g.pending=p.pending;}}};
@@ -4699,9 +4702,51 @@ async function smartCompressV85(apply=false){
     const evaluate=()=>{
       checks++;
       const metric=smartCompressMetricsV85(date,threshold);
-      if(metric.score>=current.score)return null;
+      if(metric.triples>restCeiling||metric.score>=current.score)return null;
       return legalTrial()?metric:null;
     };
+    // .86.4 — repair consecutive-game violations BEFORE optimizing idle time.
+    // Prioritize games belonging to the actual 3-in-a-row streaks. A repair is
+    // committed only when the full protected audit passes and triple count falls.
+    const consecutiveStreakIds=()=>{
+      const byTeam=new Map(),out=new Set(),duration=Number(state.settings.gameLength||15);
+      for(const g of state.games){if(g.status==='Cancelled'||g.date!==date)continue;
+        for(const id of [g.aId,g.bId]){if(!byTeam.has(id))byTeam.set(id,[]);byTeam.get(id).push(g);}}
+      for(const games of byTeam.values()){
+        games.sort((a,b)=>minutes(a.time)-minutes(b.time));
+        for(let i=2;i<games.length;i++)if(minutes(games[i].time)-minutes(games[i-1].time)===duration&&minutes(games[i-1].time)-minutes(games[i-2].time)===duration)
+          for(const g of games.slice(i-2,i+1))out.add(g.id);
+      }
+      return out;
+    };
+    for(let repairRound=0;repairRound<8&&current.triples>0;repairRound++){
+      let winner=null;
+      const candidates=eligible.filter(g=>consecutiveStreakIds().has(g.id));
+      for(const g of candidates){
+        const fromTime=g.time,fromCourt=g.court;
+        for(const sl of (slots.get(g.division+'|'+g.pool)||[])){
+          if(sl.time===fromTime&&sl.court===fromCourt)continue;
+          if(!allowed(teamById(g.aId),sl)||!allowed(teamById(g.bId),sl))continue;
+          const occupant=state.games.find(x=>x!==g&&x.status!=='Cancelled'&&x.date===date&&x.time===sl.time&&x.court===sl.court);
+          if(occupant)continue; // rest repair: safe direct placements only
+          g.time=sl.time;g.court=sl.court;
+          const metric=smartCompressMetricsV85(date,threshold);
+          if(metric.triples<current.triples&&legalTrial()&&(!winner||metric.score<winner.metric.score))
+            winner={id:g.id,time:sl.time,court:sl.court,metric};
+          g.time=fromTime;g.court=fromCourt;
+        }
+      }
+      if(!winner)break;
+      const chosen=state.games.find(g=>g.id===winner.id);
+      chosen.time=winner.time;chosen.court=winner.court;chosen.pending=true;
+      if(!legalTrial()){restorePlacements(lastVerified);break;}
+      current=smartCompressMetricsV85(date,threshold);
+      lastVerified=placementSnapshot();
+      setOptimizationResults(`<div class="status info">.86.4: repairing rest violations first — ${current.triples} remaining. No games saved.</div>`);
+      await yieldToBrowser();
+    }
+    // Never let subsequent wait optimization increase the repaired triple count.
+    const restCeiling=current.triples;
     // One pass may unlock opportunities in a later pass. Deterministic ordering.
     for(let pass=0;pass<12&&checks<maxChecks;pass++){
       let changed=false;
@@ -4731,6 +4776,7 @@ async function smartCompressV85(apply=false){
           // Otherwise thousands of full audits can make Preview appear inert.
           if(checks%8===0){
             setOptimizationResults(`<div class="status info">Smart compression is working: ${checks} candidate placements checked. Please wait; no games have been saved.</div>`);
+            previewBtn.textContent=`Working… ${checks} checks`;
             await yieldToBrowser();
           }
           if(metric&&metric.score<bestScore){best={time:sl.time,court:sl.court,occupant,metric};bestScore=metric.score;}
@@ -4784,7 +4830,7 @@ async function smartCompressV85(apply=false){
     applyBtn.disabled=!moves.length;
     setOptimizationResults(smartCompressReportV85(date,before,after,moves,threshold,true),true);
   }catch(err){state.games=original;smartCompressProposalV85=null;console.error(err);setOptimizationResults(`<div class="status warn">Smart compression preview failed: ${esc(String(err))}. Original schedule retained. Open browser console for details.</div>`,true);}
-  finally{state.games=original;previewBtn.disabled=false;runScheduleAudit(true);}
+  finally{state.games=original;previewBtn.disabled=false;previewBtn.textContent=oldPreviewLabel;runScheduleAudit(true);}
 }
 
 async function optimizeAllPlayingDates(){

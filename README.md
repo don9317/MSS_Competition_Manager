@@ -86,3 +86,6 @@ Added two read-only Schedule Management print reports: Division / Game # / Court
 - Applies only after explicit confirmation and a full protected audit.
 - Keeps opponent pairings, game counts, and other playing dates unchanged.
 - Does not guarantee all 45-minute waits can be removed; audit the preview and final result.
+
+
+Version .86.4: consecutive-rest repair phase before wait optimization; live preview button progress; historical protection retained. Test with backup and audit before applying.
