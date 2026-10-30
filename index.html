@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.86.5.1</title>
+<title>MSS League Scheduler v11.11.86.86.6</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.86.5.1</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.86.6</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -428,8 +428,9 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
         <label style="margin:0;min-width:210px">Playing Date<select id="calendarDate"></select></label>
         <label style="margin:0;min-width:260px">Division / Pool<select id="calendarScope"></select></label>
         <label style="margin:0;display:flex;align-items:center;gap:6px;white-space:nowrap"><input id="calendarHideUnused" type="checkbox" checked> Hide Unused Courts</label>
-        <button id="calendarOptimizeBtn" type="button">Preview Court Compression (.86.5.1)</button>
+        <button id="calendarOptimizeBtn" type="button">Preview Court Compression (.86.6)</button>
         <button id="calendarApplyCompressionBtn" type="button" disabled>Apply Previewed Court Compression</button>
+        <div id="calendarCompressionStatusV866" role="status" aria-live="polite" style="margin:8px 0;padding:10px;border:1px solid #b7c8dc;border-radius:7px;background:#f5f8fc;display:none;max-width:100%"></div>
         <button class="secondary" id="calendarPrintBtn" type="button">Print Full Court Calendar</button>
       </div>
     </div>
@@ -4897,6 +4898,9 @@ function setOptimizationStatus(kind,message,detail='',pct=null){
 }
 function setOptimizationResults(html,completed=false){
   const out=$('optimizationResults'); if(out)out.innerHTML=html||'';
+  const local=$('calendarCompressionStatusV866');
+  if(local && (html||'').includes('Court')) {local.style.display='block';local.innerHTML=html||'';}
+
   if(completed){const last=$('optimizationLastCompleted');if(last)last.textContent=`Last completed: ${nowTimeLabel()}`}
 }
 function setButtonWorking(btn,label){
@@ -5246,8 +5250,15 @@ function runGameLevelLeftShiftCleanup(targetDate,movableIds,currentAudit){
       const slot=earliestLegalEarlierSlotForGame(g,movableIds);
       if(!slot)continue;
       const old={time:g.time,court:g.court,pending:g.pending};
+      const waitBeforeMove=smartCompressMetricsV85(targetDate,45);
       g.time=slot.time;g.court=slot.court;g.pending=true;
 
+      // .86.6: preserve the successful team-wait improvements after EVERY move.
+      const waitAfterMove=smartCompressMetricsV85(targetDate,45);
+      if(waitAfterMove.triples>waitBeforeMove.triples||waitAfterMove.bad>waitBeforeMove.bad||waitAfterMove.total>waitBeforeMove.total){
+        g.time=old.time;g.court=old.court;g.pending=old.pending;
+        continue;
+      }
       // Every single move must preserve all protected schedule rules.
       const trialAudit=runScheduleAudit(true);
       if(!currentPlacementIsResourceLegal(g)||!protectedAuditDidNotWorsen(audit,trialAudit)){
@@ -5293,6 +5304,8 @@ async function optimizeCourtUseSafely(explicitDate=null){
     const beforeDate=packingMetricsForDate(targetDate);
     const beforeWait=smartCompressMetricsV85(targetDate,45);
 
+    const local=$('calendarCompressionStatusV866');
+    if(local){local.style.display='block';local.textContent='Court compression preview running for '+targetDate+'… No changes will be applied automatically.';}
     setButtonWorking(btn,'Optimizing Court + Time…');
     setOptimizationStatus('OPTIMIZING COURT + TIME','Working…',`Preparing ${targetDate}`,2);
     setOptimizationResults(`<div class="status info"><b>Court + Time multi-pass optimization started for ${esc(targetDate)}.</b><br><b>Current-resource repair:</b> ${invalidBefore.length} invalid placement(s) detected.<br>Before: ${beforeDate.efficiency.toFixed(1)}% packing • ${beforeDate.internalEmptyCourtSlots} internal empty court-slot(s) • ${beforeDate.courtBlocks} court block(s).</div>`);
@@ -5343,6 +5356,7 @@ async function optimizeCourtUseSafely(explicitDate=null){
       const mustRepairResources=invalidBlockBefore.length>0;
       const currentBlockKey=blockOptimizationKey(block);
       const currentBlockMetrics=currentBlockKey.metrics;
+      const waitBeforeBlock=smartCompressMetricsV85(targetDate,45);
       let best=null,hadCandidate=false,hadBetter=false,hadAuditSafe=false;
 
       for(const mode of modes){
@@ -5377,6 +5391,11 @@ async function optimizeCourtUseSafely(explicitDate=null){
         if(!scoreImproves&&!repairsCurrentResources){modeStats.notBetter++;continue}
         hadBetter=true;
 
+        const trialWait=smartCompressMetricsV85(targetDate,45);
+        if(trialWait.triples>waitBeforeBlock.triples||trialWait.bad>waitBeforeBlock.bad||trialWait.total>waitBeforeBlock.total){
+          modeStats.notBetter++;
+          continue;
+        }
         const trialAudit=runScheduleAudit(true);
         if(!protectedAuditDidNotWorsen(currentAudit,trialAudit)){modeStats.auditRejected++;continue}
         hadAuditSafe=true;
@@ -5479,7 +5498,7 @@ async function optimizeCourtUseSafely(explicitDate=null){
     const improvement=protectedAuditImprovementText(originalAudit,finalAudit);
 
     setOptimizationStatus('COURT COMPRESSION PREVIEW','Preview ready',`${targetDate}: ${beforeDate.efficiency.toFixed(1)}% → ${afterDate.efficiency.toFixed(1)}% packing`,100);
-    setOptimizationResults(`<div class="status ok"><b>Court Compression .86.5 — PREVIEW ONLY for ${esc(targetDate)}.</b><br><b>${moves.length} game placement(s) proposed. No changes applied.</b><br>
+    setOptimizationResults(`<div class="status ok"><b>Court Compression .86.6 — PREVIEW ONLY for ${esc(targetDate)}.</b><br><b>${moves.length} game placement(s) proposed. No changes applied.</b><br>
       <b>Team waits ≥45 min:</b> ${beforeWait.bad} → ${afterWait.bad} • <b>Total team idle:</b> ${beforeWait.total} → ${afterWait.total} min • <b>Three consecutive:</b> ${beforeWait.triples} → ${afterWait.triples}<br>
       <b>Last game ends:</b> ${fmtTime(`${String(Math.floor(beforeWait.finish/60)).padStart(2,'0')}:${String(beforeWait.finish%60).padStart(2,'0')}`)} → ${fmtTime(`${String(Math.floor(afterWait.finish/60)).padStart(2,'0')}:${String(afterWait.finish%60).padStart(2,'0')}`)}<br>
       <b>Compaction:</b> ${compactionPassesRun} block sweep(s) completed • ${blocks.length} division/pool block(s) per sweep.<br>
