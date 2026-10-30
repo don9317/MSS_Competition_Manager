@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.86.5</title>
+<title>MSS League Scheduler v11.11.86.86.5.1</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.86.5</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.86.5.1</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -428,7 +428,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
         <label style="margin:0;min-width:210px">Playing Date<select id="calendarDate"></select></label>
         <label style="margin:0;min-width:260px">Division / Pool<select id="calendarScope"></select></label>
         <label style="margin:0;display:flex;align-items:center;gap:6px;white-space:nowrap"><input id="calendarHideUnused" type="checkbox" checked> Hide Unused Courts</label>
-        <button id="calendarOptimizeBtn" type="button">Preview Court Compression (.86.5)</button>
+        <button id="calendarOptimizeBtn" type="button">Preview Court Compression (.86.5.1)</button>
         <button id="calendarApplyCompressionBtn" type="button" disabled>Apply Previewed Court Compression</button>
         <button class="secondary" id="calendarPrintBtn" type="button">Print Full Court Calendar</button>
       </div>
@@ -5475,7 +5475,7 @@ async function optimizeCourtUseSafely(explicitDate=null){
     courtCompressionProposalV865={date:targetDate,originalSignature:JSON.stringify(baselinePositions),positions:proposedPositions,moves:moves.length};
     state.games=original;
     renderAll();
-    const applyBtn=$('calendarApplyCompressionBtn');if(applyBtn)applyBtn.disabled=!moves.length;
+    if(applyBtn)applyBtn.disabled=!moves.length;
     const improvement=protectedAuditImprovementText(originalAudit,finalAudit);
 
     setOptimizationStatus('COURT COMPRESSION PREVIEW','Preview ready',`${targetDate}: ${beforeDate.efficiency.toFixed(1)}% → ${afterDate.efficiency.toFixed(1)}% packing`,100);
