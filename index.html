@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.86.2</title>
+<title>MSS League Scheduler v11.11.86.86.3</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.86.2</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.86.3</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -373,7 +373,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <button class="primary" id="generateBtn">Generate Schedule</button>
       <button class="secondary" id="generateReadyBtn" type="button">Schedule All Approved / Ready Divisions</button>
       <button id="optimizeBtn" class="primary">Re-Optimize Schedule</button>
-      <button class="primary" type="button" id="smartCompressPreviewBtn" onclick="smartCompressV85(false)">Preview Smart Schedule Compression (.86.2</button>
+      <button class="primary" type="button" id="smartCompressPreviewBtn" onclick="smartCompressV85(false)">Preview Smart Schedule Compression (.86.3)</button>
       <button type="button" id="smartCompressApplyBtn" onclick="smartCompressV85(true)" disabled>Apply Previewed Compression</button>
       <label style="display:inline-flex;align-items:center;gap:5px">Flag waits ≥ <select id="smartCompressThreshold"><option value="45" selected>45 min</option><option value="30">30 min</option><option value="60">60 min</option></select></label>
       <button id="courtOptimizeAllBtn" type="button" onclick="optimizeAllPlayingDates()">Optimize All Playing Dates</button>
@@ -4623,7 +4623,7 @@ function smartCompressMetricsV85(date,threshold=45){
 }
 function smartCompressReportV85(date,before,after,moves,threshold,preview){
   const fmt=m=>fmtTime(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
-  return `<div class="status ${after.triples?'warn':'ok'}"><b>Smart Schedule Compression .86.2 — ${preview?'PREVIEW ONLY':'APPLIED'} (${esc(date)})</b><br>
+  return `<div class="status ${after.triples?'warn':'ok'}"><b>Smart Schedule Compression .86.3 — ${preview?'PREVIEW ONLY':'APPLIED'} (${esc(date)})</b><br>
   Games: ${before.games} • Teams: ${before.teams} • Wait threshold: ${threshold} minutes<br>
   Three-consecutive violations: <b>${before.triples} → ${after.triples}</b><br>
   Long waits ≥${threshold} min: <b>${before.bad} → ${after.bad}</b><br>
@@ -4649,7 +4649,13 @@ async function smartCompressV85(apply=false){
     const baseline=runScheduleAudit(true);
     for(const move of prop.moves){const g=state.games.find(g=>g.id===move.id);if(!g){state.games=original;return alert('A game changed since preview.')}g.time=move.toTime;g.court=move.toCourt;g.pending=true;}
     const finalAudit=runScheduleAudit(true);
-    if(!protectedAuditDidNotWorsen(baseline,finalAudit)||state.games.some(g=>g.date===date&&g.status!=='Cancelled'&&!currentPlacementIsResourceLegal(g))){state.games=original;runScheduleAudit(true);return alert('Final protected audit failed; no changes applied.');}
+    // .86.3: Historical and unchanged placements are grandfathered. Only changed
+    // selected-date games need to satisfy CURRENT resource restrictions.
+    const originalMap=new Map(original.map(g=>[g.id,g]));
+    const changed=state.games.filter(g=>{const o=originalMap.get(g.id);return o&&(g.time!==o.time||g.court!==o.court);});
+    const historyTouched=changed.some(g=>g.date!==date)||state.games.length!==original.length;
+    const illegalChanged=changed.filter(g=>g.status!=='Cancelled'&&!currentPlacementIsResourceLegal(g));
+    if(historyTouched||illegalChanged.length||!protectedAuditDidNotWorsen(baseline,finalAudit)){state.games=original;runScheduleAudit(true);return alert('Final protected audit failed; no changes applied.');}
     persist();renderAll();smartCompressProposalV85=null;applyBtn.disabled=true;
     setOptimizationResults(smartCompressReportV85(date,prop.before,smartCompressMetricsV85(date,threshold),prop.moves,threshold,false),true);
     return;
@@ -4681,7 +4687,12 @@ async function smartCompressV85(apply=false){
         const y=a[label]||{status:'PASS',count:0};
         if(y.count>x.count||(x.status!=='FAIL'&&y.status==='FAIL'))worsening.push(`${label}: ${x.count} → ${y.count}`);
       }
-      const illegal=state.games.filter(x=>x.date===date&&x.status!=='Cancelled'&&!currentPlacementIsResourceLegal(x));
+      // .86.3: A current restriction must not invalidate an unchanged historical
+      // placement (for example B courts used on September 27).
+      const baselineById=new Map(original.map(g=>[g.id,g]));
+      const touched=state.games.filter(g=>{const o=baselineById.get(g.id);return o&&(g.time!==o.time||g.court!==o.court);});
+      const illegal=touched.filter(x=>x.date===date&&x.status!=='Cancelled'&&!currentPlacementIsResourceLegal(x));
+      if(touched.some(x=>x.date!==date))worsening.push('Protected historical game placement changed');
       lastTrialFailure=[...worsening,...illegal.slice(0,8).map(g=>`Illegal court/time: ${teamById(g.aId)?.name||g.aId} vs ${teamById(g.bId)?.name||g.bId} at ${g.time} ${g.court}`)].join('; ');
       return !worsening.length&&!illegal.length;
     };
