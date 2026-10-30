@@ -5334,6 +5334,7 @@ async function optimizeCourtUseSafely(explicitDate=null){
     const originalAudit=runScheduleAudit(true);
     const beforeDate=packingMetricsForDate(targetDate);
     const beforeWait=smartCompressMetricsV85(targetDate,45);
+    const beforeSession=courtCompressionSessionFinishV867(targetDate);
 
     const local=$('calendarCompressionStatusV866');
     if(local){local.style.display='block';local.textContent='Court compression preview running for '+targetDate+'… No changes will be applied automatically.';}
