@@ -77,3 +77,12 @@ Added two read-only Schedule Management print reports: Division / Game # / Court
 - Score Entry date, division and court filters (read-only display filters; no schedule changes).
 - Print a blank My Sport Space two-team scoresheet, or a prefilled game-specific blank scoresheet via each row.
 - Original scoring/correction rules and scheduling logic unchanged.
+
+
+## v11.11.86.86 Smart Compression
+- Expands .85's direct single-game moves to safe two-game slot exchanges.
+- Increases the bounded search budget and number of passes.
+- Compares all proposed changes to the original schedule (no intermediate moves in preview).
+- Applies only after explicit confirmation and a full protected audit.
+- Keeps opponent pairings, game counts, and other playing dates unchanged.
+- Does not guarantee all 45-minute waits can be removed; audit the preview and final result.

@@ -365,7 +365,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.85</b> — MAX TWO CONSECUTIVE GAMES + FUTURE-ONLY AUDIT; SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.86</b> — MAX TWO CONSECUTIVE GAMES + FUTURE-ONLY AUDIT; SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -373,7 +373,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <button class="primary" id="generateBtn">Generate Schedule</button>
       <button class="secondary" id="generateReadyBtn" type="button">Schedule All Approved / Ready Divisions</button>
       <button id="optimizeBtn" class="primary">Re-Optimize Schedule</button>
-      <button class="primary" type="button" id="smartCompressPreviewBtn" onclick="smartCompressV85(false)">Preview Smart Schedule Compression (.85)</button>
+      <button class="primary" type="button" id="smartCompressPreviewBtn" onclick="smartCompressV85(false)">Preview Smart Schedule Compression (.86)</button>
       <button type="button" id="smartCompressApplyBtn" onclick="smartCompressV85(true)" disabled>Apply Previewed Compression</button>
       <label style="display:inline-flex;align-items:center;gap:5px">Flag waits ≥ <select id="smartCompressThreshold"><option value="45" selected>45 min</option><option value="30">30 min</option><option value="60">60 min</option></select></label>
       <button id="courtOptimizeAllBtn" type="button" onclick="optimizeAllPlayingDates()">Optimize All Playing Dates</button>
@@ -4595,7 +4595,7 @@ function runProductionPreflight(){
 }
 
 
-// v11.11.86.85 — non-destructive, selected-date-only schedule compression.
+// v11.11.86.86 — non-destructive, selected-date-only schedule compression.
 // A trial changes only time/court of an existing game; every candidate is checked
 // against current pool slots, both teams, rest, and the protected full audit.
 let smartCompressProposalV85=null;
@@ -4623,7 +4623,7 @@ function smartCompressMetricsV85(date,threshold=45){
 }
 function smartCompressReportV85(date,before,after,moves,threshold,preview){
   const fmt=m=>fmtTime(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
-  return `<div class="status ${after.triples?'warn':'ok'}"><b>Smart Schedule Compression .85 — ${preview?'PREVIEW ONLY':'APPLIED'} (${esc(date)})</b><br>
+  return `<div class="status ${after.triples?'warn':'ok'}"><b>Smart Schedule Compression .86 — ${preview?'PREVIEW ONLY':'APPLIED'} (${esc(date)})</b><br>
   Games: ${before.games} • Teams: ${before.teams} • Wait threshold: ${threshold} minutes<br>
   Three-consecutive violations: <b>${before.triples} → ${after.triples}</b><br>
   Long waits ≥${threshold} min: <b>${before.bad} → ${after.bad}</b><br>
@@ -4659,49 +4659,77 @@ async function smartCompressV85(apply=false){
   const fingerprint=JSON.stringify(state.games.map(g=>[g.id,g.date,g.time,g.court,g.lockedManual]));
   const baseline=runScheduleAudit(true),before=smartCompressMetricsV85(date,threshold),moves=[];
   try{
-    setOptimizationResults(`<div class="status info">Previewing ${esc(date)} — no schedule changes will be saved.</div>`);
+    setOptimizationResults(`<div class="status info">Searching direct moves and safe two-game exchanges for ${esc(date)} — no schedule changes will be saved.</div>`);
     const eligible=state.games.filter(g=>g.date===date&&g.status!=='Cancelled'&&!g.lockedManual);
     const slots=new Map();
     for(const g of eligible){const key=g.division+'|'+g.pool;if(!slots.has(key))slots.set(key,poolSlots(g.division,g.pool,date));}
+    // .86: broaden search to direct moves AND two-game slot exchanges.
+    // Optimize the complete selected date, never mutate opponents or earlier dates.
+    // Every accepted candidate must pass the protected full audit and resource rules.
     let current=before,checks=0;
-    // Bounded coordinate descent, with every accepted move audited; prioritizes
-    // fixing three-game streaks, then long waits, then finishing earlier.
-    for(let pass=0;pass<4&&checks<700;pass++){
+    const maxChecks=2600;
+    const legalTrial=()=>{
+      const trial=runScheduleAudit(true);
+      return protectedAuditDidNotWorsen(baseline,trial) &&
+        state.games.filter(x=>x.date===date&&x.status!=='Cancelled').every(currentPlacementIsResourceLegal);
+    };
+    const evaluate=()=>{
+      checks++;
+      const metric=smartCompressMetricsV85(date,threshold);
+      if(metric.score>=current.score)return null;
+      return legalTrial()?metric:null;
+    };
+    // One pass may unlock opportunities in a later pass. Deterministic ordering.
+    for(let pass=0;pass<12&&checks<maxChecks;pass++){
       let changed=false;
-      const ordered=[...eligible].sort((a,b)=>minutes(b.time)-minutes(a.time));
+      const ordered=[...eligible].sort((a,b)=>minutes(b.time)-minutes(a.time)||String(a.id).localeCompare(String(b.id)));
       for(const g of ordered){
-        if(checks>=700)break;
+        if(checks>=maxChecks)break;
         const oldTime=g.time,oldCourt=g.court,oldPending=g.pending;
         let best=null,bestScore=current.score;
         const choices=(slots.get(g.division+'|'+g.pool)||[])
           .filter(sl=>sl.time!==oldTime||sl.court!==oldCourt)
           .sort((a,b)=>minutes(a.time)-minutes(b.time)||naturalCourtSort(a.court,b.court));
         for(const sl of choices){
-          if(checks>=700)break;
-          // Avoid moves later than the existing slot unless they improve rest significantly.
-          if(minutes(sl.time)>minutes(oldTime)+30)continue;
-          if(state.games.some(x=>x!==g&&x.status!=='Cancelled'&&x.date===date&&x.time===sl.time&&x.court===sl.court))continue;
+          if(checks>=maxChecks)break;
+          if(minutes(sl.time)>minutes(oldTime)+60)continue;
+          const occupant=state.games.find(x=>x!==g&&x.status!=='Cancelled'&&x.date===date&&x.time===sl.time&&x.court===sl.court);
+          // Two-game exchange is allowed only if the other game can legally use the old slot.
+          if(occupant&&(occupant.lockedManual||!eligible.includes(occupant)||
+              !(slots.get(occupant.division+'|'+occupant.pool)||[]).some(q=>q.time===oldTime&&q.court===oldCourt)))continue;
           if(!allowed(teamById(g.aId),sl)||!allowed(teamById(g.bId),sl))continue;
-          const m=minutes(sl.time),gap=minimumGapMinutes();
-          if([g.aId,g.bId].some(id=>state.games.some(x=>x!==g&&x.status!=='Cancelled'&&x.date===date&&(x.aId===id||x.bId===id)&&Math.abs(minutes(x.time)-m)<gap)))continue;
+          if(occupant&&(!allowed(teamById(occupant.aId),{time:oldTime,court:oldCourt})||
+             !allowed(teamById(occupant.bId),{time:oldTime,court:oldCourt})))continue;
+          const occTime=occupant?.time,occCourt=occupant?.court;
           g.time=sl.time;g.court=sl.court;
-          const metric=smartCompressMetricsV85(date,threshold);
-          if(metric.score<bestScore){
-            checks++;
-            const trial=runScheduleAudit(true);
-            if(protectedAuditDidNotWorsen(baseline,trial)&&currentPlacementIsResourceLegal(g)){
-              best={time:sl.time,court:sl.court,metric};bestScore=metric.score;
-            }
-          }
+          if(occupant){occupant.time=oldTime;occupant.court=oldCourt;}
+          const metric=evaluate();
+          if(metric&&metric.score<bestScore){best={time:sl.time,court:sl.court,occupant,metric};bestScore=metric.score;}
           g.time=oldTime;g.court=oldCourt;
+          if(occupant){occupant.time=occTime;occupant.court=occCourt;}
         }
-        if(best){g.time=best.time;g.court=best.court;g.pending=true;current=best.metric;changed=true;
-          moves.push({id:g.id,aId:g.aId,bId:g.bId,fromTime:oldTime,fromCourt:oldCourt,toTime:g.time,toCourt:g.court});
+        if(best){
+          g.time=best.time;g.court=best.court;g.pending=true;
+          if(best.occupant){best.occupant.time=oldTime;best.occupant.court=oldCourt;best.occupant.pending=true;}
+          current=best.metric;changed=true;
         }else{g.time=oldTime;g.court=oldCourt;g.pending=oldPending;}
-        if(checks%40===0)await yieldToBrowser();
+        if(checks%60===0)await yieldToBrowser();
       }
       if(!changed)break;
     }
+    // Report final positions, not intermediate steps: one move per affected game.
+    moves.length=0;
+    const originalById=new Map(original.map(g=>[g.id,g]));
+    for(const g of state.games){
+      if(g.date!==date)continue;
+      const old=originalById.get(g.id);
+      if(old&&(old.time!==g.time||old.court!==g.court))moves.push({
+        id:g.id,aId:g.aId,bId:g.bId,fromTime:old.time,fromCourt:old.court,
+        toTime:g.time,toCourt:g.court
+      });
+    }
+    // Recheck final state after the complete search, before offering Apply.
+    if(!legalTrial())throw new Error('Final proposal did not pass the protected audit');
     const after=smartCompressMetricsV85(date,threshold);
     // Preview restores the original state before touching storage or UI.
     state.games=original;
