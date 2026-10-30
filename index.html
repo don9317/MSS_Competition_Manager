@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.86.1</title>
+<title>MSS League Scheduler v11.11.86.86.2</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.86.1</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.86.2</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -373,7 +373,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <button class="primary" id="generateBtn">Generate Schedule</button>
       <button class="secondary" id="generateReadyBtn" type="button">Schedule All Approved / Ready Divisions</button>
       <button id="optimizeBtn" class="primary">Re-Optimize Schedule</button>
-      <button class="primary" type="button" id="smartCompressPreviewBtn" onclick="smartCompressV85(false)">Preview Smart Schedule Compression (.86.1)</button>
+      <button class="primary" type="button" id="smartCompressPreviewBtn" onclick="smartCompressV85(false)">Preview Smart Schedule Compression (.86.2</button>
       <button type="button" id="smartCompressApplyBtn" onclick="smartCompressV85(true)" disabled>Apply Previewed Compression</button>
       <label style="display:inline-flex;align-items:center;gap:5px">Flag waits ≥ <select id="smartCompressThreshold"><option value="45" selected>45 min</option><option value="30">30 min</option><option value="60">60 min</option></select></label>
       <button id="courtOptimizeAllBtn" type="button" onclick="optimizeAllPlayingDates()">Optimize All Playing Dates</button>
@@ -4623,7 +4623,7 @@ function smartCompressMetricsV85(date,threshold=45){
 }
 function smartCompressReportV85(date,before,after,moves,threshold,preview){
   const fmt=m=>fmtTime(`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`);
-  return `<div class="status ${after.triples?'warn':'ok'}"><b>Smart Schedule Compression .86.1 — ${preview?'PREVIEW ONLY':'APPLIED'} (${esc(date)})</b><br>
+  return `<div class="status ${after.triples?'warn':'ok'}"><b>Smart Schedule Compression .86.2 — ${preview?'PREVIEW ONLY':'APPLIED'} (${esc(date)})</b><br>
   Games: ${before.games} • Teams: ${before.teams} • Wait threshold: ${threshold} minutes<br>
   Three-consecutive violations: <b>${before.triples} → ${after.triples}</b><br>
   Long waits ≥${threshold} min: <b>${before.bad} → ${after.bad}</b><br>
@@ -4668,10 +4668,22 @@ async function smartCompressV85(apply=false){
     // Every accepted candidate must pass the protected full audit and resource rules.
     let current=before,checks=0;
     const maxChecks=1200;
+    // .86.2: detailed diagnostics and a verified-safe fallback snapshot.
+    const placementSnapshot=()=>state.games.map(g=>({id:g.id,time:g.time,court:g.court,pending:g.pending}));
+    const restorePlacements=snapshot=>{const map=new Map(snapshot.map(g=>[g.id,g]));for(const g of state.games){const p=map.get(g.id);if(p){g.time=p.time;g.court=p.court;g.pending=p.pending;}}};
+    let lastVerified=placementSnapshot();
+    let lastTrialFailure='';
     const legalTrial=()=>{
       const trial=runScheduleAudit(true);
-      return protectedAuditDidNotWorsen(baseline,trial) &&
-        state.games.filter(x=>x.date===date&&x.status!=='Cancelled').every(currentPlacementIsResourceLegal);
+      const b=protectedAuditMap(baseline),a=protectedAuditMap(trial);
+      const worsening=[];
+      for(const [label,x] of Object.entries(b)){
+        const y=a[label]||{status:'PASS',count:0};
+        if(y.count>x.count||(x.status!=='FAIL'&&y.status==='FAIL'))worsening.push(`${label}: ${x.count} → ${y.count}`);
+      }
+      const illegal=state.games.filter(x=>x.date===date&&x.status!=='Cancelled'&&!currentPlacementIsResourceLegal(x));
+      lastTrialFailure=[...worsening,...illegal.slice(0,8).map(g=>`Illegal court/time: ${teamById(g.aId)?.name||g.aId} vs ${teamById(g.bId)?.name||g.bId} at ${g.time} ${g.court}`)].join('; ');
+      return !worsening.length&&!illegal.length;
     };
     const evaluate=()=>{
       checks++;
@@ -4717,7 +4729,14 @@ async function smartCompressV85(apply=false){
         if(best){
           g.time=best.time;g.court=best.court;g.pending=true;
           if(best.occupant){best.occupant.time=oldTime;best.occupant.court=oldCourt;best.occupant.pending=true;}
-          current=best.metric;changed=true;
+          // Verify the committed placement, not only the trial placement.
+          if(legalTrial()){
+            current=smartCompressMetricsV85(date,threshold);changed=true;
+            lastVerified=placementSnapshot();
+          }else{
+            restorePlacements(lastVerified);
+            current=smartCompressMetricsV85(date,threshold);
+          }
         }else{g.time=oldTime;g.court=oldCourt;g.pending=oldPending;}
         if(checks%60===0)await yieldToBrowser();
       }
@@ -4735,14 +4754,25 @@ async function smartCompressV85(apply=false){
       });
     }
     // Recheck final state after the complete search, before offering Apply.
-    if(!legalTrial())throw new Error('Final proposal did not pass the protected audit');
+    if(!legalTrial()){
+      const reason=lastTrialFailure||'Protected audit did not pass (no detailed difference found)';
+      restorePlacements(lastVerified);
+      if(!legalTrial())throw new Error(`Final audit failed: ${reason}. Safe fallback also failed: ${lastTrialFailure}`);
+      // Rebuild moves from the verified snapshot only.
+      moves.length=0;
+      for(const g of state.games){
+        if(g.date!==date)continue;
+        const old=originalById.get(g.id);
+        if(old&&(old.time!==g.time||old.court!==g.court))moves.push({id:g.id,aId:g.aId,bId:g.bId,fromTime:old.time,fromCourt:old.court,toTime:g.time,toCourt:g.court});
+      }
+    }
     const after=smartCompressMetricsV85(date,threshold);
     // Preview restores the original state before touching storage or UI.
     state.games=original;
     smartCompressProposalV85={date,threshold,fingerprint,before,after,moves};
     applyBtn.disabled=!moves.length;
     setOptimizationResults(smartCompressReportV85(date,before,after,moves,threshold,true),true);
-  }catch(err){state.games=original;smartCompressProposalV85=null;console.error(err);setOptimizationResults(`<div class="status warn">Smart compression preview failed: ${esc(String(err))}. Original schedule retained.</div>`,true);}
+  }catch(err){state.games=original;smartCompressProposalV85=null;console.error(err);setOptimizationResults(`<div class="status warn">Smart compression preview failed: ${esc(String(err))}. Original schedule retained. Open browser console for details.</div>`,true);}
   finally{state.games=original;previewBtn.disabled=false;runScheduleAudit(true);}
 }
 
