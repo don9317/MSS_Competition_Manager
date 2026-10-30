@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.83</title>
+<title>MSS League Scheduler v11.11.86.84</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.83</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.84</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -236,7 +236,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <section id="admin-settings" class="panel">
   <div class="card">
     <h2>Resources & Scheduling Setup</h2>
-    <div class="status info" style="margin:8px 0"><b>v11.11.86.83:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
+    <div class="status info" style="margin:8px 0"><b>v11.11.86.84:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
     <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
   </div>
 
@@ -333,7 +333,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     </div>  </div>
 
   <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
-    <h2>🔎 Scheduling Diagnostics — v11.11.86.83</h2>
+    <h2>🔎 Scheduling Diagnostics — v11.11.86.84</h2>
     <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
     <div class="toolbar" style="margin:10px 0"><button type="button" class="secondary" onclick="refreshSchedulingDiagnosticsV80()">Refresh Scheduling Diagnostics</button></div>
     <div id="schedulingDiagnosticsV80Status" class="section-note">Click Refresh to check November 1 court slots and date boundaries.</div>
@@ -365,7 +365,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.83</b> — MAX TWO CONSECUTIVE GAMES + FUTURE-ONLY AUDIT; SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.84</b> — MAX TWO CONSECUTIVE GAMES + FUTURE-ONLY AUDIT; SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
   <div class="card">
     <div class="toolbar">
@@ -1782,7 +1782,7 @@ function diagRow(d,pool=null){
     </div>
   </div>`;
 }
-// v11.11.86.83: standalone, read-only date and court capacity inspection.
+// v11.11.86.84: standalone, read-only date and court capacity inspection.
 function refreshSchedulingDiagnosticsV80(){
   const status=$('schedulingDiagnosticsV80Status');
   try{
@@ -2653,6 +2653,58 @@ async function buildGuaranteeMatchupPlan(ids,dates,minimum,maxPerDate,onStage,hi
   }
 
 
+  // v11.11.86.84 — history-aware perfect-matchings for even pools.
+  // A circle-method round robin built from a fresh ordering can still repeat
+  // prior-week opponents. First attempt to construct exact nightly matchings
+  // from opponents NOT yet encountered, using season history as a hard filter.
+  // If a full legal set cannot be constructed, preserve the existing fallback
+  // planner rather than silently drop games or weaken the nightly guarantee.
+  if(ids.length%2===0 && historyGames.length && minimum<=maxPerDate && dates.length===1){
+    const unseen=new Map(ids.map(a=>[a,new Set(ids.filter(b=>b!==a && !(pairCounts.get(pairKey(a,b))||0)))]));
+    const planned=[],rngOrder=[...ids];
+    let budget=180000;
+    const searchRounds=(round)=>{
+      if(round===minimum)return true;
+      const current=[];
+      const findMatching=(left)=>{
+        if(!budget--)return false;
+        if(!left.length){
+          planned.push(...current.map(([a,b])=>({a,b,roundOrder:planned.length,rotationRound:0,
+            date:dates[0],dateIndex:0,dailyRepeatFallback:false})));
+          if(searchRounds(round+1))return true;
+          planned.splice(planned.length-current.length,current.length);
+          return false;
+        }
+        let pivot=null,options=null;
+        for(const a of left){
+          const opts=left.filter(b=>b!==a&&unseen.get(a).has(b));
+          if(!opts.length)return false;
+          if(options===null||opts.length<options.length){pivot=a;options=opts}
+        }
+        options.sort((a,b)=>unseen.get(a).size-unseen.get(b).size);
+        for(const b of options){
+          unseen.get(pivot).delete(b);unseen.get(b).delete(pivot);
+          current.push([pivot,b]);
+          if(findMatching(left.filter(x=>x!==pivot&&x!==b)))return true;
+          current.pop();
+          unseen.get(pivot).add(b);unseen.get(b).add(pivot);
+          if(budget<=0)break;
+        }
+        return false;
+      };
+      return findMatching(rngOrder);
+    };
+    if(searchRounds(0)){
+      const date=dates[0],games=planned;
+      const countsRR=Object.fromEntries(ids.map(id=>[id,minimum]));
+      if(typeof onStage==='function')onStage('Planning unseen opponents — season-history-aware matching');
+      await yieldToBrowser();
+      return {byDate:new Map([[date,{games,daily:{...countsRR},requiredGames:games.length}]]),
+        counts:countsRR,roundsPerDate:minimum};
+    }
+    if(typeof onStage==='function')onStage('No complete unseen-only matching found within bounded search; using existing matchup planner');
+  }
+
   // v11.11.86.39 — OPPONENT MATRIX FIRST for even-sized pools.
   // A circle-method round robin guarantees that every opponent is faced once before
   // any repeat. Each round gives every team exactly one game. Therefore an even pool
@@ -2850,7 +2902,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     {name:'rematch-relaxed',relaxCoach:true,relaxRest:true,relaxSequence:true,relaxRematch:true,timeMs:12000,nodeLimit:70000}
   ];
   let overallBest=[],overallBestTier='strict',totalNodes=0;
-  // v11.11.86.83 — root-level diagnostics, including final-date and empty-slot checks.
+  // v11.11.86.84 — root-level diagnostics, including final-date and empty-slot checks.
   const rootDiagnostics={date, dateIndex, planned:games.length, available:available.length,
     baseSlots:baseSlots.length, availableDates:[...new Set(available.map(sl=>sl.date))],
     firstSlot:baseSlots[0] ? `${baseSlots[0].date} ${baseSlots[0].time} ${baseSlots[0].court}` : '(none)',
@@ -2938,7 +2990,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
     }
     const order=Number(game.roundOrder??game._idx??0);
     const sequenceBias=order*0.25;
-    // v11.11.86.83: prefer nearby legal slots, not the most distant slot.
+    // v11.11.86.84: prefer nearby legal slots, not the most distant slot.
     // The old positive gap score spread games apart and greatly enlarged search.
     // No hard rule is relaxed here.
     const compactness=stamps.length ? -Math.min(gap/60000,120) : 0;
@@ -3012,7 +3064,7 @@ async function placeGuaranteeDatePlan({division,pool,date,dateIndex,plannedGames
       const next=remaining.slice(0,pickIndex).concat(remaining.slice(pickIndex+1));
 
       // Keep branching bounded. Candidate ordering is already heuristic.
-      // v11.11.86.83: explore all legal candidate slots within the existing
+      // v11.11.86.84: explore all legal candidate slots within the existing
       // node/time bounds. The previous 24-slot cutoff could exclude valid
       // placements on larger multi-court schedules.
       const branchLimit=pickCandidates.length;
@@ -3265,7 +3317,7 @@ This approval will be saved. Click Generate Schedule again to build the schedule
   if(commitMinimumFailures.length){
     const msg=`HARD RULE #1 BLOCKED COMMIT: ${commitMinimumFailures.length} nightly minimum/maximum violation(s). The incomplete generated scope was NOT saved.\n\n`+commitMinimumFailures.slice(0,20).join('\n');
     setGenerationStage('Generation stopped — hard nightly minimum not met');
-    // v11.11.86.83: Use the real, visible Schedule status element (genSummary).
+    // v11.11.86.84: Use the real, visible Schedule status element (genSummary).
     // The previous code wrote to nonexistent generationSummary, hiding the actual blocker.
     const out=$('genSummary');
     if(out){
@@ -4210,7 +4262,7 @@ function applyMinimumRepairV70(){
  minimumRepairPlanV70=null;$('applyMinimumRepairBtn').disabled=true;persist();renderAll();
  $('minimumRepairPreviewV70').innerHTML=`<div class="status ok">Added ${result.proposals.length} games. Run Audit Selected Future Dates now. Any remaining shortages or opponent warnings require director review.</div>`;
 }
-// v11.11.86.83: consecutive means adjacent game slots, regardless of clock time.
+// v11.11.86.84: consecutive means adjacent game slots, regardless of clock time.
 // Each game start occupies one slot of the configured game length. A two-game
 // streak is permitted, but a third adjacent start is a hard violation.
 function consecutiveStreaksV73(starts,slotMinutes=Number(state.settings.gameLength||15)){
@@ -4225,7 +4277,7 @@ function consecutiveStreaksV73(starts,slotMinutes=Number(state.settings.gameLeng
   return bad;
 }
 function wouldMakeThreeConsecutiveV73(candidateStamp,otherStamps,slotMinutes=Number(state.settings.gameLength||15)){
-  // v11.11.86.83: reject only if the NEW candidate itself creates a three-game
+  // v11.11.86.84: reject only if the NEW candidate itself creates a three-game
   // streak. Historical violations must not make every future slot impossible.
   // Keep the check confined to the candidate's calendar day.
   const candidate=Number(candidateStamp)/60000;
@@ -4417,7 +4469,7 @@ function setGenerationStage(message){
 }
 
 
-// v11.11.86.83 — scoped bulk unlock. No game fields other than lockedManual change.
+// v11.11.86.84 — scoped bulk unlock. No game fields other than lockedManual change.
 function unlockSelectedFutureDateGames(){
   const dates=selectedGenerationDates();
   if(!dates.length)return alert('Select at least one future Playing Date to Schedule first.');
