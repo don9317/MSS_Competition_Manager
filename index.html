@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.86.6</title>
+<title>MSS League Scheduler v11.11.86.86.7</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.86.6</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.86.7</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -428,7 +428,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
         <label style="margin:0;min-width:210px">Playing Date<select id="calendarDate"></select></label>
         <label style="margin:0;min-width:260px">Division / Pool<select id="calendarScope"></select></label>
         <label style="margin:0;display:flex;align-items:center;gap:6px;white-space:nowrap"><input id="calendarHideUnused" type="checkbox" checked> Hide Unused Courts</label>
-        <button id="calendarOptimizeBtn" type="button">Preview Court Compression (.86.6)</button>
+        <button id="calendarOptimizeBtn" type="button">Preview Court Compression (.86.7)</button>
         <button id="calendarApplyCompressionBtn" type="button" disabled>Apply Previewed Court Compression</button>
         <div id="calendarCompressionStatusV866" role="status" aria-live="polite" style="margin:8px 0;padding:10px;border:1px solid #b7c8dc;border-radius:7px;background:#f5f8fc;display:none;max-width:100%"></div>
         <button class="secondary" id="calendarPrintBtn" type="button">Print Full Court Calendar</button>
@@ -5236,41 +5236,72 @@ function earliestLegalEarlierSlotForGame(game,movableIds){
   return null;
 }
 
+// .86.7: inspect every earlier permitted slot, not only the first available slot.
+// The prior cleanup tried one earliest slot and abandoned the game if that single
+// placement worsened waits, even when a later earlier slot would have worked.
+function courtCompressionSessionFinishV867(date){
+  const gs=state.games.filter(g=>g.status!=='Cancelled'&&g.date===date);
+  const len=Number(state.settings.gameLength||15);
+  const elementary=gs.filter(g=>minutes(g.time)<19*60);
+  const high=gs.filter(g=>minutes(g.time)>=19*60);
+  return {elementary:elementary.length?Math.max(...elementary.map(g=>minutes(g.time)+len)):0,
+          high:high.length?Math.max(...high.map(g=>minutes(g.time)+len)):0};
+}
 function runGameLevelLeftShiftCleanup(targetDate,movableIds,currentAudit){
   let moved=0,passes=0,audit=currentAudit;
-  const maxPasses=6;
+  const stats={noEarlier:0,occupied:0,teamConflict:0,rest:0,wait:0,audit:0,accepted:0};
+  const maxPasses=6,minGap=minimumGapMinutes(),length=Number(state.settings.gameLength||15);
   for(let pass=1;pass<=maxPasses;pass++){
     passes=pass;
     let movedThisPass=0;
     const candidates=state.games
       .filter(g=>g.status!=='Cancelled'&&g.date===targetDate&&movableIds.has(g.id))
       .sort((a,b)=>minutes(b.time)-minutes(a.time)||naturalCourtSort(b.court,a.court));
-
     for(const g of candidates){
-      const slot=earliestLegalEarlierSlotForGame(g,movableIds);
-      if(!slot)continue;
+      const earlier=poolSlots(g.division,g.pool,g.date)
+        .filter(sl=>minutes(sl.time)<minutes(g.time))
+        .sort((a,b)=>minutes(a.time)-minutes(b.time)||naturalCourtSort(a.court,b.court));
+      if(!earlier.length){stats.noEarlier++;continue}
       const old={time:g.time,court:g.court,pending:g.pending};
-      const waitBeforeMove=smartCompressMetricsV85(targetDate,45);
-      g.time=slot.time;g.court=slot.court;g.pending=true;
-
-      // .86.6: preserve the successful team-wait improvements after EVERY move.
-      const waitAfterMove=smartCompressMetricsV85(targetDate,45);
-      if(waitAfterMove.triples>waitBeforeMove.triples||waitAfterMove.bad>waitBeforeMove.bad||waitAfterMove.total>waitBeforeMove.total){
+      const beforeWait=smartCompressMetricsV85(targetDate,45);
+    const beforeSession=courtCompressionSessionFinishV867(targetDate);
+      const beforeFinish=courtCompressionSessionFinishV867(targetDate);
+      let best=null;
+      for(const sl of earlier){
+        if(state.games.some(x=>x.status!=='Cancelled'&&x.id!==g.id&&x.date===g.date&&x.time===sl.time&&x.court===sl.court)){stats.occupied++;continue}
+        const probe={date:sl.date,time:sl.time,court:sl.court};
+        if(!allowed(teamById(g.aId),probe)||!allowed(teamById(g.bId),probe)){stats.teamConflict++;continue}
+        const m=minutes(sl.time);
+        let conflict=false,streak=false;
+        for(const id of [g.aId,g.bId]){
+          const ts=state.games.filter(x=>x.status!=='Cancelled'&&x.id!==g.id&&x.date===g.date&&(x.aId===id||x.bId===id)).map(x=>minutes(x.time));
+          if(ts.some(t=>Math.abs(t-m)<minGap)){conflict=true;break}
+          if(consecutiveStreaksV73([...ts,m],length).length){streak=true;break}
+        }
+        if(conflict||streak){if(streak)stats.rest++;else stats.teamConflict++;continue}
+        g.time=sl.time;g.court=sl.court;g.pending=true;
+        const afterWait=smartCompressMetricsV85(targetDate,45);
+        if(afterWait.triples>beforeWait.triples||afterWait.bad>beforeWait.bad||afterWait.total>beforeWait.total){
+          stats.wait++;g.time=old.time;g.court=old.court;g.pending=old.pending;continue;
+        }
+        const trialAudit=runScheduleAudit(true);
+        if(!protectedAuditDidNotWorsen(audit,trialAudit)){stats.audit++;g.time=old.time;g.court=old.court;g.pending=old.pending;continue}
+        const afterFinish=courtCompressionSessionFinishV867(targetDate);
+        const finishGain=(beforeFinish.elementary-afterFinish.elementary)+(beforeFinish.high-afterFinish.high);
+        const gain=(beforeWait.total-afterWait.total);
+        const candidate={time:sl.time,court:sl.court,audit:trialAudit,finishGain,gain,
+          score:finishGain*10000+gain*100+(minutes(old.time)-m)};
+        if(!best||candidate.score>best.score)best=candidate;
         g.time=old.time;g.court=old.court;g.pending=old.pending;
-        continue;
       }
-      // Every single move must preserve all protected schedule rules.
-      const trialAudit=runScheduleAudit(true);
-      if(!currentPlacementIsResourceLegal(g)||!protectedAuditDidNotWorsen(audit,trialAudit)){
-        g.time=old.time;g.court=old.court;g.pending=old.pending;
-        continue;
+      if(best){
+        g.time=best.time;g.court=best.court;g.pending=true;
+        audit=best.audit;moved++;movedThisPass++;stats.accepted++;
       }
-      audit=trialAudit;
-      moved++;movedThisPass++;
     }
     if(!movedThisPass)break;
   }
-  return {moved,passes,audit};
+  return {moved,passes,audit,stats};
 }
 
 let courtCompressionProposalV865=null;
@@ -5469,6 +5500,7 @@ async function optimizeCourtUseSafely(explicitDate=null){
     const finalAudit=runScheduleAudit(true);
     const afterDate=packingMetricsForDate(targetDate);
     const afterWait=smartCompressMetricsV85(targetDate,45);
+    const afterSession=courtCompressionSessionFinishV867(targetDate);
 
     const invalidAfter=invalidResourcePlacements(state.games.filter(g=>g.status!=='Cancelled'&&g.date===targetDate&&scopeMatchesGame(scope,g)));
     const resourceRepairRequired=invalidBefore.length>0;
@@ -5498,11 +5530,13 @@ async function optimizeCourtUseSafely(explicitDate=null){
     const improvement=protectedAuditImprovementText(originalAudit,finalAudit);
 
     setOptimizationStatus('COURT COMPRESSION PREVIEW','Preview ready',`${targetDate}: ${beforeDate.efficiency.toFixed(1)}% → ${afterDate.efficiency.toFixed(1)}% packing`,100);
-    setOptimizationResults(`<div class="status ok"><b>Court Compression .86.6 — PREVIEW ONLY for ${esc(targetDate)}.</b><br><b>${moves.length} game placement(s) proposed. No changes applied.</b><br>
+    setOptimizationResults(`<div class="status ok"><b>Court Compression .86.7 — PREVIEW ONLY for ${esc(targetDate)}.</b><br><b>${moves.length} game placement(s) proposed. No changes applied.</b><br>
       <b>Team waits ≥45 min:</b> ${beforeWait.bad} → ${afterWait.bad} • <b>Total team idle:</b> ${beforeWait.total} → ${afterWait.total} min • <b>Three consecutive:</b> ${beforeWait.triples} → ${afterWait.triples}<br>
       <b>Last game ends:</b> ${fmtTime(`${String(Math.floor(beforeWait.finish/60)).padStart(2,'0')}:${String(beforeWait.finish%60).padStart(2,'0')}`)} → ${fmtTime(`${String(Math.floor(afterWait.finish/60)).padStart(2,'0')}:${String(afterWait.finish%60).padStart(2,'0')}`)}<br>
       <b>Compaction:</b> ${compactionPassesRun} block sweep(s) completed • ${blocks.length} division/pool block(s) per sweep.<br>
-      <b>Late-game left shift:</b> ${leftShift.moved} individual game move(s) accepted in ${leftShift.passes} pass(es).<br>
+      <b>Late-game left shift:</b> ${leftShift.moved} individual game move(s) accepted in ${leftShift.passes} pass(es).<br>      <b>Why earlier slots were rejected:</b> occupied ${leftShift.stats.occupied} • team availability/conflict ${leftShift.stats.teamConflict} • rest ${leftShift.stats.rest} • would worsen waits ${leftShift.stats.wait} • protected audit ${leftShift.stats.audit}.<br>
+      <b>Session finish times:</b> elementary ${fmtTime(`${String(Math.floor(beforeSession.elementary/60)).padStart(2,'0')}:${String(beforeSession.elementary%60).padStart(2,'0')}`)} → ${fmtTime(`${String(Math.floor(afterSession.elementary/60)).padStart(2,'0')}:${String(afterSession.elementary%60).padStart(2,'0')}`)}; high school ${fmtTime(`${String(Math.floor(beforeSession.high/60)).padStart(2,'0')}:${String(beforeSession.high%60).padStart(2,'0')}`)} → ${fmtTime(`${String(Math.floor(afterSession.high/60)).padStart(2,'0')}:${String(afterSession.high%60).padStart(2,'0')}`)}.<br>
+
       <b>Block attempts:</b> ${acceptedBlocks} accepted • ${rejectedBlocks} unchanged.<br>      <b>Resource-change repair:</b> ${invalidBefore.length} invalid before • ${invalidAfter.length} invalid after • ${resourceRepairsCommitted} mandatory move(s) committed.<br>
       ${resourceRepairReasons.length?`<b>Resource repairs:</b> ${esc(resourceRepairReasons.join(' | '))}<br>`:''}
 
