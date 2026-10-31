@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.10</title>
+<title>MSS League Scheduler v11.11.86.11</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.10</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.86.11</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -365,13 +365,14 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.10 — HS Varsity Boys cross-pool audit correction</b> — MAX TWO CONSECUTIVE GAMES + FUTURE-ONLY AUDIT; SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
+  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.11 — HS Varsity Boys cross-pool audit correction</b> — MAX TWO CONSECUTIVE GAMES + FUTURE-ONLY AUDIT; SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
 <div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
-  <div class="status info" id="hsBoys869Status" style="margin-bottom:8px"><b>86.10 audit update (86.9 rescheduler retained):</b> Reassigns ONLY the 30 High School Varsity Boys games on 2026-11-01 using the verified league backup. Existing courts/times and all other games are unchanged. The existing A/B pool labels are retained as legacy slot labels, not opponent restrictions. Preview and backup required before applying.</div>
+  <div class="status info" id="hsBoys869Status" style="margin-bottom:8px"><b>86.11 team request correction (86.9 rescheduler retained):</b> Reassigns ONLY the 30 High School Varsity Boys games on 2026-11-01 using the verified league backup. Existing courts/times and all other games are unchanged. The existing A/B pool labels are retained as legacy slot labels, not opponent restrictions. Preview and backup required before applying.</div>
   <div class="card">
     <div class="toolbar">
       <button class="secondary" id="productionPreflightBtn" type="button" onclick="runProductionPreflight()">Production Preflight</button>
       <button class="primary" id="generateBtn">Generate Schedule</button>
+      <button class="secondary" type="button" onclick="correctNov1CutoffsV8611()">Correct Nov 1 Team Cutoffs — 86.11</button>
       <button class="primary" type="button" id="hsBoys869Btn" onclick="rescheduleHSBoysNov1V869()">Reschedule HS Varsity Boys — Nov 1 ONLY (86.9)</button>
       <button class="secondary" id="generateReadyBtn" type="button">Schedule All Approved / Ready Divisions</button>
       <button class="secondary" id="auditScopeBtn" type="button" onclick="runAuditWithConfirmation(false)">Audit Selected Future Scope</button>
@@ -390,7 +391,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <label style="margin:0;min-width:260px">Schedule / Display Scope<select id="scheduleFilter"></select></label>
     </div>
     <div class="card" id="optimizationCenterV868" style="padding:16px;margin:14px 0;border:2px solid #a7bddb;background:#f8fbff">
-      <h2 style="margin:0 0 5px">Schedule Optimization Center <small style="font-size:12px;font-weight:normal">v11.11.86.10</small></h2>
+      <h2 style="margin:0 0 5px">Schedule Optimization Center <small style="font-size:12px;font-weight:normal">v11.11.86.11</small></h2>
       <div class="hint" style="margin-bottom:12px">Choose an optimization goal, preview the changes, audit, and apply only after reviewing the results. Existing scheduling engines and manual locks are preserved.</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:10px">
         <label style="min-width:240px">Optimization goal<select id="optimizationGoalV868" onchange="switchOptimizationGoalV868()"><option value="court">Court &amp; Time Efficiency (recommended)</option><option value="smart">Smart Schedule Compression (legacy)</option><option value="balance">Schedule Balance / Re-Optimize</option></select></label>
@@ -862,7 +863,7 @@ function renderTeamRequests(){
   const entries=state.teamScheduleRequests.slice().sort((a,b)=>a.date.localeCompare(b.date)||teamById(a.teamId).name.localeCompare(teamById(b.teamId).name));
   list.innerHTML=entries.length?'<table><thead><tr><th>Team</th><th>Date</th><th>Restriction</th><th>Existing Game Conflicts</th><th></th></tr></thead><tbody>'+entries.map(r=>{
     const team=teamById(r.teamId);const conflicts=state.games.filter(g=>(g.aId===r.teamId||g.bId===r.teamId)&&teamRequestApplies(r,g.date)&&teamRequestBlocks(r,g.time));
-    const label=r.type==='range'?`${fmtTime(r.start)}–${fmtTime(r.end)}`:r.type==='before'?`Before ${fmtTime(r.start)}`:`At/after ${fmtTime(r.start)}`;
+    const label=r.type==='range'?`${fmtTime(r.start)}–${fmtTime(r.end)}`:r.type==='before'?`Before ${fmtTime(r.start)}`:r.finishBy===true?`Must finish by ${fmtTime(r.start)}`:`At/after ${fmtTime(r.start)}`;
     return `<tr><td>${esc(team.name)} — ${esc(divisionLabel(divisionKey(team)))}</td><td>${r.date==='ALL'?'All remaining dates':esc(r.date)}</td><td>${esc(label)}</td><td>${conflicts.length?`<b>${conflicts.length} scheduled game(s) — review</b>`:'None'}</td><td><button class="danger" data-delete-team-request="${esc(r.id)}">Remove</button></td></tr>`;
   }).join('')+'</tbody></table>':'<p class="hint">No manually entered requests yet.</p>';
   list.querySelectorAll('[data-delete-team-request]').forEach(b=>b.addEventListener('click',()=>{if(!confirm('Remove this schedule request? Existing games will not change.'))return;state.teamScheduleRequests=state.teamScheduleRequests.filter(r=>r.id!==b.dataset.deleteTeamRequest);persist();renderTeamRequests()}));
@@ -879,7 +880,7 @@ function addTeamScheduleRequest(){
 }
 function showTeamRequestsInManagement(){
   const entries=state.teamScheduleRequests||[];
-  const lines=entries.map(r=>{const t=teamById(r.teamId);return `${t.name} — ${divisionLabel(divisionKey(t))} — ${r.date==='ALL'?'All remaining dates':r.date}: ${r.type==='range'?r.start+'–'+r.end:r.type==='before'?'Before '+r.start:'At/after '+r.start}`});
+  const lines=entries.map(r=>{const t=teamById(r.teamId);return `${t.name} — ${divisionLabel(divisionKey(t))} — ${r.date==='ALL'?'All remaining dates':r.date}: ${r.type==='range'?r.start+'–'+r.end:r.type==='before'?'Before '+r.start:r.finishBy===true?'Must finish by '+r.start:'At/after '+r.start}`});
   alert(lines.length?`Team Schedule Requests (${lines.length})\n\n`+lines.join('\n'):'No team schedule requests have been entered. Add them under Registrations.');
 }
 function renderTeams(){
@@ -2242,7 +2243,7 @@ function weeklyNeedsComplete(ids,counts,target){return ids.every(id=>counts[id]>
 function teamRequestApplies(r,date){return r.date==='ALL'||r.date===date}
 function teamRequestBlocks(r,time){
   if(r.type==='before')return time<r.start;
-  if(r.type==='after')return time>=r.start;
+  if(r.type==='after')return r.finishBy===true ? (Number(time.slice(0,2))*60+Number(time.slice(3))+Number(state.settings.gameLength||15)>Number(r.start.slice(0,2))*60+Number(r.start.slice(3))) : time>=r.start;
   if(r.type==='range')return time>=r.start&&time<r.end;
   return false;
 }
@@ -6413,7 +6414,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     calendar.addEventListener('change',()=>{const target=document.getElementById('optimizationDateV868');if(target)target.value=calendar.value;});}
 });
 
-// v11.11.86.10 — exact, validated November 1 HS Varsity Boys matchup repair.
+// v11.11.86.11 — exact, validated November 1 HS Varsity Boys matchup repair.
 // Precomputed by integer programming from the director's Oct 31 schedule backup:
 // 30 slots, 20 teams, exactly 3/team, no season repeats, no simultaneous games,
 // and never three consecutive time slots. Court/time assignments are immutable.
@@ -6470,7 +6471,7 @@ function rescheduleHSBoysNov1V869(){
       return {...g,aId:p.aId,bId:p.bId,pending:true};
     });
     state.activity=state.activity||[];
-    state.activity.unshift({at:new Date().toISOString(),text:'v11.11.86.10: Reassigned 30 HS Varsity Boys matchups for Nov 1 only; courts/times and all other games preserved; no season opponent repeats.'});
+    state.activity.unshift({at:new Date().toISOString(),text:'v11.11.86.11: Reassigned 30 HS Varsity Boys matchups for Nov 1 only; courts/times and all other games preserved; no season opponent repeats.'});
     persist();renderAll();
     const status=$('hsBoys869Status');
     if(status)status.innerHTML='<div class="status ok"><b>86.9 APPLIED:</b> 30 Nov 1 HS Varsity Boys games reassigned; 20 teams have exactly 3 games, no opponent repeats, no three consecutive games. All other games, dates, courts and times were preserved. Export a new backup and review the court calendar before publishing. Existing pool-based audit sections may still report legacy A/B labels; these do not represent opponent restrictions for this date.</div>';
@@ -6480,6 +6481,19 @@ function rescheduleHSBoysNov1V869(){
  }catch(err){return fail('Unexpected validation error: '+(err.message||err));}
 }
 
+
+// v86.11: director-confirmed cutoff correction. No game or court is moved.
+function correctNov1CutoffsV8611(){
+  const date='2026-11-01';
+  const names=new Set(['Andover Trojans','Wildcats']);
+  const targets=(state.teamScheduleRequests||[]).filter(r=>r.date===date&&r.start==='20:15'&&r.type==='after'&&state.teams.some(t=>t.id===r.teamId&&names.has(t.name)&&t.divisionId==='div_33vsevu'));
+  if(targets.length!==2){alert('86.11 SAFETY STOP: Expected exactly two Nov 1 Varsity Boys 8:15 PM requests currently marked Unavailable After. Found '+targets.length+'. No changes made. Please review Team Schedule Requests.');return;}
+  if(!confirm('86.11 — CORRECT TEAM REQUESTS\n\nAndover Trojans and Wildcats\nCurrent: no game STARTING at/after 8:15 PM\nCorrected: each game must FINISH by 8:15 PM\n\nThis changes ONLY those two request records. It does NOT move games or guarantee the schedule will pass audit.\n\nExport a full league setup backup before continuing. Apply correction?'))return;
+  targets.forEach(r=>r.finishBy=true);
+  persist();renderAll();
+  const violations=state.games.filter(g=>g.date===date&&g.division==='div_33vsevu'&&targets.some(r=>(g.aId===r.teamId||g.bId===r.teamId)&&teamRequestBlocks(r,g.time)));
+  alert('86.11: Two cutoff requests corrected to FINISH by 8:15 PM. '+violations.length+' existing games currently violate the corrected cutoff. No games moved. Run the November 1 audit and repair the affected game slots before publishing.');
+}
 </script>
 </body>
 </html>
