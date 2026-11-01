@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.87.0</title>
+<title>MSS League Scheduler v11.11.87.1</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.87.0</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.87.1</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -68,6 +68,12 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <button data-tab="standings">Standings</button>
 </div>
 
+<div class="admin-only" id="parkingLotDirectorBanner" style="position:sticky;top:0;z-index:15;background:#f8fbff;border-bottom:1px solid #b7c8df;padding:9px max(14px,calc((100% - 1240px)/2));box-shadow:0 2px 5px #14254c12">
+  <details id="directorParkingLotDetails">
+    <summary style="cursor:pointer;font-weight:750;color:#14254c">🅿 Game Parking Lot <span style="font-size:12px;font-weight:normal;color:#52647b">— director workspace · coming in Schedule Manager</span></summary>
+    <div style="padding:10px 0 4px;font-size:13px;color:#52647b">No games are parked. This is a visibility preview only; parking, dragging, and restoring games will be enabled after schedule transaction and undo/redo safeguards are tested. Existing games are not affected.</div>
+  </details>
+</div>
 <main>
 <section id="admin-dashboard" class="panel">
   <div class="card">
@@ -76,6 +82,10 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <div id="dashboardLeagueStatus"></div>
     </div>
   </div>
+  <details class="card" style="margin-top:12px;border:1px solid #d7e0ec">
+    <summary style="cursor:pointer;font-weight:700">Commercial access planning · multiple locations and scorekeepers</summary>
+    <p class="hint" style="margin:10px 0">Future cloud release: organization owner, competition director, location administrator, scorekeeper, coach and viewer roles. Access must be enforced by a server, with location/event assignments and score-change history. This offline prototype does <b>not</b> support secure user accounts or shared live score entry.</p>
+  </details>
   <div id="dashboardMetrics" class="grid" style="margin-top:14px"></div>
   <div class="grid" style="margin-top:14px">
     <div class="card">
@@ -332,20 +342,25 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <hr><div id="capacity"></div>
     </div>  </div>
 
+  <details class="card" style="margin-top:14px;border:1px solid #d7e0ec" id="advancedSchedulingDiagnostics">
+    <summary style="cursor:pointer;font-weight:700;color:#14254c">Advanced diagnostics · scheduling inputs and opponent patterns</summary>
+    <p class="hint" style="margin:10px 0">Internal troubleshooting tools. Read-only; no games or settings are changed by refreshing these reports.</p>
   <div class="card diagnostic-panel" id="schedulingDiagnostics" style="margin-top:14px">
-    <h2>🔎 Scheduling Diagnostics — v11.11.86.84</h2>
+    <h2>🔎 Scheduling Inputs Diagnostic</h2>
     <div class="section-note"><b>Diagnostic only:</b> This shows the exact scheduling inputs MSS is using. It does not change any league settings.</div>
     <div class="toolbar" style="margin:10px 0"><button type="button" class="secondary" onclick="refreshSchedulingDiagnosticsV80()">Refresh Scheduling Diagnostics</button></div>
-    <div id="schedulingDiagnosticsV80Status" class="section-note">Click Refresh to check November 1 court slots and date boundaries.</div>
+    <div id="schedulingDiagnosticsV80Status" class="section-note">Click Refresh to inspect court slots and date boundaries.</div>
     <div id="schedulingDiagnosticsContent"></div>
   </div>
 
   <div class="card diagnostic-panel" id="opponentPatternDiagnostics" style="margin-top:14px">
-    <h2>🧪 Odd-Pool Opponent Pattern Diagnostic — v11.11.79</h2>
+    <h2>🧪 Odd-Pool Opponent Patterns</h2>
     <div class="section-note"><b>Diagnostic only:</b> Reads the current generated schedule. It does not generate, re-optimize, or change any game.</div>
     <div class="toolbar" style="margin:10px 0"><button type="button" class="secondary" onclick="renderOpponentPatternDiagnosticsV72()">Refresh Diagnostic</button></div>
     <div id="opponentPatternDiagnosticsContent"></div>
   </div>
+
+  </details>
 
   <div class="card" style="margin-top:14px">
     <h2>Division Scheduling</h2>
@@ -405,7 +420,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <div class="status info" id="hsBoys869Status" style="margin-top:8px">Historical 86.9 rescheduler retained for compatibility. Do not run on new leagues.</div>
     </details>
     <div class="card" id="optimizationCenterV868" style="padding:16px;margin:14px 0;border:2px solid #a7bddb;background:#f8fbff">
-      <h2 style="margin:0 0 5px">Schedule Optimization Center <small style="font-size:12px;font-weight:normal">v11.11.86.13</small></h2>
+      <h2 style="margin:0 0 5px">Schedule Optimization Center <small style="font-size:12px;font-weight:normal">87.1 · engine retained from 86.13</small></h2>
       <div class="hint" style="margin-bottom:12px">Choose an optimization goal, preview the changes, audit, and apply only after reviewing the results. Existing scheduling engines and manual locks are preserved.</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:10px">
         <label style="min-width:240px">Optimization goal<select id="optimizationGoalV868" onchange="switchOptimizationGoalV868()"><option value="court">Court &amp; Time Efficiency (recommended)</option><option value="smart">Smart Schedule Compression (legacy)</option><option value="balance">Schedule Balance / Re-Optimize</option></select></label>
