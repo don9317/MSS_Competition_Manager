@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.86.13</title>
+<title>MSS League Scheduler v11.11.87.0</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.86.13</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.87.0</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
 </header>
 <div id="actionToast" class="action-toast" role="status" aria-live="polite"></div>
@@ -365,32 +365,45 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-schedule" class="panel">
-  <div class="status ok" style="margin-bottom:10px"><b>BUILD CHECK: v11.11.86.13 — Nov 1 HS Boys Court/Time Repair + Team Cutoffs + Wait Protection</b> — MAX TWO CONSECUTIVE GAMES + FUTURE-ONLY AUDIT; SESSION-RESET PRINT GAME NUMBERS: session-start anchoring + horizontal fill + deterministic physical court preference (1A → 1B → 2A → 2B → 3A → 3B …); protected Audit + manual locks retained.</div>
-<div class="toolbar" style="margin-bottom:10px"><button type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button></div>
-  <div class="status info" id="hsBoys869Status" style="margin-bottom:8px"><b>86.12 consistent team requests (86.9 rescheduler retained):</b> Reassigns ONLY the 30 High School Varsity Boys games on 2026-11-01 using the verified league backup. Existing courts/times and all other games are unchanged. The existing A/B pool labels are retained as legacy slot labels, not opponent restrictions. Preview and backup required before applying.</div>
+  <div class="status info" style="margin-bottom:10px"><b>Stabilization baseline v11.11.87.0.</b> Existing league data and scheduling logic retained. Back up your schedule before making changes.</div>
   <div class="card">
-    <div class="toolbar">
-      <button class="secondary" id="productionPreflightBtn" type="button" onclick="runProductionPreflight()">Production Preflight</button>
+    <div class="toolbar" aria-label="Schedule main actions">
+      <button class="secondary" id="productionPreflightBtn" type="button" onclick="runProductionPreflight()">Check Readiness</button>
       <button class="primary" id="generateBtn">Generate Schedule</button>
-      <button class="secondary" type="button" onclick="correctNov1CutoffsV8611()">Correct Nov 1 Team Cutoffs — legacy (already applied)</button>
-      <button class="primary" type="button" onclick="previewHSBoysV8613()">Preview Nov 1 HS Boys Court/Time Repair (86.13)</button>
-      <button class="primary" type="button" id="hsBoys869Btn" onclick="rescheduleHSBoysNov1V869()">Reschedule HS Varsity Boys — Nov 1 ONLY (86.9)</button>
-      <button class="secondary" id="generateReadyBtn" type="button">Schedule All Approved / Ready Divisions</button>
-      <button class="secondary" id="auditScopeBtn" type="button" onclick="runAuditWithConfirmation(false)">Audit Selected Future Scope</button>
-      <button class="secondary" id="repairOpponents55" type="button" onclick="void repairFutureOpponentsV59()">Repair Future Opponents</button> <button class="secondary" id="auditFutureBtn" type="button" onclick="runFutureDatesAudit()">Audit Selected Future Dates</button> <button class="secondary" id="auditAllBtn" type="button" onclick="runAuditWithConfirmation(true)">Audit Entire League (Future Dates)</button>
-      <button class="secondary" id="previewMinimumRepairBtn" type="button" onclick="previewMinimumRepairV70()">Preview Missing-Game Repair</button>
-      <button class="primary" id="applyMinimumRepairBtn" type="button" onclick="applyMinimumRepairV70()" disabled>Confirm Proposed Games</button>
-      <button class="secondary" id="exportScheduleBtn">Export CSV</button>
-      <button class="secondary" id="exportScheduleBackupBtn">Export Schedule Backup</button>
-      <button class="secondary" id="unlockSelectedFutureDatesBtn" type="button" onclick="unlockSelectedFutureDateGames()">Unlock Games for Selected Future Date(s)</button>
-      <label class="secondary" style="display:inline-flex;align-items:center;cursor:pointer">Restore Schedule
-        <input id="scheduleRestoreFile" type="file" accept=".csv,.json,text/csv,application/json" class="hidden">
-      </label>
-      <button class="secondary" id="exportDivisionSeasonBtn">Export Division Season</button>
-      <button class="secondary" id="exportDivisionWeekBtn">Export Division Week</button>
-      <button class="secondary" id="printBtn">Print</button>
+      <button class="secondary" id="auditFutureBtn" type="button" onclick="runFutureDatesAudit()">Audit Selected Future Dates</button>
+      <button class="secondary" id="exportScheduleBackupBtn">Back Up Schedule</button>
       <label style="margin:0;min-width:260px">Schedule / Display Scope<select id="scheduleFilter"></select></label>
     </div>
+    <details style="margin:12px 0;border:1px solid #d7e0ec;border-radius:8px;padding:12px;background:#f8fafc">
+      <summary style="cursor:pointer;font-weight:700;color:#13264d">More scheduling tools · exports · restore</summary>
+      <div class="toolbar" style="margin-top:12px">
+        <button class="secondary" id="generateReadyBtn" type="button">Schedule All Approved / Ready Divisions</button>
+        <button class="secondary" id="auditScopeBtn" type="button" onclick="runAuditWithConfirmation(false)">Audit Selected Future Scope</button>
+        <button class="secondary" id="auditAllBtn" type="button" onclick="runAuditWithConfirmation(true)">Audit Entire League (Future Dates)</button>
+        <button class="secondary" id="repairOpponents55" type="button" onclick="void repairFutureOpponentsV59()">Repair Future Opponents</button>
+        <button class="secondary" id="previewMinimumRepairBtn" type="button" onclick="previewMinimumRepairV70()">Preview Missing-Game Repair</button>
+        <button class="primary" id="applyMinimumRepairBtn" type="button" onclick="applyMinimumRepairV70()" disabled>Confirm Proposed Games</button>
+        <button class="secondary" id="exportScheduleBtn">Export CSV</button>
+        <button class="secondary" id="unlockSelectedFutureDatesBtn" type="button" onclick="unlockSelectedFutureDateGames()">Unlock Games for Selected Future Date(s)</button>
+        <label class="secondary" style="display:inline-flex;align-items:center;cursor:pointer">Restore Schedule
+          <input id="scheduleRestoreFile" type="file" accept=".csv,.json,text/csv,application/json" class="hidden">
+        </label>
+        <button class="secondary" id="exportDivisionSeasonBtn">Export Division Season</button>
+        <button class="secondary" id="exportDivisionWeekBtn">Export Division Week</button>
+        <button class="secondary" id="printBtn">Print</button>
+      </div>
+    </details>
+    <details style="margin:12px 0;border:1px solid #e3d7c6;border-radius:8px;padding:12px;background:#fffcf7">
+      <summary style="cursor:pointer;font-weight:700;color:#775323">Developer diagnostics · retired league-specific actions (do not use for new leagues)</summary>
+      <div class="hint" style="margin:8px 0">These historical controls remain available for compatibility and regression testing. They are not general-purpose scheduling tools and can alter the approved November 1 schedule.</div>
+      <div class="toolbar">
+        <button class="secondary" type="button" onclick="location.href='SIMULATION_TEST_LAB.html'">Open Simulation Test Lab</button>
+        <button class="secondary" type="button" onclick="correctNov1CutoffsV8611()">Legacy: Correct Nov 1 Team Cutoffs</button>
+        <button class="secondary" type="button" onclick="previewHSBoysV8613()">Legacy: Nov 1 HS Boys Court/Time Repair</button>
+        <button class="secondary" type="button" id="hsBoys869Btn" onclick="rescheduleHSBoysNov1V869()">Legacy: Reschedule HS Varsity Boys Nov 1</button>
+      </div>
+      <div class="status info" id="hsBoys869Status" style="margin-top:8px">Historical 86.9 rescheduler retained for compatibility. Do not run on new leagues.</div>
+    </details>
     <div class="card" id="optimizationCenterV868" style="padding:16px;margin:14px 0;border:2px solid #a7bddb;background:#f8fbff">
       <h2 style="margin:0 0 5px">Schedule Optimization Center <small style="font-size:12px;font-weight:normal">v11.11.86.13</small></h2>
       <div class="hint" style="margin-bottom:12px">Choose an optimization goal, preview the changes, audit, and apply only after reviewing the results. Existing scheduling engines and manual locks are preserved.</div>
@@ -420,7 +433,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
  <div id="generationDateChoices" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:8px"></div>
  </div>
  <div class="hint" style="margin-bottom:4px"><b>Version upgrade safety:</b> Export Schedule Backup saves the exact game objects. Restore Schedule accepts either that JSON backup or the standard Export CSV.</div>
-    <div class="status info" style="margin-bottom:8px"><b>Production workflow:</b> 1) <b>Import registrations</b> → 2) <b>Production Preflight</b> → 3) <b>Export Schedule Backup</b> → 4) <b>Generate Schedule</b> → 5) <b>Re-Optimize Schedule</b> → 6) <b>Audit Entire League</b> → 7) <b>Optimize All Playing Dates</b> → 8) <b>Final Audit</b> → 9) <b>Publish</b>.<br><span class="hint">Manual director changes are locked by default. Re-Optimize and Court/Time optimization work around those locked games instead of undoing them.</span></div>
+    <div class="status info" style="margin-bottom:8px"><b>Recommended workflow:</b> Import registrations → Check Readiness → Back Up Schedule → Generate → Optimize → Audit → Publish.<br><span class="hint">Manual director changes are locked by default. Re-Optimize and Court/Time optimization work around those locked games instead of undoing them.</span></div>
     <div class="hint" style="margin-bottom:8px">For multi-pool divisions, choose <b>Entire Division</b> to schedule all pools together. Pools may use different Court Groups through Pool Court Overrides. Use <b>Export Division Season</b> for the full division schedule or <b>Export Division Week</b> for one playing date. Schedule generation follows the League Scheduling Rules configured under Resources.</div><div id="productionPreflightSummary" class="card" style="margin:10px 0;padding:12px;border:1px solid #d5dde8;background:#fbfcfe">
   <b>Production Preflight</b>
   <div class="hint">Not run yet. Use this after importing the real registration file and before generating the official schedule.</div>
