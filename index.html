@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.87.5</title>
+<title>MSS League Scheduler v11.11.87.6</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,9 +44,9 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.87.5</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.87.6</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-    <button type="button" id="buildInfoButton" style="background:#eef4ff;color:#14254c;border:1px solid #a8c0e5;font-size:11px;padding:6px 9px" title="Identify the exact running application and data storage">Build 87.5 · Details</button>
+    <button type="button" id="buildInfoButton" style="background:#eef4ff;color:#14254c;border:1px solid #a8c0e5;font-size:11px;padding:6px 9px" title="Identify the exact running application and data storage">Build 87.6 · Details</button>
     <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
   </div>
 </header>
@@ -55,8 +55,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <h2 style="margin-top:0">Application &amp; Storage Information</h2>
   <p class="hint">Use this information to distinguish an old browser tab from a newer deployed file. This panel is read-only.</p>
   <dl style="display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;font-size:13px">
-    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.5</dd>
-    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.5-20261102-A</dd>
+    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.6</dd>
+    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.6-20261102-A</dd>
     <dt><b>Loaded from</b></dt><dd style="margin:0;overflow-wrap:anywhere" id="buildSourceText"></dd>
     <dt><b>Storage</b></dt><dd style="margin:0" id="buildStorageText">IndexedDB · browser and origin specific</dd>
   </dl>
@@ -87,7 +87,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <div class="admin-only" id="parkingLotDirectorBanner" style="position:sticky;top:0;z-index:15;background:#f8fbff;border-bottom:1px solid #b7c8df;padding:9px max(14px,calc((100% - 1240px)/2));box-shadow:0 2px 5px #14254c12">
   <details id="directorParkingLotDetails" open>
     <summary style="cursor:pointer;font-weight:750;color:#14254c">🅿 Game Parking Lot <span id="parkingLotCount" style="font-size:12px;color:#52647b">(0 games)</span></summary>
-    <div class="hint" style="margin:6px 0">Park a future, unscored, unlocked game from Schedule Management (or use the Scheduling Sandbox to test historical league dates). Restore it to a checked court and time. Parked games are not deleted, and publishing is blocked while any remain.</div>
+    <div class="hint" style="margin:6px 0">Shared across Court Calendar and Schedule Management. Park a future, unscored, unlocked game from Schedule Management (or use the Scheduling Sandbox to test historical league dates). Restore it to a checked court and time. Parked games are not deleted, and publishing is blocked while any remain.</div>
     <div id="parkingLotItems"></div>
   </details>
 </div>
@@ -280,6 +280,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <div class="row">
         <div class="field"><label>League Name</label><input id="leagueName"></div>
         <div class="field"><label>Game Length</label><select id="gameLength"><option value="10">10 minutes</option><option value="12">12 minutes</option><option value="15">15 minutes</option><option value="20">20 minutes</option><option value="25">25 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="75">75 minutes</option></select><span class="hint">Used to calculate every court/time slot and schedule-capacity check.</span></div>
+        <div class="field" style="min-width:260px"><label>Maximum Team Waiting Time</label><label style="display:flex;align-items:center;gap:8px"><input id="maxWaitEnabled" type="checkbox" checked style="width:auto"> Set a league maximum</label><select id="maxWaitMinutes"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="75">75 minutes</option><option value="90">90 minutes</option><option value="120">120 minutes</option></select><select id="maxWaitEnforcement"><option value="strict">Strict — block violating moves</option><option value="preferred">Preferred — warn only</option></select><span class="hint">Measured from the end of one game to the start of the next. Applies to manual move/restore checks and the new visual manager; older optimizer routines still use their own thresholds.</span></div>
         <div class="field"><label>Calculated Season Minimum / Team</label><input id="seasonGuarantee" type="number" min="1" max="50" value="12" readonly></div>
         <div class="field"><label>Minimum Games / Team / Playing Date</label><input id="gamesPerWeek" type="number" min="1" max="8" value="3"></div>
         <div class="field"><label>Maximum Games / Team / Playing Date</label><input id="maxGamesPerDate" type="number" min="1" max="8" value="4"></div>
@@ -449,7 +450,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:10px">
         <label style="min-width:240px">Optimization goal<select id="optimizationGoalV868" onchange="switchOptimizationGoalV868()"><option value="court">Court &amp; Time Efficiency (recommended)</option><option value="smart">Smart Schedule Compression (legacy)</option><option value="balance">Schedule Balance / Re-Optimize</option></select></label>
         <label style="min-width:170px">Playing date<select id="optimizationDateV868" onchange="syncOptimizationDateV868()"></select></label>
-        <label style="min-width:150px">Flag team waits ≥<select id="smartCompressThreshold"><option value="45" selected>45 min</option><option value="30">30 min</option><option value="60">60 min</option></select></label>
+        <span class="hint">Wait threshold is set in Resources → League Setup → Maximum Team Waiting Time.</span>
       </div>
       <div id="courtGoalControlsV868" class="toolbar" style="margin-bottom:8px">
         <button class="primary" id="calendarOptimizeBtn" type="button">Preview Court &amp; Time Optimization</button>
@@ -511,6 +512,20 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 </section>
 
 <section id="admin-management" class="panel">
+  <details class="card" id="visualMovePanel" style="margin:12px 0;border:2px solid #b7c8df" open>
+    <summary style="cursor:pointer;font-weight:750">Visual Game Move & Swap — 87.6 Sandbox Pilot</summary>
+    <p class="hint">Select a scheduled game and a new slot, or choose a second game to swap positions. Preview first. Only enabled in Scheduling Sandbox; live league remains protected.</p>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <label class="field">Game to move<select id="visualMoveGame"></select></label>
+      <label class="field">Date<select id="visualMoveDate"></select></label>
+      <label class="field">Start time<select id="visualMoveTime"></select></label>
+      <label class="field">Court<select id="visualMoveCourt"></select></label>
+    </div>
+    <div class="row" style="gap:10px;flex-wrap:wrap"><label class="field">Optional: swap with another game<select id="visualSwapGame"><option value="">No swap — move to empty slot</option></select></label>
+      <button type="button" class="secondary" id="visualPreviewBtn">Preview Move / Swap</button><button type="button" id="visualApplyBtn" disabled>Apply Previewed Change</button></div>
+    <div id="visualMoveFeedback" class="hint">Select a game to begin.</div>
+  </details>
+
   <div class="card">
     <div class="row" style="justify-content:space-between;align-items:start">
       <div><h2 style="margin-bottom:4px">Schedule Management</h2><div id="managementScopeTitle" class="hint">Choose a division to review and manage its games.</div></div>
@@ -635,7 +650,7 @@ function initializeReadOnlySafety(){
   });
 }
 document.addEventListener('DOMContentLoaded',initializeReadOnlySafety);
-const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.5',id:'MSS-87.5-20261102-A'});
+const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.6',id:'MSS-87.6-20261102-A'});
 function getMssBuildDetails(){
   const origin=location.protocol==='file:'?'Local file (file://)':location.origin;
   return `MSS League Scheduler v${MSS_BUILD_INFO.version}\nBuild: ${MSS_BUILD_INFO.id}\nSource: ${location.href}\nStorage: IndexedDB, isolated by browser and origin (${origin}); record: ${IS_SANDBOX?"sandbox-87-5":"current (live)"}`;
@@ -673,7 +688,7 @@ let saveQueue=Promise.resolve();
 let lastSavedAt=null;
 let state={
   teams:[],courts:[],courtGroups:[],courtExceptions:[],divisionConfig:{},divisions:[],
-  settings:{leagueName:'MSS 3v3 League',seasonStart:'',seasonEnd:'',gamesPerWeek:3,gameLength:20,minRest:0,defaultPoolMax:8,days:[0],exceptions:[],exceptionNotes:{},allowBackToBack:false,playAllTeamsOnce:true,avoidImmediateRematches:true,protectSharedCoaches:true,honorScheduleRequests:true,keepPoolPlay:true},
+  settings:{leagueName:'MSS 3v3 League',seasonStart:'',seasonEnd:'',gamesPerWeek:3,gameLength:20,minRest:0,defaultPoolMax:8,days:[0],exceptions:[],exceptionNotes:{},allowBackToBack:false,playAllTeamsOnce:true,avoidImmediateRematches:true,protectSharedCoaches:true,honorScheduleRequests:true,keepPoolPlay:true,maxWaitEnabled:true,maxWaitMinutes:45,maxWaitEnforcement:'strict'},
   pools:{},approved:false,games:[],publishedGames:[],hasPublishedSchedule:false,scheduleChanges:[],activity:[]
 };
 const $=id=>document.getElementById(id),uid=p=>p+'_'+Math.random().toString(36).slice(2,9);
@@ -919,14 +934,14 @@ function addDaysISO(iso,days){const d=new Date(iso+'T00:00:00');if(isNaN(d))retu
 function updateLeagueDaysSummary(){const names=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],days=[...document.querySelectorAll('.dow:checked')].map(x=>+x.value);$('leagueDaysSummary').textContent=days.length?days.sort((a,b)=>(a+6)%7-(b+6)%7).map(d=>names[d]).join(', '):'Select playing days'}
 function hydrate(){
   $('leagueName').value=state.settings.leagueName||'MSS 3v3 League';$('seasonStart').value=state.settings.seasonStart||'';$('seasonEnd').value=state.settings.seasonEnd||'';
-  $('gamesPerWeek').value=state.settings.gamesPerWeek||3;$('seasonGuarantee').value=state.settings.seasonGuarantee||12;$('maxGamesPerDate').value=state.settings.maxGamesPerDate||4;$('gameLength').value=state.settings.gameLength||20;$('minRest').value=state.settings.minRest??0;$('defaultPoolMax').value=state.settings.defaultPoolMax||8;
+  $('gamesPerWeek').value=state.settings.gamesPerWeek||3;$('seasonGuarantee').value=state.settings.seasonGuarantee||12;$('maxGamesPerDate').value=state.settings.maxGamesPerDate||4;$('gameLength').value=state.settings.gameLength||20;$('minRest').value=state.settings.minRest??0;$('maxWaitEnabled').checked=state.settings.maxWaitEnabled!==false;$('maxWaitMinutes').value=String(state.settings.maxWaitMinutes||45);$('maxWaitEnforcement').value=state.settings.maxWaitEnforcement||'strict';$('defaultPoolMax').value=state.settings.defaultPoolMax||8;
   $('avoidRepeats')&&($('avoidRepeats').checked=state.settings.avoidRepeats!==false);$('allowBackToBack').checked=!!state.settings.allowBackToBack;$('playAllTeamsOnce').checked=state.settings.playAllTeamsOnce!==false;$('avoidImmediateRematches').checked=state.settings.avoidImmediateRematches!==false;$('protectSharedCoaches').checked=state.settings.protectSharedCoaches!==false;$('honorScheduleRequests').checked=state.settings.honorScheduleRequests!==false;document.querySelectorAll('.dow').forEach(x=>x.checked=(state.settings.days||[0]).includes(+x.value));updateLeagueDaysSummary();updatePlayingDateSummary()
 }
 function updatePlayingDateSummary(){if(!$('seasonGameTotal'))return;const count=seasonDatesRaw().length;$('seasonGameTotal').value=count+` playing date${count===1?'':'s'}`}
 function syncSettings(){
   state.settings.leagueName=$('leagueName').value.trim()||'MSS 3v3 League';state.settings.seasonStart=$('seasonStart').value;state.settings.seasonEnd=$('seasonEnd').value;
   state.settings.gamesPerWeek=+$('gamesPerWeek').value||3;state.settings.seasonGuarantee=Math.max(1,state.settings.gamesPerWeek*Math.max(1,seasonDatesRaw().length));$('seasonGuarantee').value=state.settings.seasonGuarantee;state.settings.maxGamesPerDate=+$('maxGamesPerDate').value||4;state.settings.gameLength=+$('gameLength').value||20;state.settings.minRest=+$('minRest').value||0;
-  state.settings.defaultPoolMax=+$('defaultPoolMax').value||8;state.settings.days=[...document.querySelectorAll('.dow:checked')].map(x=>+x.value);state.settings.avoidRepeats=state.settings.playAllTeamsOnce;state.settings.allowBackToBack=$('allowBackToBack').checked;state.settings.playAllTeamsOnce=$('playAllTeamsOnce').checked;state.settings.avoidImmediateRematches=$('avoidImmediateRematches').checked;state.settings.protectSharedCoaches=$('protectSharedCoaches').checked;state.settings.honorScheduleRequests=$('honorScheduleRequests').checked;state.settings.keepPoolPlay=true;updateLeagueDaysSummary();updatePlayingDateSummary()
+  state.settings.maxWaitEnabled=$('maxWaitEnabled').checked;state.settings.maxWaitMinutes=+$('maxWaitMinutes').value||45;state.settings.maxWaitEnforcement=$('maxWaitEnforcement').value||'strict';state.settings.defaultPoolMax=+$('defaultPoolMax').value||8;state.settings.days=[...document.querySelectorAll('.dow:checked')].map(x=>+x.value);state.settings.avoidRepeats=state.settings.playAllTeamsOnce;state.settings.allowBackToBack=$('allowBackToBack').checked;state.settings.playAllTeamsOnce=$('playAllTeamsOnce').checked;state.settings.avoidImmediateRematches=$('avoidImmediateRematches').checked;state.settings.protectSharedCoaches=$('protectSharedCoaches').checked;state.settings.honorScheduleRequests=$('honorScheduleRequests').checked;state.settings.keepPoolPlay=true;updateLeagueDaysSummary();updatePlayingDateSummary()
 }
 function setView(view){
   const u=new URL(location.href);u.searchParams.set('view',view);history.replaceState({},'',u);
@@ -5711,7 +5726,7 @@ async function optimizeCourtUseSafely(explicitDate=null){
 
     setOptimizationStatus('COURT COMPRESSION PREVIEW','Preview ready',`${targetDate}: ${beforeDate.efficiency.toFixed(1)}% → ${afterDate.efficiency.toFixed(1)}% packing`,100);
     setOptimizationResults(`<div class="status ok"><b>Court & Time Optimization .86.8 — PREVIEW ONLY for ${esc(targetDate)}.</b><br><b>${moves.length} game placement(s) proposed. No changes applied.</b><br>
-      <b>Team waits ≥45 min:</b> ${beforeWait.bad} → ${afterWait.bad} • <b>Total team idle:</b> ${beforeWait.total} → ${afterWait.total} min • <b>Three consecutive:</b> ${beforeWait.triples} → ${afterWait.triples}<br>
+      <b>Team waits beyond league limit:</b> ${beforeWait.bad} → ${afterWait.bad} • <b>Total team idle:</b> ${beforeWait.total} → ${afterWait.total} min • <b>Three consecutive:</b> ${beforeWait.triples} → ${afterWait.triples}<br>
       <b>Last game ends:</b> ${fmtTime(`${String(Math.floor(beforeWait.finish/60)).padStart(2,'0')}:${String(beforeWait.finish%60).padStart(2,'0')}`)} → ${fmtTime(`${String(Math.floor(afterWait.finish/60)).padStart(2,'0')}:${String(afterWait.finish%60).padStart(2,'0')}`)}<br>
       <b>Compaction:</b> ${compactionPassesRun} block sweep(s) completed • ${blocks.length} division/pool block(s) per sweep.<br>
       <b>Late-game left shift:</b> ${leftShift.moved} individual game move(s) accepted in ${leftShift.passes} pass(es).<br>      <b>Why earlier slots were rejected:</b> occupied ${leftShift.stats.occupied} • team availability/conflict ${leftShift.stats.teamConflict} • rest ${leftShift.stats.rest} • would worsen waits ${leftShift.stats.wait} • protected audit ${leftShift.stats.audit}.<br>
@@ -5766,7 +5781,7 @@ function applyCourtCompressionV865(){
     if(!protectedAuditDidNotWorsen(beforeAudit,afterAudit)||invalid.length||afterWait.triples>beforeWait.triples||afterWait.bad>beforeWait.bad||afterWait.total>beforeWait.total||afterPacking.objective>beforePacking.objective)throw new Error('Final protected audit, wait-time, or court-packing validation failed.');
     persist();renderAll();courtCompressionProposalV865=null;
     const b=$('calendarApplyCompressionBtn');if(b)b.disabled=true;
-    setOptimizationResults(`<div class="status ok"><b>Court compression applied for ${esc(prop.date)}.</b><br>${prop.moves} games moved. Team waits ≥45 min: ${beforeWait.bad} → ${afterWait.bad}. Total idle minutes: ${beforeWait.total} → ${afterWait.total}.<br>Run Audit Entire League – Future Dates and export a fresh backup.</div>`,true);
+    setOptimizationResults(`<div class="status ok"><b>Court compression applied for ${esc(prop.date)}.</b><br>${prop.moves} games moved. Team waits beyond league limit: ${beforeWait.bad} → ${afterWait.bad}. Total idle minutes: ${beforeWait.total} → ${afterWait.total}.<br>Run Audit Entire League – Future Dates and export a fresh backup.</div>`,true);
   }catch(e){state.games=snapshot;renderAll();setOptimizationResults(`<div class="status warn"><b>Apply rejected; original schedule restored.</b> ${esc(e.message)}</div>`,true);}
 }
 
@@ -6009,6 +6024,22 @@ function parkGame(id){
   state.scheduleChanges=state.scheduleChanges||[];state.scheduleChanges.unshift({id:uid('chg'),kind:'parking',gameId:id,changedAt:new Date().toISOString(),before:gameSnapshot(g),after:{parked:true},reason:'Director parked future game'});
   persist();renderAll();setTab('management');renderParkingLot();
 }
+function waitRuleForPlacement(game,date,time,excludedIds=[]){
+  const errors=[],warnings=[];
+  if(state.settings.maxWaitEnabled===false)return {errors,warnings};
+  const limit=Number(state.settings.maxWaitMinutes||45),length=Number(state.settings.gameLength||20);
+  for(const id of [game.aId,game.bId]){
+    const starts=state.games.filter(x=>x.status!=='Cancelled'&&x.date===date&&!excludedIds.includes(x.id)&&(x.aId===id||x.bId===id)).map(x=>minutes(x.time));
+    starts.push(minutes(time));starts.sort((a,b)=>a-b);
+    for(let i=1;i<starts.length;i++){
+      const gap=starts[i]-starts[i-1]-length;
+      if(gap>limit){const msg=`${teamById(id).name} would wait ${gap} minutes (league maximum ${limit}).`;
+        (state.settings.maxWaitEnforcement==='preferred'?warnings:errors).push(msg);
+      }
+    }
+  }
+  return {errors:[...new Set(errors)],warnings:[...new Set(warnings)]};
+}
 function parkingSlotCheck(g,date,time,court){
   const errors=[],warnings=[];const start=minutes(time),len=Number(state.settings.gameLength)||20,end=start+len;
   if(!date||!time||!court)errors.push('Date, time, and court are required.');
@@ -6028,6 +6059,7 @@ function parkingSlotCheck(g,date,time,court){
   }
   const cfg=state.divisionConfig?.[g.division];if(cfg?.start&&time<cfg.start||cfg?.end&&time>=cfg.end)errors.push('Outside division scheduling window.');
   if(typeof courtExceptionAllows==='function'&&!courtExceptionAllows(court,date,time,len))errors.push('Court is unavailable during this slot.');
+  const wait=waitRuleForPlacement(g,date,time);errors.push(...wait.errors);warnings.push(...wait.warnings);
   return {errors:[...new Set(errors)],warnings};
 }
 function restoreParkedGame(id){
@@ -6038,7 +6070,7 @@ function restoreParkedGame(id){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^([01]\d|2[0-3]):[0-5]\d$/.test(time))return alert('Enter a valid date and 24-hour time.');
   const check=parkingSlotCheck(g,date,time,court);
   if(check.errors.length)return alert('Restore blocked:\n• '+check.errors.join('\n• '));
-  if(!confirm(`Restore ${teamById(g.aId).name} vs ${teamById(g.bId).name}\n${date} ${fmtTime(time)} • ${court}?\n\nNo direct court/team overlaps detected. Run the full Schedule Audit after restoring.`))return;
+  if(!confirm(`Restore ${teamById(g.aId).name} vs ${teamById(g.bId).name}\n${date} ${fmtTime(time)} • ${court}?\n\n${check.warnings.length?'WARNINGS: '+check.warnings.join('; ')+'\n\n':''}No direct court/team overlaps detected. Run the full Schedule Audit after restoring.`))return;
   const restored={...g,date,time,court,pending:true,lockedManual:true};
   state.games.push(restored);state.parkingLot=state.parkingLot.filter(x=>x.id!==id);
   state.scheduleChanges=state.scheduleChanges||[];state.scheduleChanges.unshift({id:uid('chg'),kind:'parking-restore',gameId:id,changedAt:new Date().toISOString(),before:{parked:true},after:gameSnapshot(restored),reason:'Director restored parked game'});
@@ -6046,8 +6078,72 @@ function restoreParkedGame(id){
   alert('Game restored and locked. Run Audit Selected Future Dates before publishing.');
 }
 
+let visualMovePreview=null;
+function visualMoveOptions(){
+ const gSel=$('visualMoveGame');if(!gSel)return;
+ const eligible=state.games.filter(g=>g.status!=='Cancelled'&&!isHistoricalGame(g)&&!g.lockedManual);
+ const old=gSel.value;gSel.innerHTML='<option value="">Select game</option>'+eligible.map(g=>`<option value="${esc(g.id)}">${esc(g.date)} ${esc(fmtTime(g.time))} ${esc(g.court)} — ${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</option>`).join('');
+ if(eligible.some(g=>g.id===old))gSel.value=old;
+ const chosen=eligible.find(g=>g.id===gSel.value);
+ const dates=[...new Set(state.games.map(g=>g.date).filter(Boolean))].sort();
+ const d=$('visualMoveDate'),t=$('visualMoveTime'),c=$('visualMoveCourt'),swap=$('visualSwapGame');
+ const selectedDate=d.value,selectedTime=t.value,selectedCourt=c.value,selectedSwap=swap.value;
+ d.innerHTML=dates.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+ const length=Math.max(1,Number(state.settings.gameLength||15));
+ const times=[];for(let m=0;m<1440;m+=length)times.push(hhmm(m));
+ t.innerHTML=times.map(x=>`<option value="${x}">${esc(fmtTime(x))}</option>`).join('');
+ c.innerHTML=state.courts.map(x=>`<option value="${esc(x.name)}">${esc(x.name)}</option>`).join('');
+ swap.innerHTML='<option value="">No swap — move to empty slot</option>'+eligible.filter(x=>x.id!==gSel.value).map(x=>`<option value="${esc(x.id)}">${esc(x.date)} ${esc(fmtTime(x.time))} ${esc(x.court)} — ${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</option>`).join('');
+ d.value=dates.includes(selectedDate)?selectedDate:(chosen?.date||dates[0]||'');
+ t.value=times.includes(selectedTime)?selectedTime:(chosen?.time||times[0]||'');
+ c.value=state.courts.some(x=>x.name===selectedCourt)?selectedCourt:(chosen?.court||state.courts[0]?.name||'');
+ if(eligible.some(x=>x.id===selectedSwap&&x.id!==gSel.value))swap.value=selectedSwap;
+ $('visualPreviewBtn').disabled=!IS_SANDBOX;$('visualApplyBtn').disabled=true;visualMovePreview=null;
+ if(!IS_SANDBOX)$('visualMoveFeedback').textContent='Live league protected. Open Scheduling Sandbox to test moves and swaps.';
+}
+function visualPreview(){
+ visualMovePreview=null;$('visualApplyBtn').disabled=true;
+ if(!IS_SANDBOX)return alert('Open Scheduling Sandbox first.');
+ const g=state.games.find(x=>x.id===$('visualMoveGame').value),swap=state.games.find(x=>x.id===$('visualSwapGame').value);
+ if(!g)return alert('Select a game.');
+ if(isHistoricalGame(g)||g.lockedManual||swap&&(isHistoricalGame(swap)||swap.lockedManual))return alert('Choose prepared, unlocked test games.');
+ const date=$('visualMoveDate').value,time=$('visualMoveTime').value,court=$('visualMoveCourt').value;
+ const excluded=[g.id,...(swap?[swap.id]:[])];
+ const proposed=[{...g,date,time,court},...(swap?[{...swap,date:g.date,time:g.time,court:g.court}]:[])];
+ const saved=state.games;state.games=saved.filter(x=>!excluded.includes(x.id));
+ const errors=[],warnings=[];
+ try{
+   for(const pg of proposed){const ck=parkingSlotCheck(pg,pg.date,pg.time,pg.court);errors.push(...ck.errors);warnings.push(...ck.warnings)}
+   if(swap){const a=proposed[0],b=proposed[1],len=Number(state.settings.gameLength||20);
+     if(a.date===b.date&&minutes(a.time)<minutes(b.time)+len&&minutes(b.time)<minutes(a.time)+len){
+       if(a.court===b.court)errors.push('Proposed games overlap on the same court.');
+       if([a.aId,a.bId].some(id=>id===b.aId||id===b.bId))errors.push('Proposed games overlap for a team.');
+     }
+   }
+ }finally{state.games=saved;}
+ const box=$('visualMoveFeedback');box.innerHTML=`<div class="status ${errors.length?'bad':warnings.length?'warn':'ok'}"><b>${errors.length?'Blocked':warnings.length?'Preview — warnings':'Preview — no direct conflicts'}</b><br>${proposed.map(x=>esc(teamById(x.aId).name)+' vs '+esc(teamById(x.bId).name)+' → '+esc(x.date+' '+fmtTime(x.time)+' '+x.court)).join('<br>')}${[...new Set(errors)].map(x=>'<br>BLOCK: '+esc(x)).join('')}${[...new Set(warnings)].map(x=>'<br>WARNING: '+esc(x)).join('')}</div>`;
+ if(!errors.length){visualMovePreview={signature:JSON.stringify([g.id,swap?.id||'',date,time,court]),proposed,excluded};$('visualApplyBtn').disabled=false;}
+}
+function visualApply(){
+ if(!IS_SANDBOX||!visualMovePreview)return;
+ const p=visualMovePreview,signature=JSON.stringify([$('visualMoveGame').value,$('visualSwapGame').value,$('visualMoveDate').value,$('visualMoveTime').value,$('visualMoveCourt').value]);
+ if(signature!==p.signature)return alert('Selections changed. Preview again.');
+ if(!confirm('Apply this sandbox-only change? The games will be locked and marked unpublished.'))return;
+ const before=state.games.filter(g=>p.excluded.includes(g.id));
+ state.games=state.games.map(g=>{const next=p.proposed.find(x=>x.id===g.id);return next?{...next,pending:true,lockedManual:true}:g});
+ state.scheduleChanges=state.scheduleChanges||[];
+ for(const g of before){const after=state.games.find(x=>x.id===g.id);state.scheduleChanges.unshift({id:uid('chg'),kind:p.proposed.length>1?'visual-swap':'visual-move',gameId:g.id,changedAt:new Date().toISOString(),before:gameSnapshot(g),after:gameSnapshot(after),reason:'87.6 sandbox previewed change'});}
+ visualMovePreview=null;persist();renderAll();setTab('management');alert('Sandbox change applied. Run Schedule Audit and Safety Checks.');
+}
+function initVisualMove(){
+ const el=$('visualMoveGame');if(!el)return;
+ el.addEventListener('change',()=>{visualMoveOptions();const g=state.games.find(x=>x.id===el.value);if(g){$('visualMoveDate').value=g.date;$('visualMoveTime').value=g.time;$('visualMoveCourt').value=g.court;}});
+ for(const id of ['visualMoveDate','visualMoveTime','visualMoveCourt','visualSwapGame'])$(id).addEventListener('change',()=>{visualMovePreview=null;$('visualApplyBtn').disabled=true;});
+ $('visualPreviewBtn').addEventListener('click',visualPreview);$('visualApplyBtn').addEventListener('click',visualApply);
+}
+document.addEventListener('DOMContentLoaded',initVisualMove);
 function renderManagement(){
-  renderParkingLot();
+  renderParkingLot();visualMoveOptions();
   const pending=state.games.filter(g=>g.pending).length;
   groupOptions($('managementDivision'));
   const divisionValue=$('managementDivision').value||'ALL';
