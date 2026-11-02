@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.87.6</title>
+<title>MSS League Scheduler v11.11.87.7</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,9 +44,9 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.87.6</h1><div class="sub">League Setup → Registrations → Division Setup → Divisions & Pools → Resources → Division Scheduling → League Rules → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.87.7</h1><div class="sub">League Setup → Registrations → Divisions & Pools → Courts & Fields → Schedule → League Operations</div></div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-    <button type="button" id="buildInfoButton" style="background:#eef4ff;color:#14254c;border:1px solid #a8c0e5;font-size:11px;padding:6px 9px" title="Identify the exact running application and data storage">Build 87.6 · Details</button>
+    <button type="button" id="buildInfoButton" style="background:#eef4ff;color:#14254c;border:1px solid #a8c0e5;font-size:11px;padding:6px 9px" title="Identify the exact running application and data storage">Build 87.7 · Details</button>
     <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
   </div>
 </header>
@@ -55,8 +55,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <h2 style="margin-top:0">Application &amp; Storage Information</h2>
   <p class="hint">Use this information to distinguish an old browser tab from a newer deployed file. This panel is read-only.</p>
   <dl style="display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;font-size:13px">
-    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.6</dd>
-    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.6-20261102-A</dd>
+    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.7</dd>
+    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.7-20261102-B</dd>
     <dt><b>Loaded from</b></dt><dd style="margin:0;overflow-wrap:anywhere" id="buildSourceText"></dd>
     <dt><b>Storage</b></dt><dd style="margin:0" id="buildStorageText">IndexedDB · browser and origin specific</dd>
   </dl>
@@ -76,7 +76,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <button data-tab="registrations">Registrations</button>
   <button data-tab="divisions">Division Setup</button>
   <button data-tab="board">Division & Pool Board</button>
-  <button data-tab="settings">Resources</button>
+  <button data-tab="league">League Setup</button>
+  <button data-tab="facilities">Courts &amp; Fields</button>
   <button data-tab="schedule">Schedule</button>
   <button data-tab="calendar">Court Calendar</button>
   <button data-tab="management">Schedule Management</button>
@@ -122,7 +123,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
         <button class="primary" data-dashboard-tab="registrations">Manage Registrations</button>
         <button class="secondary" data-dashboard-tab="divisions">Set Up Divisions</button>
         <button class="secondary" data-dashboard-tab="board">Review Divisions & Pools</button>
-        <button class="secondary" data-dashboard-tab="settings">Configure Resources</button>
+        <button class="secondary" data-dashboard-tab="facilities">Configure Courts &amp; Fields</button>
         <button class="secondary" data-dashboard-tab="schedule">Review Schedule</button>
         <button class="secondary" data-dashboard-tab="management">Manage Schedule Changes</button>
         <button class="secondary" data-dashboard-tab="results">Enter Results</button>
@@ -135,7 +136,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
     <div class="card"><h2>League Validation Center</h2><div class="hint" style="margin-bottom:8px">Resolve red items before generating the full league schedule.</div><div id="dashboardValidation"></div></div>
   </div>
   <div class="grid" style="margin-top:14px">
-    <div class="card"><h2>League Scheduling Rules</h2><div id="dashboardRules"></div><button class="secondary" data-dashboard-action="league-rules" style="margin-top:8px">Edit League Rules</button></div>
+    <div class="card"><h2>Scheduling Rules</h2><div id="dashboardRules"></div><button class="secondary" data-dashboard-action="league-rules" style="margin-top:8px">Edit League Rules</button></div>
     <div class="card"><h2>Recent Activity</h2><div id="dashboardActivity"></div></div>
   </div>
   <div class="card" style="margin-top:14px">
@@ -269,18 +270,28 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 
 <section id="admin-settings" class="panel">
   <div class="card">
-    <h2>Resources & Scheduling Setup</h2>
-    <div class="status info" style="margin:8px 0"><b>v11.11.86.84:</b> Scheduling Diagnostics is directly above Division Scheduling. Look for the blue-bordered 🔎 panel.</div>
-    <div class="section-note"><b>Setup order:</b> define season dates, playing days and off dates; add playing surfaces; create court groups; complete Division Scheduling; then review League Scheduling Rules.</div>
+    <h2 id="resourceSectionHeading">League Setup</h2>
+    <div class="hint" id="resourceSectionDescription">Set your league dates, game requirements, scheduling rules, and team requests here.</div>
+    
   </div>
 
+  <div id="leagueSetupSections" class="resource-sections"></div>
+  <div id="courtFieldSections" class="resource-sections" hidden></div>
   <div class="grid" style="margin-top:14px">
     <div class="card" id="leagueRulesEditor">
       <h2>League Setup</h2>
       <div class="row">
         <div class="field"><label>League Name</label><input id="leagueName"></div>
         <div class="field"><label>Game Length</label><select id="gameLength"><option value="10">10 minutes</option><option value="12">12 minutes</option><option value="15">15 minutes</option><option value="20">20 minutes</option><option value="25">25 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="75">75 minutes</option></select><span class="hint">Used to calculate every court/time slot and schedule-capacity check.</span></div>
-        <div class="field" style="min-width:260px"><label>Maximum Team Waiting Time</label><label style="display:flex;align-items:center;gap:8px"><input id="maxWaitEnabled" type="checkbox" checked style="width:auto"> Set a league maximum</label><select id="maxWaitMinutes"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="75">75 minutes</option><option value="90">90 minutes</option><option value="120">120 minutes</option></select><select id="maxWaitEnforcement"><option value="strict">Strict — block violating moves</option><option value="preferred">Preferred — warn only</option></select><span class="hint">Measured from the end of one game to the start of the next. Applies to manual move/restore checks and the new visual manager; older optimizer routines still use their own thresholds.</span></div>
+        <div class="wait-setting" style="flex:1 1 100%;background:#f6f9fd;border:1px solid #d5e1ee;border-radius:10px;padding:14px">
+          <div style="font-weight:750;color:#14254c;margin-bottom:8px">Maximum Team Waiting Time</div>
+          <div class="row" style="align-items:center;gap:12px">
+            <label style="display:flex;align-items:center;gap:8px;min-width:170px"><input id="maxWaitEnabled" type="checkbox" checked style="width:auto"> Set maximum wait</label>
+            <div class="field" id="maxWaitMinutesWrap" style="min-width:160px"><label>Maximum wait</label><select id="maxWaitMinutes"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option><option value="75">75 minutes</option><option value="90">90 minutes</option><option value="120">120 minutes</option></select></div>
+            <div class="field" id="maxWaitEnforcementWrap" style="min-width:190px"><label>Enforcement</label><select id="maxWaitEnforcement"><option value="strict">Strict — block</option><option value="preferred">Preferred — warn</option></select></div>
+          </div>
+          <p class="hint" style="margin:8px 0 0">Idle time from the end of one game to the start of the team's next game. Applies to supported manual move/restore checks; legacy optimizers may use separate thresholds.</p>
+        </div>
         <div class="field"><label>Calculated Season Minimum / Team</label><input id="seasonGuarantee" type="number" min="1" max="50" value="12" readonly></div>
         <div class="field"><label>Minimum Games / Team / Playing Date</label><input id="gamesPerWeek" type="number" min="1" max="8" value="3"></div>
         <div class="field"><label>Maximum Games / Team / Playing Date</label><input id="maxGamesPerDate" type="number" min="1" max="8" value="4"></div>
@@ -450,7 +461,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:10px">
         <label style="min-width:240px">Optimization goal<select id="optimizationGoalV868" onchange="switchOptimizationGoalV868()"><option value="court">Court &amp; Time Efficiency (recommended)</option><option value="smart">Smart Schedule Compression (legacy)</option><option value="balance">Schedule Balance / Re-Optimize</option></select></label>
         <label style="min-width:170px">Playing date<select id="optimizationDateV868" onchange="syncOptimizationDateV868()"></select></label>
-        <span class="hint">Wait threshold is set in Resources → League Setup → Maximum Team Waiting Time.</span>
+        <label style="min-width:150px">Flag team waits ≥<select id="smartCompressThreshold"><option value="45" selected>45 min</option><option value="30">30 min</option><option value="60">60 min</option></select></label>
       </div>
       <div id="courtGoalControlsV868" class="toolbar" style="margin-bottom:8px">
         <button class="primary" id="calendarOptimizeBtn" type="button">Preview Court &amp; Time Optimization</button>
@@ -650,7 +661,7 @@ function initializeReadOnlySafety(){
   });
 }
 document.addEventListener('DOMContentLoaded',initializeReadOnlySafety);
-const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.6',id:'MSS-87.6-20261102-A'});
+const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.7',id:'MSS-87.7-20261102-B'});
 function getMssBuildDetails(){
   const origin=location.protocol==='file:'?'Local file (file://)':location.origin;
   return `MSS League Scheduler v${MSS_BUILD_INFO.version}\nBuild: ${MSS_BUILD_INFO.id}\nSource: ${location.href}\nStorage: IndexedDB, isolated by browser and origin (${origin}); record: ${IS_SANDBOX?"sandbox-87-5":"current (live)"}`;
@@ -949,7 +960,37 @@ function setView(view){
   document.querySelector('.admin-tabs').classList.toggle('hidden',view!=='admin');document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   if(view==='admin')setTab('dashboard');else{$(view+'-view').classList.add('active');view==='coach'?renderCoach():renderPublic()}
 }
-function setTab(tab){document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));document.querySelectorAll('[id^="admin-"]').forEach(p=>p.classList.remove('active'));const panel=$('admin-'+tab);if(!panel)return setTab('dashboard');panel.classList.add('active');if(tab==='dashboard')renderDashboard();if(tab==='divisions')renderDivisionSetup();if(tab==='board')renderBoard();if(tab==='schedule')renderSchedule();if(tab==='calendar')renderCourtCalendar();if(tab==='management')renderManagement();if(tab==='results')renderResults();if(tab==='standings')renderStandings()}
+function setupResourceNavigation(){
+  const league=$('leagueSetupSections'),fields=$('courtFieldSections');
+  if(!league||league.dataset.arranged)return;
+  const panel=$('admin-settings');
+  const cardFor=id=>$(id)?.closest('.card');
+  const setup=cardFor('leagueRulesEditor');
+  const rules=cardFor('minRest');
+  const courts=cardFor('courtsList');
+  const groups=cardFor('courtGroupsList');
+  const division=cardFor('divisionAssignments');
+  const diagnostics=$('advancedSchedulingDiagnostics');
+  for(const card of [setup,rules])if(card)league.appendChild(card);
+  for(const card of [courts,groups,division,diagnostics])if(card)fields.appendChild(card);
+  // Remove empty layout wrappers left after moving their cards.
+  [...panel.querySelectorAll(':scope > .grid')].forEach(g=>{if(!g.querySelector('.card'))g.remove()});
+  league.dataset.arranged='true';
+  const enabled=$('maxWaitEnabled');
+  const update=()=>{const visible=enabled?.checked!==false;for(const id of ['maxWaitMinutesWrap','maxWaitEnforcementWrap']){const el=$(id);if(el)el.style.display=visible?'':'none'}};
+  if(enabled){enabled.addEventListener('change',update);update();}
+}
+function showResourceArea(area){
+  setupResourceNavigation();
+  const isLeague=area!=='facilities';
+  $('leagueSetupSections').hidden=!isLeague;
+  $('courtFieldSections').hidden=isLeague;
+  $('resourceSectionHeading').textContent=isLeague?'League Setup':'Courts & Fields';
+  $('resourceSectionDescription').textContent=isLeague?
+    'General settings, scheduling rules and league-specific requests. Team availability requests can also be edited from Registrations.':
+    'Manage playing surfaces, court groups, availability, and division scheduling assignments.';
+}
+function setTab(tab){if(tab==='settings')tab='league';if(tab==='league'||tab==='facilities')showResourceArea(tab);document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));document.querySelectorAll('[id^="admin-"]').forEach(p=>p.classList.remove('active'));const panel=$('admin-'+(tab==='league'||tab==='facilities'?'settings':tab));if(!panel)return setTab('dashboard');panel.classList.add('active');if(tab==='dashboard')renderDashboard();if(tab==='divisions')renderDivisionSetup();if(tab==='board')renderBoard();if(tab==='schedule')renderSchedule();if(tab==='calendar')renderCourtCalendar();if(tab==='management')renderManagement();if(tab==='results')renderResults();if(tab==='standings')renderStandings()}
 document.querySelectorAll('.viewbar button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 
 function renderManualDivisionOptions(){
@@ -5726,7 +5767,7 @@ async function optimizeCourtUseSafely(explicitDate=null){
 
     setOptimizationStatus('COURT COMPRESSION PREVIEW','Preview ready',`${targetDate}: ${beforeDate.efficiency.toFixed(1)}% → ${afterDate.efficiency.toFixed(1)}% packing`,100);
     setOptimizationResults(`<div class="status ok"><b>Court & Time Optimization .86.8 — PREVIEW ONLY for ${esc(targetDate)}.</b><br><b>${moves.length} game placement(s) proposed. No changes applied.</b><br>
-      <b>Team waits beyond league limit:</b> ${beforeWait.bad} → ${afterWait.bad} • <b>Total team idle:</b> ${beforeWait.total} → ${afterWait.total} min • <b>Three consecutive:</b> ${beforeWait.triples} → ${afterWait.triples}<br>
+      <b>Team waits ≥45 min:</b> ${beforeWait.bad} → ${afterWait.bad} • <b>Total team idle:</b> ${beforeWait.total} → ${afterWait.total} min • <b>Three consecutive:</b> ${beforeWait.triples} → ${afterWait.triples}<br>
       <b>Last game ends:</b> ${fmtTime(`${String(Math.floor(beforeWait.finish/60)).padStart(2,'0')}:${String(beforeWait.finish%60).padStart(2,'0')}`)} → ${fmtTime(`${String(Math.floor(afterWait.finish/60)).padStart(2,'0')}:${String(afterWait.finish%60).padStart(2,'0')}`)}<br>
       <b>Compaction:</b> ${compactionPassesRun} block sweep(s) completed • ${blocks.length} division/pool block(s) per sweep.<br>
       <b>Late-game left shift:</b> ${leftShift.moved} individual game move(s) accepted in ${leftShift.passes} pass(es).<br>      <b>Why earlier slots were rejected:</b> occupied ${leftShift.stats.occupied} • team availability/conflict ${leftShift.stats.teamConflict} • rest ${leftShift.stats.rest} • would worsen waits ${leftShift.stats.wait} • protected audit ${leftShift.stats.audit}.<br>
@@ -5781,7 +5822,7 @@ function applyCourtCompressionV865(){
     if(!protectedAuditDidNotWorsen(beforeAudit,afterAudit)||invalid.length||afterWait.triples>beforeWait.triples||afterWait.bad>beforeWait.bad||afterWait.total>beforeWait.total||afterPacking.objective>beforePacking.objective)throw new Error('Final protected audit, wait-time, or court-packing validation failed.');
     persist();renderAll();courtCompressionProposalV865=null;
     const b=$('calendarApplyCompressionBtn');if(b)b.disabled=true;
-    setOptimizationResults(`<div class="status ok"><b>Court compression applied for ${esc(prop.date)}.</b><br>${prop.moves} games moved. Team waits beyond league limit: ${beforeWait.bad} → ${afterWait.bad}. Total idle minutes: ${beforeWait.total} → ${afterWait.total}.<br>Run Audit Entire League – Future Dates and export a fresh backup.</div>`,true);
+    setOptimizationResults(`<div class="status ok"><b>Court compression applied for ${esc(prop.date)}.</b><br>${prop.moves} games moved. Team waits ≥45 min: ${beforeWait.bad} → ${afterWait.bad}. Total idle minutes: ${beforeWait.total} → ${afterWait.total}.<br>Run Audit Entire League – Future Dates and export a fresh backup.</div>`,true);
   }catch(e){state.games=snapshot;renderAll();setOptimizationResults(`<div class="status warn"><b>Apply rejected; original schedule restored.</b> ${esc(e.message)}</div>`,true);}
 }
 
@@ -6563,7 +6604,7 @@ function renderDashboard(){
   const activity=(state.activity||[]).slice(0,8);$('dashboardActivity').innerHTML=activity.length?activity.map(a=>`<div class="item"><b>${esc(a.message)}</b><br><span class="hint">${new Date(a.at).toLocaleString()}</span></div>`).join(''):'<p class="hint">No recorded activity yet. Schedule generation, publishing, and major setup changes will appear here.</p>';
   document.querySelectorAll('[data-dashboard-tab]').forEach(b=>b.onclick=()=>setTab(b.dataset.dashboardTab));
   document.querySelectorAll('[data-dashboard-action="league-rules"]').forEach(b=>b.onclick=()=>{
-    setTab('settings');
+    setTab('league');
     requestAnimationFrame(()=>{
       const editor=$('leagueRulesEditor');
       if(editor){editor.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(()=>{$('gameLength')?.focus()},250)}
@@ -6580,7 +6621,7 @@ function renderAll(){
   renderParkingLot();
   const steps=[
     ['Division Setup',renderDivisionSetup],['Director Dashboard',renderDashboard],['Registrations',()=>{renderManualDivisionOptions();renderTeams();renderReplaceTeamOptions();renderFutureTeamControls();renderTeamRequests()}],['Duplicate Check',renderDuplicateNameStatus],
-    ['Resources',()=>{renderSettings();renderCourtExceptions()}],['Division & Pool Board',renderBoard],['Schedule',renderSchedule],['Court Calendar',renderCourtCalendar],['Schedule Management',renderManagement],
+    ['League Setup / Courts & Fields',()=>{renderSettings();renderCourtExceptions()}],['Division & Pool Board',renderBoard],['Schedule',renderSchedule],['Court Calendar',renderCourtCalendar],['Schedule Management',renderManagement],
     ['Results',renderResults],['Standings',renderStandings],['Coach Selectors',renderCoachSelectors],['Coach Tools',renderCoach],['League Portal',renderPublic]
   ];
   const failures=[];
