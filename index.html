@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.87.8.1</title>
+<title>MSS League Scheduler v11.11.87.8.2</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.87.8.1</h1><div class="sub">League Setup → Registrations → Divisions & Pools → Courts & Fields → Schedule → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.87.8.2</h1><div class="sub">League Setup → Registrations → Divisions & Pools → Courts & Fields → Schedule → League Operations</div></div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">
     <button type="button" id="buildInfoButton" style="background:#eef4ff;color:#14254c;border:1px solid #a8c0e5;font-size:11px;padding:6px 9px" title="Identify the exact running application and data storage">Build 87.8 · Details</button>
     <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
@@ -55,8 +55,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <h2 style="margin-top:0">Application &amp; Storage Information</h2>
   <p class="hint">Use this information to distinguish an old browser tab from a newer deployed file. This panel is read-only.</p>
   <dl style="display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;font-size:13px">
-    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.8.1</dd>
-    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.8.1-20261102-C</dd>
+    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.8.2</dd>
+    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.8.2-20261102-D</dd>
     <dt><b>Loaded from</b></dt><dd style="margin:0;overflow-wrap:anywhere" id="buildSourceText"></dd>
     <dt><b>Storage</b></dt><dd style="margin:0" id="buildStorageText">IndexedDB · browser and origin specific</dd>
   </dl>
@@ -526,12 +526,19 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <details class="card" id="visualMovePanel" style="margin:12px 0;border:2px solid #b7c8df" open>
     <summary style="cursor:pointer;font-weight:750">Visual Game Move & Swap — 87.8 Sandbox Pilot</summary>
     <p class="hint">Select a scheduled game and an available date, time, and court. For a swap, select another game: each game takes the other’s original slot. Preview both placements and rule checks before applying. Only enabled in Scheduling Sandbox; live league remains protected.</p>
+    <div style="font-weight:700;margin:10px 0 5px">1. Select the scheduled game</div>
     <div class="row" style="gap:10px;flex-wrap:wrap">
-      <label class="field">Game to move<select id="visualMoveGame"></select></label>
-      <label class="field">Date<select id="visualMoveDate"></select></label>
-      <label class="field">Start time<select id="visualMoveTime"></select></label>
-      <label class="field">Court<select id="visualMoveCourt"></select></label>
+      <label class="field">Current game date<select id="visualSourceDate"></select></label>
+      <label class="field">Game to move (filtered by date)<select id="visualMoveGame"></select></label>
     </div>
+    <div style="font-weight:700;margin:10px 0 5px">2. Select the destination</div>
+    <label style="display:flex;align-items:center;gap:8px;margin:7px 0"><input type="checkbox" id="visualCrossDate" style="width:auto"> Move to another playing date</label>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <label class="field">Destination date<select id="visualMoveDate"></select></label>
+      <label class="field">Start time<select id="visualMoveTime"></select></label>
+      <label class="field">Eligible court<select id="visualMoveCourt"></select></label>
+    </div>
+    <p class="hint">Only courts assigned to this division and available at the destination time are offered. Occupied slots are handled through Swap. Cross-date moves require explicit opt-in and still undergo rule checks.</p>
     <div class="row" style="gap:10px;flex-wrap:wrap"><label class="field">Optional: swap with another game<select id="visualSwapGame"><option value="">No swap — move to empty slot</option></select></label>
       <button type="button" class="secondary" id="visualPreviewBtn">Preview Move / Swap</button><button type="button" id="visualApplyBtn" disabled>Apply Previewed Change</button><button type="button" class="secondary" id="visualUndoBtn">Undo Last Visual Change</button></div>
     <div id="visualMoveFeedback" class="hint">Select a game to begin.</div>
@@ -661,7 +668,7 @@ function initializeReadOnlySafety(){
   });
 }
 document.addEventListener('DOMContentLoaded',initializeReadOnlySafety);
-const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.8.1',id:'MSS-87.8.1-20261102-C'});
+const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.8.2',id:'MSS-87.8.2-20261102-D'});
 function getMssBuildDetails(){
   const origin=location.protocol==='file:'?'Local file (file://)':location.origin;
   return `MSS League Scheduler v${MSS_BUILD_INFO.version}\nBuild: ${MSS_BUILD_INFO.id}\nSource: ${location.href}\nStorage: IndexedDB, isolated by browser and origin (${origin}); record: ${IS_SANDBOX?"sandbox-87-5":"current (live)"}`;
@@ -6121,27 +6128,64 @@ function restoreParkedGame(id){
 
 let visualMovePreview=null;
 let visualLastApplied=null;
+function visualMoveEligible(){
+ return state.games.filter(g=>g.status!=='Cancelled'&&!isHistoricalGame(g)&&!g.lockedManual);
+}
+function visualMoveDates(){
+ return [...new Set([...seasonDatesRaw(),...state.games.map(g=>g.date)].filter(Boolean))].sort();
+}
+function visualCourtEligible(g,date,time,court){
+ const len=Number(state.settings.gameLength)||20,st=minutes(time);
+ const windows=courtWindows(court);
+ if(!windows.some(w=>st>=minutes(w.start)&&st+len<=minutes(w.end)))return false;
+ if(!courtExceptionAllows(court.id,date,time,len)&&!courtExceptionAllows(court.name,date,time,len))return false;
+ const cfg=poolResourceConfig(g.division,g.pool);
+ const grp=state.courtGroups.find(x=>x.id===cfg?.courtGroupId);
+ if(grp&&!groupSurfaceIds(grp).includes(court.id))return false;
+ if(cfg?.start&&time<cfg.start||cfg?.end&&st+len>minutes(cfg.end))return false;
+ return true;
+}
+function visualMoveCourtOptions(){
+ const g=state.games.find(x=>x.id===$('visualMoveGame').value);
+ const select=$('visualMoveCourt'),old=select.value,date=$('visualMoveDate').value,time=$('visualMoveTime').value;
+ if(!g||!date||!time){select.innerHTML='<option value="">Select a game, date and time</option>';return}
+ const len=Number(state.settings.gameLength)||20,st=minutes(time);
+ const courts=state.courts.filter(c=>visualCourtEligible(g,date,time,c)).filter(c=>
+   !state.games.some(x=>x.id!==g.id&&x.status!=='Cancelled'&&x.date===date&&x.court===c.name&&st<minutes(x.time)+len&&minutes(x.time)<st+len));
+ select.innerHTML='<option value="">Select an available court</option>'+courts.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+ if(courts.some(c=>c.name===old))select.value=old;
+ else if(courts.some(c=>c.name===g.court))select.value=g.court;
+ else if(courts.length)select.value=courts[0].name;
+ const feedback=$('visualMoveFeedback');
+ if(!courts.length&&feedback)feedback.textContent='No eligible empty courts at this time. Try another start time, or choose a game to swap.';
+}
 function visualMoveOptions(){
  const gSel=$('visualMoveGame');if(!gSel)return;
- const eligible=state.games.filter(g=>g.status!=='Cancelled'&&!isHistoricalGame(g)&&!g.lockedManual);
- const old=gSel.value;gSel.innerHTML='<option value="">Select game</option>'+eligible.map(g=>`<option value="${esc(g.id)}">${esc(g.date)} ${esc(fmtTime(g.time))} ${esc(g.court)} — ${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</option>`).join('');
- if(eligible.some(g=>g.id===old))gSel.value=old;
- const chosen=eligible.find(g=>g.id===gSel.value);
- const dates=[...new Set(state.games.map(g=>g.date).filter(Boolean))].sort();
- const d=$('visualMoveDate'),t=$('visualMoveTime'),c=$('visualMoveCourt'),swap=$('visualSwapGame');
- const selectedDate=d.value,selectedTime=t.value,selectedCourt=c.value,selectedSwap=swap.value;
+ const eligible=visualMoveEligible(),source=$('visualSourceDate'),dates=visualMoveDates();
+ const previousSource=source.value,previousGame=gSel.value;
+ source.innerHTML=dates.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+ source.value=dates.includes(previousSource)?previousSource:(eligible[0]?.date||dates[0]||'');
+ const games=eligible.filter(g=>g.date===source.value);
+ gSel.innerHTML='<option value="">Select game</option>'+games.map(g=>`<option value="${esc(g.id)}">${esc(fmtTime(g.time))} ${esc(g.court)} — ${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</option>`).join('');
+ if(games.some(g=>g.id===previousGame))gSel.value=previousGame;
+ else if(games.length)gSel.value=games[0].id;
+ const chosen=games.find(g=>g.id===gSel.value);
+ const d=$('visualMoveDate'),t=$('visualMoveTime'),swap=$('visualSwapGame'),cross=$('visualCrossDate');
+ const selectedDate=d.value,selectedTime=t.value,selectedSwap=swap.value;
  d.innerHTML=dates.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
- const length=Math.max(1,Number(state.settings.gameLength||15));
- const hhmmLocal=m=>`${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;
- const times=[];for(let m=0;m<1440;m+=length)times.push(hhmmLocal(m));
+ d.value=cross.checked&&dates.includes(selectedDate)?selectedDate:(chosen?.date||source.value);
+ d.disabled=!cross.checked;
+ const len=Math.max(1,Number(state.settings.gameLength||15));
+ const hhmmLocal=m=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+ const times=[];for(let m=0;m<1440;m+=len)times.push(hhmmLocal(m));
+ if(chosen?.time&&!times.includes(chosen.time))times.push(chosen.time);
+ times.sort();
  t.innerHTML=times.map(x=>`<option value="${x}">${esc(fmtTime(x))}</option>`).join('');
- c.innerHTML=state.courts.map(x=>`<option value="${esc(x.name)}">${esc(x.name)}</option>`).join('');
- swap.innerHTML='<option value="">No swap — move to empty slot</option>'+eligible.filter(x=>x.id!==gSel.value).map(x=>`<option value="${esc(x.id)}">${esc(x.date)} ${esc(fmtTime(x.time))} ${esc(x.court)} — ${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</option>`).join('');
- d.value=dates.includes(selectedDate)?selectedDate:(chosen?.date||dates[0]||'');
  t.value=times.includes(selectedTime)?selectedTime:(chosen?.time||times[0]||'');
- c.value=state.courts.some(x=>x.name===selectedCourt)?selectedCourt:(chosen?.court||state.courts[0]?.name||'');
- if(eligible.some(x=>x.id===selectedSwap&&x.id!==gSel.value))swap.value=selectedSwap;
- for(const id of ['visualMoveDate','visualMoveTime','visualMoveCourt'])$(id).disabled=!!swap.value;
+ swap.innerHTML='<option value="">No swap — move to empty slot</option>'+eligible.filter(x=>x.id!==gSel.value&&x.date===source.value).map(x=>`<option value="${esc(x.id)}">${esc(fmtTime(x.time))} ${esc(x.court)} — ${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</option>`).join('');
+ if(eligible.some(x=>x.id===selectedSwap&&x.id!==gSel.value&&x.date===source.value))swap.value=selectedSwap;
+ visualMoveCourtOptions();
+ for(const id of ['visualMoveDate','visualMoveTime','visualMoveCourt'])$(id).disabled=!!swap.value||(id==='visualMoveDate'&&!cross.checked);
  $('visualPreviewBtn').disabled=!IS_SANDBOX;$('visualApplyBtn').disabled=true;visualMovePreview=null;
  if(!IS_SANDBOX)$('visualMoveFeedback').textContent='Live league protected. Open Scheduling Sandbox to test moves and swaps.';
 }
@@ -6152,6 +6196,8 @@ function visualPreview(){
  if(!g)return alert('Select a game.');
  if(isHistoricalGame(g)||g.lockedManual||swap&&(isHistoricalGame(swap)||swap.lockedManual))return alert('Choose prepared, unlocked test games.');
  const date=$('visualMoveDate').value,time=$('visualMoveTime').value,court=$('visualMoveCourt').value;
+ if(!swap&&date!==g.date&&!$('visualCrossDate').checked)return alert('Enable Move to another playing date first.');
+ if(!swap&&!court)return alert('Choose an eligible destination court and time.');
  const excluded=[g.id,...(swap?[swap.id]:[])];
  const proposed=[{...g,date:swap?swap.date:date,time:swap?swap.time:time,court:swap?swap.court:court},...(swap?[{...swap,date:g.date,time:g.time,court:g.court}]:[])];
  const saved=state.games;state.games=saved.filter(x=>!excluded.includes(x.id));
@@ -6195,9 +6241,14 @@ function undoLastVisualChange(){
  visualLastApplied=null;persist();renderAll();setTab('management');alert('Last visual move or swap reversed in the sandbox.');
 }
 function initVisualMove(){
- const el=$('visualMoveGame');if(!el)return;
- el.addEventListener('change',()=>{const selectedId=el.value;visualMoveOptions();el.value=selectedId;const g=state.games.find(x=>x.id===selectedId);if(g){$('visualMoveDate').value=g.date;$('visualMoveTime').value=g.time;$('visualMoveCourt').value=g.court;}});
- for(const id of ['visualMoveDate','visualMoveTime','visualMoveCourt','visualSwapGame'])$(id).addEventListener('change',()=>{visualMovePreview=null;$('visualApplyBtn').disabled=true;const swapping=!!$('visualSwapGame').value;for(const field of ['visualMoveDate','visualMoveTime','visualMoveCourt'])$(field).disabled=swapping;});
+ const reset=()=>{visualMovePreview=null;$('visualApplyBtn').disabled=true;};
+ $('visualSourceDate').addEventListener('change',()=>{reset();$('visualMoveGame').value='';visualMoveOptions();});
+ $('visualMoveGame').addEventListener('change',()=>{reset();const g=state.games.find(x=>x.id===$('visualMoveGame').value);if(g){$('visualMoveDate').value=g.date;$('visualMoveTime').value=g.time;}visualMoveOptions();});
+ $('visualCrossDate').addEventListener('change',()=>{reset();if(!$('visualCrossDate').checked)$('visualMoveDate').value=$('visualSourceDate').value;visualMoveOptions();});
+ $('visualMoveDate').addEventListener('change',()=>{reset();visualMoveCourtOptions();});
+ $('visualMoveTime').addEventListener('change',()=>{reset();visualMoveCourtOptions();});
+ $('visualMoveCourt').addEventListener('change',reset);
+ $('visualSwapGame').addEventListener('change',()=>{reset();const swapping=!!$('visualSwapGame').value;for(const field of ['visualMoveDate','visualMoveTime','visualMoveCourt'])$(field).disabled=swapping||(field==='visualMoveDate'&&!$('visualCrossDate').checked);});
  $('visualPreviewBtn').addEventListener('click',visualPreview);$('visualApplyBtn').addEventListener('click',visualApply);$('visualUndoBtn').addEventListener('click',undoLastVisualChange);
 }
 document.addEventListener('DOMContentLoaded',initVisualMove);
