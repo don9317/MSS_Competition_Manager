@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.87.8.2</title>
+<title>MSS League Scheduler v11.11.87.8.3</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,9 +44,9 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.87.8.2</h1><div class="sub">League Setup → Registrations → Divisions & Pools → Courts & Fields → Schedule → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.87.8.3</h1><div class="sub">League Setup → Registrations → Divisions & Pools → Courts & Fields → Schedule → League Operations</div></div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-    <button type="button" id="buildInfoButton" style="background:#eef4ff;color:#14254c;border:1px solid #a8c0e5;font-size:11px;padding:6px 9px" title="Identify the exact running application and data storage">Build 87.8 · Details</button>
+    <button type="button" id="buildInfoButton" style="background:#eef4ff;color:#14254c;border:1px solid #a8c0e5;font-size:11px;padding:6px 9px" title="Identify the exact running application and data storage">Build 87.8.3 · Details</button>
     <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
   </div>
 </header>
@@ -55,8 +55,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <h2 style="margin-top:0">Application &amp; Storage Information</h2>
   <p class="hint">Use this information to distinguish an old browser tab from a newer deployed file. This panel is read-only.</p>
   <dl style="display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;font-size:13px">
-    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.8.2</dd>
-    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.8.2-20261102-D</dd>
+    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.8.3</dd>
+    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.8.3-20261103-E</dd>
     <dt><b>Loaded from</b></dt><dd style="margin:0;overflow-wrap:anywhere" id="buildSourceText"></dd>
     <dt><b>Storage</b></dt><dd style="margin:0" id="buildStorageText">IndexedDB · browser and origin specific</dd>
   </dl>
@@ -668,7 +668,7 @@ function initializeReadOnlySafety(){
   });
 }
 document.addEventListener('DOMContentLoaded',initializeReadOnlySafety);
-const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.8.2',id:'MSS-87.8.2-20261102-D'});
+const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.8.3',id:'MSS-87.8.3-20261103-E'});
 function getMssBuildDetails(){
   const origin=location.protocol==='file:'?'Local file (file://)':location.origin;
   return `MSS League Scheduler v${MSS_BUILD_INFO.version}\nBuild: ${MSS_BUILD_INFO.id}\nSource: ${location.href}\nStorage: IndexedDB, isolated by browser and origin (${origin}); record: ${IS_SANDBOX?"sandbox-87-5":"current (live)"}`;
@@ -907,18 +907,40 @@ async function save(){
   }
 }
 async function load(){
-  // Render a usable clean application FIRST. Saved data restoration is secondary.
-  try{normalizeLoadedState();hydrate();ensurePools();ensureDivisionConfig();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin')}catch(e){console.error('Initial clean render failed',e)}
+  // Storage read errors and UI rendering errors must not be conflated.
+  // In particular, never overwrite saved league data because a view failed to render.
+  try{normalizeLoadedState();hydrate();ensurePools();ensureDivisionConfig();renderAll();setView('admin')}
+  catch(err){console.error('Clean UI startup warning',err);try{setView('admin')}catch(_){}}
   setSaveStatus('saving','Loading saved league…','IndexedDB • safe startup');
+  let saved;
   try{
-    const saved=await withTimeout(readStateFromDB(),STORAGE_TIMEOUT_MS,'Saved league load');
-    if(saved){state=Object.assign(state,saved);normalizeLoadedState();synchronizeDivisionState();hydrate();ensurePools();ensureDivisionConfig();const repaired=repairLegacyTwelveMinuteTimesToCurrentGrid();if(repaired){await queueSave(true)}renderAll();setView(new URLSearchParams(location.search).get('view')||'admin');setSaveStatus('saved','League loaded','IndexedDB • saved progress restored');scheduleDeferredCourtMigration()}
-    else{setSaveStatus('saved','Ready — new league','IndexedDB');try{await withTimeout(queueSave(true),STORAGE_TIMEOUT_MS,'Initial save')}catch(e){console.warn(e)}}
-  }catch(e){
-    console.error(e);
-    setSaveStatus('error','Opened clean — saved data unavailable',e.message||String(e));
+    saved=await withTimeout(readStateFromDB(),STORAGE_TIMEOUT_MS,'Saved league load');
+  }catch(err){
+    console.error('Saved league read failed',err);
+    setSaveStatus('error','Saved league could not be read','Do not start a new league or reset storage. '+(err.message||String(err)));
     const dash=$('dashboardValidation');
-    if(dash)dash.insertAdjacentHTML('afterbegin',`<div class="status warn"><b>Storage recovery mode:</b> The app opened with a clean league because saved data could not be restored. You can continue testing, import registrations again, or use <b>Reset Saved League</b> above to clear this version's IndexedDB record.</div>`);
+    if(dash)dash.insertAdjacentHTML('afterbegin','<div class="status warn"><b>Storage read problem.</b> Your stored league has not been erased. Do not create a new league or reset storage; return to the previous working build if necessary.</div>');
+    return;
+  }
+  if(!saved){
+    setSaveStatus('saved','Ready — new league','IndexedDB');
+    try{await withTimeout(queueSave(true),STORAGE_TIMEOUT_MS,'Initial save')}catch(err){console.warn('Initial save warning',err)}
+    return;
+  }
+  state=Object.assign(state,saved);
+  try{
+    normalizeLoadedState();synchronizeDivisionState();hydrate();ensurePools();ensureDivisionConfig();
+    const repaired=repairLegacyTwelveMinuteTimesToCurrentGrid();
+    if(repaired)await queueSave(true);
+    renderAll();setView('admin');
+    setSaveStatus('saved','League loaded','IndexedDB • saved progress restored');
+    scheduleDeferredCourtMigration();
+  }catch(err){
+    console.error('Saved league loaded but UI initialization failed',err);
+    setSaveStatus('error','League data loaded — interface warning',err.message||String(err));
+    const tabs=document.querySelector('.admin-tabs');if(tabs)tabs.classList.remove('hidden');
+    const panel=$('admin-dashboard');if(panel)panel.classList.add('active');
+    // Keep state and IndexedDB untouched. Never substitute a clean league for a rendering error.
   }
 }
 async function startNewLeague(){
@@ -962,10 +984,18 @@ function syncSettings(){
   state.settings.maxWaitEnabled=$('maxWaitEnabled').checked;state.settings.maxWaitMinutes=+$('maxWaitMinutes').value||45;state.settings.maxWaitEnforcement=$('maxWaitEnforcement').value||'strict';state.settings.defaultPoolMax=+$('defaultPoolMax').value||8;state.settings.days=[...document.querySelectorAll('.dow:checked')].map(x=>+x.value);state.settings.avoidRepeats=state.settings.playAllTeamsOnce;state.settings.allowBackToBack=$('allowBackToBack').checked;state.settings.playAllTeamsOnce=$('playAllTeamsOnce').checked;state.settings.avoidImmediateRematches=$('avoidImmediateRematches').checked;state.settings.protectSharedCoaches=$('protectSharedCoaches').checked;state.settings.honorScheduleRequests=$('honorScheduleRequests').checked;state.settings.keepPoolPlay=true;updateLeagueDaysSummary();updatePlayingDateSummary()
 }
 function setView(view){
+  // Always provide an accessible Admin View when a stale or invalid URL view is supplied.
+  if(!['admin','coach','public'].includes(view))view='admin';
   const u=new URL(location.href);u.searchParams.set('view',view);history.replaceState({},'',u);
-  document.querySelectorAll('.viewbar button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
-  document.querySelector('.admin-tabs').classList.toggle('hidden',view!=='admin');document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  if(view==='admin')setTab('dashboard');else{$(view+'-view').classList.add('active');view==='coach'?renderCoach():renderPublic()}
+  document.querySelectorAll('.viewbar button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  const tabs=document.querySelector('.admin-tabs');
+  if(tabs)tabs.classList.toggle('hidden',view!=='admin');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  if(view==='admin'){setTab('dashboard');return;}
+  const target=$(view+'-view');
+  if(!target){console.warn('View panel missing; reverting to admin',view);setView('admin');return;}
+  target.classList.add('active');
+  if(view==='coach')renderCoach();else renderPublic();
 }
 function setupResourceNavigation(){
   const league=$('leagueSetupSections'),fields=$('courtFieldSections');
@@ -997,7 +1027,24 @@ function showResourceArea(area){
     'General settings, scheduling rules and league-specific requests. Team availability requests can also be edited from Registrations.':
     'Manage playing surfaces, court groups, availability, and division scheduling assignments.';
 }
-function setTab(tab){if(tab==='settings')tab='league';if(tab==='league'||tab==='facilities')showResourceArea(tab);document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));document.querySelectorAll('[id^="admin-"]').forEach(p=>p.classList.remove('active'));const panel=$('admin-'+(tab==='league'||tab==='facilities'?'settings':tab));if(!panel)return setTab('dashboard');panel.classList.add('active');if(tab==='dashboard')renderDashboard();if(tab==='divisions')renderDivisionSetup();if(tab==='board')renderBoard();if(tab==='schedule')renderSchedule();if(tab==='calendar')renderCourtCalendar();if(tab==='management')renderManagement();if(tab==='results')renderResults();if(tab==='standings')renderStandings()}
+function setTab(tab){
+  if(tab==='settings')tab='league';
+  if(tab==='league'||tab==='facilities')showResourceArea(tab);
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  document.querySelectorAll('section.panel[id^="admin-"]').forEach(p=>p.classList.remove('active'));
+  const id='admin-'+(tab==='league'||tab==='facilities'?'settings':tab);
+  const panel=$(id);
+  if(!panel){console.warn('Missing tab panel:',id);if(tab!=='dashboard')return setTab('dashboard');return;}
+  panel.classList.add('active');
+  if(tab==='dashboard')renderDashboard();
+  if(tab==='divisions')renderDivisionSetup();
+  if(tab==='board')renderBoard();
+  if(tab==='schedule')renderSchedule();
+  if(tab==='calendar')renderCourtCalendar();
+  if(tab==='management')renderManagement();
+  if(tab==='results')renderResults();
+  if(tab==='standings')renderStandings();
+}
 document.querySelectorAll('.viewbar button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 
 function renderManualDivisionOptions(){
