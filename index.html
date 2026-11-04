@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.87.8.3</title>
+<title>MSS League Scheduler v11.11.87.8.4</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,9 +44,9 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.87.8.3</h1><div class="sub">League Setup → Registrations → Divisions & Pools → Courts & Fields → Schedule → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.87.8.4</h1><div class="sub">League Setup → Registrations → Divisions & Pools → Courts & Fields → Schedule → League Operations</div></div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-    <button type="button" id="buildInfoButton" style="background:#eef4ff;color:#14254c;border:1px solid #a8c0e5;font-size:11px;padding:6px 9px" title="Identify the exact running application and data storage">Build 87.8.3 · Details</button>
+    <button type="button" id="buildInfoButton" style="background:#eef4ff;color:#14254c;border:1px solid #a8c0e5;font-size:11px;padding:6px 9px" title="Identify the exact running application and data storage">Build 87.8.4 · Details</button>
     <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
   </div>
 </header>
@@ -55,8 +55,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <h2 style="margin-top:0">Application &amp; Storage Information</h2>
   <p class="hint">Use this information to distinguish an old browser tab from a newer deployed file. This panel is read-only.</p>
   <dl style="display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;font-size:13px">
-    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.8.3</dd>
-    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.8.3-20261103-E</dd>
+    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.8.4</dd>
+    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.8.4-20261104-F</dd>
     <dt><b>Loaded from</b></dt><dd style="margin:0;overflow-wrap:anywhere" id="buildSourceText"></dd>
     <dt><b>Storage</b></dt><dd style="margin:0" id="buildStorageText">IndexedDB · browser and origin specific</dd>
   </dl>
@@ -668,7 +668,7 @@ function initializeReadOnlySafety(){
   });
 }
 document.addEventListener('DOMContentLoaded',initializeReadOnlySafety);
-const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.8.3',id:'MSS-87.8.3-20261103-E'});
+const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.8.4',id:'MSS-87.8.4-20261104-F'});
 function getMssBuildDetails(){
   const origin=location.protocol==='file:'?'Local file (file://)':location.origin;
   return `MSS League Scheduler v${MSS_BUILD_INFO.version}\nBuild: ${MSS_BUILD_INFO.id}\nSource: ${location.href}\nStorage: IndexedDB, isolated by browser and origin (${origin}); record: ${IS_SANDBOX?"sandbox-87-5":"current (live)"}`;
@@ -4300,9 +4300,9 @@ async function runAuditWithConfirmation(allLeague=false){
     await yieldToBrowser();
     const ms=performance.now()-started,stamp=new Date().toLocaleTimeString();
     const runtime=ms<1000?`${ms.toFixed(0)} ms`:`${(ms/1000).toFixed(2)} sec`;
-    setOptimizationStatus('AUDIT COMPLETE',scopeLabel,`Completed ${stamp} • Runtime ${runtime} • FAIL ${result?.fails||0} • WARN ${result?.warns||0}`,100);
-    setOptimizationResults(`<div class="status ${result?.fails?'warn':'ok'}"><b>Audit Complete — ${scopeLabel}</b><br>Completed: ${esc(stamp)}<br>Runtime: ${esc(runtime)}<br>Failed hard rules: ${result?.fails||0}<br>Warnings: ${result?.warns||0}</div>`,true);
-    setGenerationStage(`Audit complete — ${scopeLabel} • ${result?.fails||0} failed rule(s) • ${result?.warns||0} warning(s)`);
+    setOptimizationStatus(result?.parkedCount?'AUDIT COMPLETE — UNASSIGNED GAMES':'AUDIT COMPLETE',scopeLabel,`Completed ${stamp} • Runtime ${runtime} • FAIL ${result?.fails||0} • WARN ${result?.warns||0} • PARKED ${result?.parkedCount||0}`,100);
+    setOptimizationResults(`<div class="status ${result?.fails||result?.warns||result?.parkedCount?'warn':'ok'}"><b>Audit Complete — ${scopeLabel}${result?.parkedCount?' • ACTION REQUIRED':''}</b><br>Completed: ${esc(stamp)}<br>Runtime: ${esc(runtime)}<br>Failed hard rules: ${result?.fails||0}<br>Warnings: ${result?.warns||0}<br>Parked / unassigned games: ${result?.parkedCount||0}${result?.parkedCount?'<br><b>Schedule incomplete:</b> restore or cancel parked games before publishing.':''}</div>`,true);
+    setGenerationStage(`Audit complete — ${scopeLabel} • ${result?.fails||0} failed rule(s) • ${result?.warns||0} warning(s) • ${result?.parkedCount||0} parked game(s)`);
     $('scheduleAudit')?.scrollIntoView({behavior:'smooth',block:'start'});
     return result;
   }catch(err){
@@ -4577,11 +4577,26 @@ function wouldMakeThreeConsecutiveV73(candidateStamp,otherStamps,slotMinutes=Num
   while(right<all.length-1&&all[right+1]-all[right]<=slot+0.001)right++;
   return right-left+1>=3;
 }
+function parkedAuditGames(scope='ALL',dateSet=null){
+  return (state.parkingLot||[]).filter(g=>g.status!=='Cancelled'&&scopeMatchesGame(scope,g)&&(!dateSet||dateSet.has(g.date)));
+}
+function parkedAuditDetails(games){
+  return games.map(g=>`${g.date||'Unknown date'} — ${divisionLabel(g.division)} — ${teamById(g.aId)?.name||g.aId} vs ${teamById(g.bId)?.name||g.bId} (previous slot: ${g.time?fmtTime(g.time):'not set'}, ${g.court||'no court'})`);
+}
+function parkedAuditBanner(games){
+  if(!games.length)return '';
+  return `<div class="status warn" style="margin:8px 0"><b>Schedule incomplete — ${games.length} game${games.length===1?'':'s'} in the Parking Lot.</b><br>Scheduled games may pass their rule checks, but these matchups are not assigned to active slots. Restore or cancel them before publishing.<details><summary>Show parked games</summary><div class="hint">${parkedAuditDetails(games).map(esc).join('<br>')}</div></details></div>`;
+}
 function runScheduleAudit(allLeague=false,futureOnly=false){
   syncSettings();const selected=allLeague?'ALL':($('scheduleFilter').value||'ALL');
   const auditDateSet=futureOnly?new Set(selectedGenerationDates()):null;
   const games=state.games.filter(g=>g.status!=='Cancelled'&&scopeMatchesGame(selected,g)&&(!auditDateSet||auditDateSet.has(g.date)));
-  if(!games.length){$('scheduleAudit').innerHTML='<div class="status warn">No scheduled games are available to audit for this scope.</div>';return {fails:0,warns:1,overall:'WARN',results:[]}}
+  const parked=parkedAuditGames(selected,auditDateSet);
+  if(!games.length){
+    const results=parked.length?[auditResult('Unassigned games — Parking Lot','WARN',`${parked.length} game(s) awaiting assignment`,parkedAuditDetails(parked))]:[];
+    $('scheduleAudit').innerHTML='<div class="status warn">No scheduled games are available to audit for this scope.</div>'+parkedAuditBanner(parked);
+    return {fails:0,warns:Math.max(1,results.length),overall:'WARN',results,parkedCount:parked.length};
+  }
   // v86.10: Varsity Boys is an open-pool division. Legacy A/B labels are
   // retained on game records but MUST NOT split team game counts or opponent history.
   const openDivision='div_33vsevu';
@@ -4663,9 +4678,10 @@ function runScheduleAudit(allLeague=false,futureOnly=false){
     return !(n%2===1&&minimum%2===1&&msg.includes(`${minimum+1} games`));
   });
   row('Odd-pool extra games / games above minimum',unexpectedOverflow,overflowWarn.length&&!unexpectedOverflow.length?'Expected odd-pool balancing: extra games are within the configured maximum':'No unexpected overflow games',true);
+  row('Unassigned games — Parking Lot',parkedAuditDetails(parked),'No parked games in this audit scope',true);
   const fails=results.filter(r=>r.status==='FAIL').length,warns=results.filter(r=>r.status==='WARN').length,overall=fails?'FAIL':warns?'WARN':'PASS';
-  $('scheduleAudit').innerHTML=`<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Schedule & Rules Audit</h2><span class="status ${overall==='PASS'?'ok':'warn'}" style="display:inline-block;margin:0">${overall}${fails?` • ${fails} failed rule(s)`:''}${warns?` • ${warns} warning(s)`:''}</span></div><p class="hint">Scope: ${futureOnly?'Selected future dates ('+dates.map(esc).join(', ')+')':selected==='ALL'?'Entire League':esc($('scheduleFilter').selectedOptions[0]?.textContent||selected)}. ${futureOnly?'Historical dates excluded from court, time and double-booking checks.':'Hard rules must PASS before publishing.'} The nightly minimum is a hard rule; games above the minimum are allowed up to the configured maximum.</p>${results.map(r=>`<div class="item"><b>${r.status==='PASS'?'✓':r.status==='WARN'?'!':'✕'} ${esc(r.label)}</b><span class="pill" style="float:right">${r.status}</span><br><span class="hint">${esc(r.detail)}</span>${r.violations.length?`<details><summary>Show details</summary><div class="hint">${r.violations.slice(0,50).map(esc).join('<br>')}${r.violations.length>50?'<br>…and more':''}</div></details>`:''}</div>`).join('')}</div>`;
-  return {fails,warns,overall,results};
+  $('scheduleAudit').innerHTML=parkedAuditBanner(parked)+`<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Schedule & Rules Audit</h2><span class="status ${overall==='PASS'?'ok':'warn'}" style="display:inline-block;margin:0">${overall}${fails?` • ${fails} failed rule(s)`:''}${warns?` • ${warns} warning(s)`:''}</span></div><p class="hint">Scope: ${futureOnly?'Selected future dates ('+dates.map(esc).join(', ')+')':selected==='ALL'?'Entire League':esc($('scheduleFilter').selectedOptions[0]?.textContent||selected)}. ${futureOnly?'Historical dates excluded from court, time and double-booking checks.':'Hard rules must PASS before publishing.'} The nightly minimum is a hard rule; games above the minimum are allowed up to the configured maximum.</p>${results.map(r=>`<div class="item"><b>${r.status==='PASS'?'✓':r.status==='WARN'?'!':'✕'} ${esc(r.label)}</b><span class="pill" style="float:right">${r.status}</span><br><span class="hint">${esc(r.detail)}</span>${r.violations.length?`<details><summary>Show details</summary><div class="hint">${r.violations.slice(0,50).map(esc).join('<br>')}${r.violations.length>50?'<br>…and more':''}</div></details>`:''}</div>`).join('')}</div>`;
+  return {fails,warns,overall,results,parkedCount:parked.length};
 }
 
 function groupOptions(select){const current=select.value||select.dataset.lastValue||'ALL',groups=[];Object.entries(state.pools).forEach(([d,p])=>{const pools=Object.keys(p.lists);if(pools.length>1)groups.push({value:divisionScopeKey(d),label:`${divisionLabel(d)} — Entire Division (${pools.length} pools)`,division:true});pools.forEach(pool=>groups.push({value:poolKey(d,pool),label:`${divisionLabel(d)} — ${poolDisplayName(d,pool)}`}))});select.innerHTML='<option value="ALL">Entire League</option>'+groups.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('');if(current==='ALL'||groups.some(x=>x.value===current))select.value=current;select.dataset.lastValue=select.value}
@@ -6082,7 +6098,7 @@ setTab('management')}
 function changeSummary(c){const b=c.before||{},a=c.after||{};if(c.kind==='score'||(b.sa!==undefined&&a.sa!==undefined&&(b.sa!==a.sa||b.sb!==a.sb)))return `Score ${b.sa==null?'—':b.sa+'–'+b.sb} → ${a.sa==null?'—':a.sa+'–'+a.sb}`;return `${b.date||''} ${b.time||''} ${b.court||''} → ${a.date||''} ${a.time||''} ${a.court||''} • ${a.status||''}`}
 function canDirectUndo(c){const g=state.games.find(x=>x.id===c.gameId);if(!g)return false;const current=gameSnapshot(g),a=c.after||{};return ['date','time','court','aId','bId','status','sa','sb'].every(k=>(current[k]??null)===(a[k]??null))}
 function restoreHistoryEntry(changeId){const c=state.scheduleChanges.find(x=>x.id===changeId),g=c&&state.games.find(x=>x.id===c.gameId);if(!c||!g)return;const label=canDirectUndo(c)?'Undo this change':'Restore the game to the version before this change';if(!confirm(`${label}? The reversal will be recorded as a new audit-history entry.`))return;const before=gameSnapshot(g),target={...c.before};Object.assign(g,target,{pending:true});state.scheduleChanges.unshift({id:uid('chg'),kind:'undo',gameId:g.id,changedAt:new Date().toISOString(),before,after:gameSnapshot(g),reason:`${canDirectUndo(c)?'Undo':'Restore'} of change made ${new Date(c.changedAt).toLocaleString()}`,warnings:[],sourceChangeId:c.id});persist();renderAll();setTab('management')}
-function publishScheduleChanges(){if(IS_SANDBOX)return alert('Publishing is disabled in the Scheduling Sandbox. Return to Live League to publish.');if((state.parkingLot||[]).length)return alert('Restore all parked games before publishing.');if(!state.games.length)return alert('There is no working schedule to publish.');const audit=safeRunScheduleAudit(true);if(audit&&audit.fails)return alert(`Schedule cannot be published yet. The automatic Rules Audit found ${audit.fails} failed hard rule(s). Review the Schedule & Rules Audit on the Schedule page.`);state.games.forEach(g=>g.pending=false);state.publishedGames=JSON.parse(JSON.stringify(state.games));state.hasPublishedSchedule=true;logActivity('Schedule changes published to the League Portal.');persist();renderAll();setTab('management')}
+function publishScheduleChanges(){if(IS_SANDBOX)return alert('Publishing is disabled in the Scheduling Sandbox. Return to Live League to publish.');if((state.parkingLot||[]).length)return alert(`${state.parkingLot.length} game(s) remain in the Parking Lot. Restore or cancel them before publishing. The schedule is incomplete.`);if(!state.games.length)return alert('There is no working schedule to publish.');const audit=safeRunScheduleAudit(true);if(audit&&audit.fails)return alert(`Schedule cannot be published yet. The automatic Rules Audit found ${audit.fails} failed hard rule(s). Review the Schedule & Rules Audit on the Schedule page.`);state.games.forEach(g=>g.pending=false);state.publishedGames=JSON.parse(JSON.stringify(state.games));state.hasPublishedSchedule=true;logActivity('Schedule changes published to the League Portal.');persist();renderAll();setTab('management')}
 function restorePublishedSchedule(){if(!state.hasPublishedSchedule||!state.publishedGames?.length)return alert('There is no previously published schedule to restore.');if(!confirm('Restore the working schedule to the last published version? Current unpublished changes AND any parked games will be replaced. Export a backup first.'))return;state.parkingLot=[];state.games=JSON.parse(JSON.stringify(state.publishedGames)).map(g=>({...g,pending:false}));logActivity('Working schedule restored to the last published version.');persist();renderAll();setTab('management')}
 function divisionProgressRows(){
   const weeks=seasonDatesRaw().length;
