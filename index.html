@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.87.8.5</title>
+<title>MSS League Scheduler v11.11.87.8.6</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -20,7 +20,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 .primary,.secondary,.danger,.success{border-radius:7px;padding:9px 13px}.primary{background:var(--navy);color:#fff;border:0}.secondary{background:#eef2f7;border:1px solid var(--line)}.danger{background:#fff0ef;color:var(--danger);border:1px solid #f2b9b2}.success{background:#08783e;color:#fff;border:0}
 .hint{color:var(--muted);font-size:13px}.pill{display:inline-block;background:#eef2f7;border-radius:999px;padding:4px 8px;margin:2px;font-size:12px}
 .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;max-height:600px}table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}th{background:#eef3f9;position:sticky;top:0}
-.status{padding:10px;border-radius:8px;margin:10px 0}.ok{background:#eaf7e3;color:var(--ok)}.warn{background:#fff4d6;color:var(--warn)}.bad{background:#feeceb;color:var(--danger)}
+.status{padding:10px;border-radius:8px;margin:10px 0}.ok{background:#eaf7e3;color:var(--ok)}.warn{background:#fff4d6;color:var(--warn)}.bad{background:#feeceb;color:var(--danger)}.parking-audit-danger{background:#ffe3e3!important;color:#981b1b!important;border:2px solid #c62828!important}.parking-audit-danger summary{color:#981b1b;font-weight:750}.parking-audit-danger .hint{color:#7f1d1d}.readiness-badge{font-weight:800;padding:8px 12px;border-radius:7px;display:inline-block;margin-bottom:6px}.readiness-badge.not-ready{background:#fee2e2;color:#991b1b;border:1px solid #dc2626}.readiness-badge.review{background:#fff4d6;color:#92400e;border:1px solid #eab308}.readiness-badge.ready{background:#dcfce7;color:#166534;border:1px solid #16a34a}.readiness-badge.unverified{background:#e8edf5;color:#334155;border:1px solid #94a3b8}
 .item{padding:9px 0;border-bottom:1px solid #edf1f6}.item:last-child{border-bottom:0}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .score{width:64px}.hidden{display:none!important}.kpi{font-size:26px;font-weight:800}.metric-card{background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:10px;min-width:130px}.team-link{background:none;border:0;padding:0;color:var(--blue);font-weight:700;text-decoration:underline;cursor:pointer}.team-link:hover{text-decoration:none}.edit-btn{padding:5px 8px;border:1px solid var(--line);background:#eef2f7;border-radius:6px;font-weight:700}.pending-row{background:#fff8e7}.change-log{max-height:300px;overflow:auto}.public-title{font-size:22px;font-weight:800;margin-bottom:4px}
 .board-wrap{position:relative}.board-nav{display:flex;justify-content:space-between;align-items:center;margin:8px 0}.board-nav button{min-width:44px}.board{display:flex;gap:12px;overflow-x:auto;scroll-behavior:smooth;padding:4px 2px 10px}.division-board{min-width:430px;max-width:520px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:10px}.division-board.collapsed{min-width:330px;max-width:360px}.division-board.collapsed .division-body{display:none}.division-head{gap:8px}.team-card{padding:7px 8px}.team-card select{margin-top:4px}.pools{gap:8px}.pool{padding:8px}
@@ -44,7 +44,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.87.8.5</h1><div class="sub">League Setup → Registrations → Divisions & Pools → Courts & Fields → Schedule → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.87.8.6</h1><div class="sub">League Setup → Registrations → Divisions & Pools → Courts & Fields → Schedule → League Operations</div></div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">
     <button type="button" id="buildInfoButton" style="background:#eef4ff;color:#14254c;border:1px solid #a8c0e5;font-size:11px;padding:6px 9px" title="Identify the exact running application and data storage">Build 87.8.4 · Details</button>
     <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
@@ -55,8 +55,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <h2 style="margin-top:0">Application &amp; Storage Information</h2>
   <p class="hint">Use this information to distinguish an old browser tab from a newer deployed file. This panel is read-only.</p>
   <dl style="display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;font-size:13px">
-    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.8.5</dd>
-    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.8.5-20261104-G</dd>
+    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.8.6</dd>
+    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.8.6-20261105-G</dd>
     <dt><b>Loaded from</b></dt><dd style="margin:0;overflow-wrap:anywhere" id="buildSourceText"></dd>
     <dt><b>Storage</b></dt><dd style="margin:0" id="buildStorageText">IndexedDB · browser and origin specific</dd>
   </dl>
@@ -668,7 +668,7 @@ function initializeReadOnlySafety(){
   });
 }
 document.addEventListener('DOMContentLoaded',initializeReadOnlySafety);
-const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.8.5',id:'MSS-87.8.5-20261104-G'});
+const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.8.6',id:'MSS-87.8.6-20261105-G'});
 function getMssBuildDetails(){
   const origin=location.protocol==='file:'?'Local file (file://)':location.origin;
   return `MSS League Scheduler v${MSS_BUILD_INFO.version}\nBuild: ${MSS_BUILD_INFO.id}\nSource: ${location.href}\nStorage: IndexedDB, isolated by browser and origin (${origin}); record: ${IS_SANDBOX?"sandbox-87-5":"current (live)"}`;
@@ -4300,8 +4300,9 @@ async function runAuditWithConfirmation(allLeague=false){
     await yieldToBrowser();
     const ms=performance.now()-started,stamp=new Date().toLocaleTimeString();
     const runtime=ms<1000?`${ms.toFixed(0)} ms`:`${(ms/1000).toFixed(2)} sec`;
+    lastReadinessAudit={result,signature:readinessSignature(),entireLeague:allLeague};
     setOptimizationStatus(result?.parkedCount?'AUDIT COMPLETE — UNASSIGNED GAMES':'AUDIT COMPLETE',scopeLabel,`Completed ${stamp} • Runtime ${runtime} • FAIL ${result?.fails||0} • WARN ${result?.warns||0} • PARKED ${result?.parkedCount||0}`,100);
-    setOptimizationResults(`<div class="status ${result?.fails||result?.warns||result?.parkedCount?'warn':'ok'}"><b>Audit Complete — ${scopeLabel}${result?.parkedCount?' • ACTION REQUIRED':''}</b><br>Completed: ${esc(stamp)}<br>Runtime: ${esc(runtime)}<br>Failed hard rules: ${result?.fails||0}<br>Warnings: ${result?.warns||0}<br>Parked / unassigned games: ${result?.parkedCount||0}${result?.parkedCount?'<br><b>Schedule incomplete:</b> restore or cancel parked games before publishing.':''}</div>`,true);
+    setOptimizationResults(`<div class="status ${result?.parkedCount?'bad parking-audit-danger':result?.fails||result?.warns?'warn':'ok'}"><b>Audit Complete — ${scopeLabel}${result?.parkedCount?' • ACTION REQUIRED':''}</b><br>Completed: ${esc(stamp)}<br>Runtime: ${esc(runtime)}<br>Failed hard rules: ${result?.fails||0}<br>Warnings: ${result?.warns||0}<br>Parked / unassigned games: ${result?.parkedCount||0}${result?.parkedCount?'<br><b>Schedule incomplete:</b> restore or cancel parked games before publishing.':''}</div>`,true);
     setGenerationStage(`Audit complete — ${scopeLabel} • ${result?.fails||0} failed rule(s) • ${result?.warns||0} warning(s) • ${result?.parkedCount||0} parked game(s)`);
     $('scheduleAudit')?.scrollIntoView({behavior:'smooth',block:'start'});
     return result;
@@ -4585,7 +4586,7 @@ function parkedAuditDetails(games){
 }
 function parkedAuditBanner(games){
   if(!games.length)return '';
-  return `<div class="status warn" style="margin:8px 0"><b>Schedule incomplete — ${games.length} game${games.length===1?'':'s'} in the Parking Lot.</b><br>Scheduled games may pass their rule checks, but these matchups are not assigned to active slots. Restore or cancel them before publishing.<details><summary>Show parked games</summary><div class="hint">${parkedAuditDetails(games).map(esc).join('<br>')}</div></details></div>`;
+  return `<div class="status bad parking-audit-danger" role="alert" style="margin:8px 0"><b>SCHEDULE INCOMPLETE — ${games.length} UNASSIGNED GAME${games.length===1?'':'S'}</b><br>Scheduled games may pass their rule checks, but these matchups are not assigned to active slots. Restore or cancel them before publishing.<details><summary>Show parked games</summary><div class="hint">${parkedAuditDetails(games).map(esc).join('<br>')}</div></details></div>`;
 }
 function auditScopeDates(futureOnly){
   if(!futureOnly)return null;
@@ -4687,7 +4688,7 @@ function runScheduleAudit(allLeague=false,futureOnly=false){
   row('Odd-pool extra games / games above minimum',unexpectedOverflow,overflowWarn.length&&!unexpectedOverflow.length?'Expected odd-pool balancing: extra games are within the configured maximum':'No unexpected overflow games',true);
   row('Unassigned games — Parking Lot',parkedAuditDetails(parked),'No parked games in this audit scope',true);
   const fails=results.filter(r=>r.status==='FAIL').length,warns=results.filter(r=>r.status==='WARN').length,overall=fails?'FAIL':warns?'WARN':'PASS';
-  $('scheduleAudit').innerHTML=parkedAuditBanner(parked)+`<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Schedule & Rules Audit</h2><span class="status ${overall==='PASS'?'ok':'warn'}" style="display:inline-block;margin:0">${overall}${fails?` • ${fails} failed rule(s)`:''}${warns?` • ${warns} warning(s)`:''}</span></div><p class="hint">Scope: ${futureOnly?(IS_SANDBOX?'Sandbox playing dates (':'Selected future dates (')+dates.map(esc).join(', ')+')':selected==='ALL'?'Entire League':esc($('scheduleFilter').selectedOptions[0]?.textContent||selected)}. ${futureOnly&&!IS_SANDBOX?'Historical dates excluded from court, time and double-booking checks.':IS_SANDBOX?'Sandbox audit includes historical test dates and parked games.':'Hard rules must PASS before publishing.'} The nightly minimum is a hard rule; games above the minimum are allowed up to the configured maximum.</p>${results.map(r=>`<div class="item"><b>${r.status==='PASS'?'✓':r.status==='WARN'?'!':'✕'} ${esc(r.label)}</b><span class="pill" style="float:right">${r.status}</span><br><span class="hint">${esc(r.detail)}</span>${r.violations.length?`<details><summary>Show details</summary><div class="hint">${r.violations.slice(0,50).map(esc).join('<br>')}${r.violations.length>50?'<br>…and more':''}</div></details>`:''}</div>`).join('')}</div>`;
+  $('scheduleAudit').innerHTML=parkedAuditBanner(parked)+`<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Schedule & Rules Audit</h2><span class="status ${parked.length?'bad parking-audit-danger':overall==='PASS'?'ok':'warn'}" style="display:inline-block;margin:0">${overall}${fails?` • ${fails} failed rule(s)`:''}${warns?` • ${warns} warning(s)`:''}</span></div><p class="hint">Scope: ${futureOnly?(IS_SANDBOX?'Sandbox playing dates (':'Selected future dates (')+dates.map(esc).join(', ')+')':selected==='ALL'?'Entire League':esc($('scheduleFilter').selectedOptions[0]?.textContent||selected)}. ${futureOnly&&!IS_SANDBOX?'Historical dates excluded from court, time and double-booking checks.':IS_SANDBOX?'Sandbox audit includes historical test dates and parked games.':'Hard rules must PASS before publishing.'} The nightly minimum is a hard rule; games above the minimum are allowed up to the configured maximum.</p>${results.map(r=>`<div class="item"><b>${r.status==='PASS'?'✓':r.status==='WARN'?'!':'✕'} ${esc(r.label)}</b><span class="pill" style="float:right">${r.status}</span><br><span class="hint">${esc(r.detail)}</span>${r.violations.length?`<details><summary>Show details</summary><div class="hint">${r.violations.slice(0,50).map(esc).join('<br>')}${r.violations.length>50?'<br>…and more':''}</div></details>`:''}</div>`).join('')}</div>`;
   return {fails,warns,overall,results,parkedCount:parked.length};
 }
 
@@ -6131,8 +6132,9 @@ function renderParkingLot(){
   const games=state.parkingLot||[];
   const count=$('parkingLotCount'),area=$('parkingLotItems');if(!count||!area)return;
   count.textContent=`(${games.length} game${games.length===1?'':'s'})`;
-  area.innerHTML=games.length?games.map(g=>`<div class="row" style="align-items:center;gap:10px;border-top:1px solid #d7e0ec;padding:8px 0;flex-wrap:wrap"><b>${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</b><span class="hint">${esc(g.date)} · ${esc(fmtTime(g.time))} · ${esc(g.court)} · ${esc(divisionLabel(g.division))}</span><button type="button" class="secondary" data-restore-park="${esc(g.id)}">Choose slot / Restore</button></div>`).join(''):'<div class="hint" style="padding:6px 0">No games parked.</div>';
-  area.querySelectorAll('[data-restore-park]').forEach(b=>b.addEventListener('click',()=>restoreParkedGame(b.dataset.restorePark)));
+  area.innerHTML=games.length?games.map(g=>`<div class="row" data-parked-game="${esc(g.id)}" tabindex="0" role="button" title="Select to restore this parked game" style="cursor:pointer;align-items:center;gap:10px;border-top:1px solid #d7e0ec;padding:8px 0;flex-wrap:wrap"><b>${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</b><span class="hint">${esc(g.date)} · ${esc(fmtTime(g.time))} · ${esc(g.court)} · ${esc(divisionLabel(g.division))}</span><button type="button" class="secondary" data-restore-park="${esc(g.id)}">Choose slot / Restore</button></div>`).join(''):'<div class="hint" style="padding:6px 0">No games parked.</div>';
+  area.querySelectorAll('[data-restore-park]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();restoreParkedGame(b.dataset.restorePark)}));
+  area.querySelectorAll('[data-parked-game]').forEach(row=>{row.addEventListener('click',()=>restoreParkedGame(row.dataset.parkedGame));row.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();restoreParkedGame(row.dataset.parkedGame)}})});
 }
 function parkGame(id){
   const g=state.games.find(x=>x.id===id);if(!g)return;
@@ -6714,6 +6716,21 @@ function loadCompleteDemo(){
 function minToClock(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
 
 async function resetAll(){return resetSavedLeagueStorage()}
+let lastReadinessAudit=null;
+function readinessSignature(){
+  // An in-session verification key: never persisted as an approval.
+  return JSON.stringify({games:(state.games||[]).map(g=>[g.id,g.date,g.time,g.court,g.status,g.aId,g.bId]),parked:(state.parkingLot||[]).map(g=>[g.id,g.date,g.status]),settings:state.settings,divisionConfig:state.divisionConfig});
+}
+function directorReadiness(){
+  const parked=(state.parkingLot||[]).filter(g=>g.status!=='Cancelled').length;
+  if(parked)return {cls:'not-ready',label:'NOT READY TO PUBLISH',detail:`${parked} parked / unassigned game${parked===1?'':'s'}. Restore or cancel before publishing.`};
+  if(!state.games?.length)return {cls:'not-ready',label:'NOT READY TO PUBLISH',detail:'No games are scheduled.'};
+  const audit=lastReadinessAudit;
+  if(!audit||!audit.entireLeague||audit.signature!==readinessSignature())return {cls:'unverified',label:'AUDIT REQUIRED',detail:'Run an Entire League audit to verify readiness after changes. An old or partial audit cannot certify this schedule.'};
+  if(audit.result.fails)return {cls:'not-ready',label:'NOT READY TO PUBLISH',detail:`${audit.result.fails} hard-rule failure(s) must be resolved.`};
+  if(audit.result.warns)return {cls:'review',label:'WARNINGS TO REVIEW',detail:`${audit.result.warns} audit warning(s). Review before publishing.`};
+  return {cls:'ready',label:'READY TO PUBLISH',detail:'Entire League audit passed with no blocking failures, warnings, or parked games.'};
+}
 function renderDashboard(){
   const rows=divisionProgressRows(),divisionCount=allDivisionKeys().length,poolCount=Object.values(state.pools||{}).reduce((n,p)=>n+Object.keys(p.lists||{}).length,0),divisions=divisionCount;
   const completed=state.games.filter(g=>g.sa!=null&&g.sb!=null).length,pending=state.games.filter(g=>g.pending).length,cancelled=state.games.filter(g=>g.status==='Cancelled').length,activeGames=state.games.length-cancelled,published=(state.publishedGames||[]).length;
@@ -6731,7 +6748,8 @@ function renderDashboard(){
   $('dashboardSetup').innerHTML=setupItems.map(([label,ok,detail,tab])=>`<div class="item"><b>${ok?'✓':'○'} ${label}</b><br><span class="hint">${esc(detail)}</span> <button class="team-link" data-dashboard-tab="${tab}">${ok?'Review':'Complete'}</button></div>`).join('');
   $('dashboardDivisionStatus').innerHTML='<thead><tr><th>Division / Pool</th><th>Teams</th><th>Games</th><th>Completed</th><th>Published</th><th>Status</th><th>Actions</th></tr></thead><tbody>'+rows.map(r=>`<tr><td><b>${esc(r.label)}</b></td><td>${r.teams}</td><td>${r.games}/${r.target}</td><td>${r.completed}/${r.games}</td><td>${r.published}</td><td><span class="status ${r.cls}" style="display:inline-block;margin:0;padding:5px 8px">${esc(r.status)}</span></td><td><button class="team-link" data-open-division="${esc(r.key)}" data-target-tab="management">Manage</button> · <button class="team-link" data-open-division="${esc(r.key)}" data-target-tab="schedule">Schedule</button> · <button class="team-link" data-open-division="${esc(r.key)}" data-target-tab="standings">Standings</button></td></tr>`).join('')+'</tbody>';
   $('dashboardScheduleStatus').innerHTML=`<div class="item"><b>Divisions scheduled</b><br>${scheduledDivisions}/${divisions}</div><div class="item"><b>Games scheduled</b><br>${activeGames}</div><div class="item"><b>Minimum required</b><br>${totalTarget||0}</div><div class="item"><b>Extra games</b><br>${extraGames}</div><div class="item"><b>Games completed</b><br>${completed}/${activeGames}</div><div class="item"><b>Divisions complete</b><br>${completeDivisions}/${divisions}</div><div class="item"><b>Divisions published</b><br>${publishedDivisions}/${divisions}</div>`;
-  $('dashboardPublishStatus').innerHTML=pending?`<div class="status warn"><b>${pending} change(s) are not yet public.</b><br>The League Portal still displays the last published schedule.</div><button class="primary" data-dashboard-tab="management">Review & Publish</button>`:`<div class="status ok"><b>Working and published schedules match.</b><br>${published} game(s) are available in the League Portal.</div><button class="secondary" data-dashboard-tab="management">Schedule Management</button>`;
+  const readiness=directorReadiness();
+  $('dashboardPublishStatus').innerHTML=`<div class="readiness-badge ${readiness.cls}">${readiness.label}</div><div class="hint" style="margin:0 0 12px">${esc(readiness.detail)}</div>`+(pending?`<div class="status warn"><b>${pending} change(s) are not yet public.</b><br>The League Portal still displays the last published schedule.</div><button class="primary" data-dashboard-tab="management">Review & Publish</button>`:`<div class="status ok"><b>Working and published schedules match.</b><br>${published} game(s) are available in the League Portal.</div><button class="secondary" data-dashboard-tab="management">Schedule Management</button>`);
   const wizard=[['Define season dates & playing days',!!state.settings.seasonStart&&!!state.settings.seasonEnd&&(state.settings.days||[]).length>0,'settings'],['Import registrations',state.teams.length>0,'registrations'],['Set up divisions & assign teams',state.teams.length>0&&state.teams.every(t=>t.divisionId),'divisions'],['Approve divisions & pools',allDivisionKeys().length>0&&allDivisionKeys().every(d=>state.pools[d]?.approved),'board'],['Configure surfaces and court groups',state.courts.length>0&&state.courtGroups.length>0,'settings'],['Complete division scheduling',divisions>0&&configuredDivisions===allDivisionKeys().length,'settings'],['Generate schedules',divisions>0&&scheduledDivisions===divisions,'schedule'],['Publish league schedule',state.games.length>0&&pending===0&&published>0,'management']];
   const firstOpen=Math.max(0,wizard.findIndex(x=>!x[1]));
   $('dashboardWizard').innerHTML=wizard.map((x,i)=>`<div class="wizard-step"><div class="step-dot ${x[1]?'done':i===firstOpen?'current':''}">${x[1]?'✓':i+1}</div><div><b>${esc(x[0])}</b><br><button class="team-link" data-dashboard-tab="${x[2]}">${x[1]?'Review':i===firstOpen?'Do this next':'Open'}</button></div></div>`).join('');
