@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.87.8</title>
+<title>MSS League Scheduler v11.11.87.8.6</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -20,7 +20,7 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 .primary,.secondary,.danger,.success{border-radius:7px;padding:9px 13px}.primary{background:var(--navy);color:#fff;border:0}.secondary{background:#eef2f7;border:1px solid var(--line)}.danger{background:#fff0ef;color:var(--danger);border:1px solid #f2b9b2}.success{background:#08783e;color:#fff;border:0}
 .hint{color:var(--muted);font-size:13px}.pill{display:inline-block;background:#eef2f7;border-radius:999px;padding:4px 8px;margin:2px;font-size:12px}
 .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px;max-height:600px}table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:8px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}th{background:#eef3f9;position:sticky;top:0}
-.status{padding:10px;border-radius:8px;margin:10px 0}.ok{background:#eaf7e3;color:var(--ok)}.warn{background:#fff4d6;color:var(--warn)}.bad{background:#feeceb;color:var(--danger)}
+.status{padding:10px;border-radius:8px;margin:10px 0}.ok{background:#eaf7e3;color:var(--ok)}.warn{background:#fff4d6;color:var(--warn)}.bad{background:#feeceb;color:var(--danger)}.parking-audit-danger{background:#ffe3e3!important;color:#981b1b!important;border:2px solid #c62828!important}.parking-audit-danger summary{color:#981b1b;font-weight:750}.parking-audit-danger .hint{color:#7f1d1d}.readiness-badge{font-weight:800;padding:8px 12px;border-radius:7px;display:inline-block;margin-bottom:6px}.readiness-badge.not-ready{background:#fee2e2;color:#991b1b;border:1px solid #dc2626}.readiness-badge.review{background:#fff4d6;color:#92400e;border:1px solid #eab308}.readiness-badge.ready{background:#dcfce7;color:#166534;border:1px solid #16a34a}.readiness-badge.unverified{background:#e8edf5;color:#334155;border:1px solid #94a3b8}
 .item{padding:9px 0;border-bottom:1px solid #edf1f6}.item:last-child{border-bottom:0}.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .score{width:64px}.hidden{display:none!important}.kpi{font-size:26px;font-weight:800}.metric-card{background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:10px;min-width:130px}.team-link{background:none;border:0;padding:0;color:var(--blue);font-weight:700;text-decoration:underline;cursor:pointer}.team-link:hover{text-decoration:none}.edit-btn{padding:5px 8px;border:1px solid var(--line);background:#eef2f7;border-radius:6px;font-weight:700}.pending-row{background:#fff8e7}.change-log{max-height:300px;overflow:auto}.public-title{font-size:22px;font-weight:800;margin-bottom:4px}
 .board-wrap{position:relative}.board-nav{display:flex;justify-content:space-between;align-items:center;margin:8px 0}.board-nav button{min-width:44px}.board{display:flex;gap:12px;overflow-x:auto;scroll-behavior:smooth;padding:4px 2px 10px}.division-board{min-width:430px;max-width:520px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:10px}.division-board.collapsed{min-width:330px;max-width:360px}.division-board.collapsed .division-body{display:none}.division-head{gap:8px}.team-card{padding:7px 8px}.team-card select{margin-top:4px}.pools{gap:8px}.pool{padding:8px}
@@ -44,9 +44,9 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.87.8</h1><div class="sub">League Setup → Registrations → Divisions & Pools → Courts & Fields → Schedule → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.87.8.6</h1><div class="sub">League Setup → Registrations → Divisions & Pools → Courts & Fields → Schedule → League Operations</div></div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-    <button type="button" id="buildInfoButton" style="background:#eef4ff;color:#14254c;border:1px solid #a8c0e5;font-size:11px;padding:6px 9px" title="Identify the exact running application and data storage">Build 87.8 · Details</button>
+    <button type="button" id="buildInfoButton" style="background:#eef4ff;color:#14254c;border:1px solid #a8c0e5;font-size:11px;padding:6px 9px" title="Identify the exact running application and data storage">Build 87.8.4 · Details</button>
     <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
   </div>
 </header>
@@ -55,8 +55,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <h2 style="margin-top:0">Application &amp; Storage Information</h2>
   <p class="hint">Use this information to distinguish an old browser tab from a newer deployed file. This panel is read-only.</p>
   <dl style="display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;font-size:13px">
-    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.8</dd>
-    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.8-20261102-C</dd>
+    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.8.6</dd>
+    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.8.6-20261105-G</dd>
     <dt><b>Loaded from</b></dt><dd style="margin:0;overflow-wrap:anywhere" id="buildSourceText"></dd>
     <dt><b>Storage</b></dt><dd style="margin:0" id="buildStorageText">IndexedDB · browser and origin specific</dd>
   </dl>
@@ -526,15 +526,27 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <details class="card" id="visualMovePanel" style="margin:12px 0;border:2px solid #b7c8df" open>
     <summary style="cursor:pointer;font-weight:750">Visual Game Move & Swap — 87.8 Sandbox Pilot</summary>
     <p class="hint">Select a scheduled game and an available date, time, and court. For a swap, select another game: each game takes the other’s original slot. Preview both placements and rule checks before applying. Only enabled in Scheduling Sandbox; live league remains protected.</p>
+    <div style="font-weight:700;margin:10px 0 5px">1. Select the scheduled game</div>
     <div class="row" style="gap:10px;flex-wrap:wrap">
-      <label class="field">Game to move<select id="visualMoveGame"></select></label>
-      <label class="field">Date<select id="visualMoveDate"></select></label>
-      <label class="field">Start time<select id="visualMoveTime"></select></label>
-      <label class="field">Court<select id="visualMoveCourt"></select></label>
+      <label class="field">Division<select id="visualSourceDivision"></select></label>
+      <label class="field">Current game date<select id="visualSourceDate"></select></label>
+      <label class="field">Game to move (filtered by division and date)<select id="visualMoveGame"></select></label>
     </div>
+    <div style="font-weight:700;margin:10px 0 5px">2. Select the destination</div>
+    <label style="display:flex;align-items:center;gap:8px;margin:7px 0"><input type="checkbox" id="visualCrossDate" style="width:auto"> Move to another playing date</label>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <label class="field">Destination date<select id="visualMoveDate"></select></label>
+      <label class="field">Start time<select id="visualMoveTime"></select></label>
+      <label class="field">Eligible court<select id="visualMoveCourt"></select></label>
+    </div>
+    <p class="hint">Only courts assigned to this division and available at the destination time are offered. Occupied slots are handled through Swap. Cross-date moves require explicit opt-in and still undergo rule checks.</p>
     <div class="row" style="gap:10px;flex-wrap:wrap"><label class="field">Optional: swap with another game<select id="visualSwapGame"><option value="">No swap — move to empty slot</option></select></label>
-      <button type="button" class="secondary" id="visualPreviewBtn">Preview Move / Swap</button><button type="button" id="visualApplyBtn" disabled>Apply Previewed Change</button><button type="button" class="secondary" id="visualUndoBtn">Undo Last Visual Change</button></div>
+      <button type="button" class="secondary" id="visualPreviewBtn">Preview Move / Swap</button><button type="button" id="visualApplyBtn" disabled>Apply Previewed Change</button><button type="button" class="secondary" id="visualUndoBtn">Undo Visual Change</button><button type="button" class="secondary" id="visualRedoBtn">Redo Visual Change</button></div>
     <div id="visualMoveFeedback" class="hint">Select a game to begin.</div>
+    <details open style="margin-top:12px"><summary><b>Recent Scheduling Changes</b> — moves, swaps, parking and restorations</summary>
+      <div id="visualChangeHistory" class="hint" style="margin-top:8px">No changes recorded.</div>
+      <p class="hint">Undo and redo apply to previewed visual moves/swaps in this sandbox session only. A later edit to the same game blocks unsafe undo/redo. Parking and restoration appear in history but are not automatically undone.</p>
+    </details>
   </details>
 
   <div class="card">
@@ -661,7 +673,7 @@ function initializeReadOnlySafety(){
   });
 }
 document.addEventListener('DOMContentLoaded',initializeReadOnlySafety);
-const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.8',id:'MSS-87.8-20261102-C'});
+const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.8.6',id:'MSS-87.8.6-20261105-G'});
 function getMssBuildDetails(){
   const origin=location.protocol==='file:'?'Local file (file://)':location.origin;
   return `MSS League Scheduler v${MSS_BUILD_INFO.version}\nBuild: ${MSS_BUILD_INFO.id}\nSource: ${location.href}\nStorage: IndexedDB, isolated by browser and origin (${origin}); record: ${IS_SANDBOX?"sandbox-87-5":"current (live)"}`;
@@ -900,18 +912,40 @@ async function save(){
   }
 }
 async function load(){
-  // Render a usable clean application FIRST. Saved data restoration is secondary.
-  try{normalizeLoadedState();hydrate();ensurePools();ensureDivisionConfig();renderAll();setView(new URLSearchParams(location.search).get('view')||'admin')}catch(e){console.error('Initial clean render failed',e)}
+  // Storage read errors and UI rendering errors must not be conflated.
+  // In particular, never overwrite saved league data because a view failed to render.
+  try{normalizeLoadedState();hydrate();ensurePools();ensureDivisionConfig();renderAll();setView('admin')}
+  catch(err){console.error('Clean UI startup warning',err);try{setView('admin')}catch(_){}}
   setSaveStatus('saving','Loading saved league…','IndexedDB • safe startup');
+  let saved;
   try{
-    const saved=await withTimeout(readStateFromDB(),STORAGE_TIMEOUT_MS,'Saved league load');
-    if(saved){state=Object.assign(state,saved);normalizeLoadedState();synchronizeDivisionState();hydrate();ensurePools();ensureDivisionConfig();const repaired=repairLegacyTwelveMinuteTimesToCurrentGrid();if(repaired){await queueSave(true)}renderAll();setView(new URLSearchParams(location.search).get('view')||'admin');setSaveStatus('saved','League loaded','IndexedDB • saved progress restored');scheduleDeferredCourtMigration()}
-    else{setSaveStatus('saved','Ready — new league','IndexedDB');try{await withTimeout(queueSave(true),STORAGE_TIMEOUT_MS,'Initial save')}catch(e){console.warn(e)}}
-  }catch(e){
-    console.error(e);
-    setSaveStatus('error','Opened clean — saved data unavailable',e.message||String(e));
+    saved=await withTimeout(readStateFromDB(),STORAGE_TIMEOUT_MS,'Saved league load');
+  }catch(err){
+    console.error('Saved league read failed',err);
+    setSaveStatus('error','Saved league could not be read','Do not start a new league or reset storage. '+(err.message||String(err)));
     const dash=$('dashboardValidation');
-    if(dash)dash.insertAdjacentHTML('afterbegin',`<div class="status warn"><b>Storage recovery mode:</b> The app opened with a clean league because saved data could not be restored. You can continue testing, import registrations again, or use <b>Reset Saved League</b> above to clear this version's IndexedDB record.</div>`);
+    if(dash)dash.insertAdjacentHTML('afterbegin','<div class="status warn"><b>Storage read problem.</b> Your stored league has not been erased. Do not create a new league or reset storage; return to the previous working build if necessary.</div>');
+    return;
+  }
+  if(!saved){
+    setSaveStatus('saved','Ready — new league','IndexedDB');
+    try{await withTimeout(queueSave(true),STORAGE_TIMEOUT_MS,'Initial save')}catch(err){console.warn('Initial save warning',err)}
+    return;
+  }
+  state=Object.assign(state,saved);
+  try{
+    normalizeLoadedState();synchronizeDivisionState();hydrate();ensurePools();ensureDivisionConfig();
+    const repaired=repairLegacyTwelveMinuteTimesToCurrentGrid();
+    if(repaired)await queueSave(true);
+    renderAll();setView('admin');
+    setSaveStatus('saved','League loaded','IndexedDB • saved progress restored');
+    scheduleDeferredCourtMigration();
+  }catch(err){
+    console.error('Saved league loaded but UI initialization failed',err);
+    setSaveStatus('error','League data loaded — interface warning',err.message||String(err));
+    const tabs=document.querySelector('.admin-tabs');if(tabs)tabs.classList.remove('hidden');
+    const panel=$('admin-dashboard');if(panel)panel.classList.add('active');
+    // Keep state and IndexedDB untouched. Never substitute a clean league for a rendering error.
   }
 }
 async function startNewLeague(){
@@ -955,10 +989,18 @@ function syncSettings(){
   state.settings.maxWaitEnabled=$('maxWaitEnabled').checked;state.settings.maxWaitMinutes=+$('maxWaitMinutes').value||45;state.settings.maxWaitEnforcement=$('maxWaitEnforcement').value||'strict';state.settings.defaultPoolMax=+$('defaultPoolMax').value||8;state.settings.days=[...document.querySelectorAll('.dow:checked')].map(x=>+x.value);state.settings.avoidRepeats=state.settings.playAllTeamsOnce;state.settings.allowBackToBack=$('allowBackToBack').checked;state.settings.playAllTeamsOnce=$('playAllTeamsOnce').checked;state.settings.avoidImmediateRematches=$('avoidImmediateRematches').checked;state.settings.protectSharedCoaches=$('protectSharedCoaches').checked;state.settings.honorScheduleRequests=$('honorScheduleRequests').checked;state.settings.keepPoolPlay=true;updateLeagueDaysSummary();updatePlayingDateSummary()
 }
 function setView(view){
+  // Always provide an accessible Admin View when a stale or invalid URL view is supplied.
+  if(!['admin','coach','public'].includes(view))view='admin';
   const u=new URL(location.href);u.searchParams.set('view',view);history.replaceState({},'',u);
-  document.querySelectorAll('.viewbar button').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
-  document.querySelector('.admin-tabs').classList.toggle('hidden',view!=='admin');document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  if(view==='admin')setTab('dashboard');else{$(view+'-view').classList.add('active');view==='coach'?renderCoach():renderPublic()}
+  document.querySelectorAll('.viewbar button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+  const tabs=document.querySelector('.admin-tabs');
+  if(tabs)tabs.classList.toggle('hidden',view!=='admin');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  if(view==='admin'){setTab('dashboard');return;}
+  const target=$(view+'-view');
+  if(!target){console.warn('View panel missing; reverting to admin',view);setView('admin');return;}
+  target.classList.add('active');
+  if(view==='coach')renderCoach();else renderPublic();
 }
 function setupResourceNavigation(){
   const league=$('leagueSetupSections'),fields=$('courtFieldSections');
@@ -990,7 +1032,24 @@ function showResourceArea(area){
     'General settings, scheduling rules and league-specific requests. Team availability requests can also be edited from Registrations.':
     'Manage playing surfaces, court groups, availability, and division scheduling assignments.';
 }
-function setTab(tab){if(tab==='settings')tab='league';if(tab==='league'||tab==='facilities')showResourceArea(tab);document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));document.querySelectorAll('[id^="admin-"]').forEach(p=>p.classList.remove('active'));const panel=$('admin-'+(tab==='league'||tab==='facilities'?'settings':tab));if(!panel)return setTab('dashboard');panel.classList.add('active');if(tab==='dashboard')renderDashboard();if(tab==='divisions')renderDivisionSetup();if(tab==='board')renderBoard();if(tab==='schedule')renderSchedule();if(tab==='calendar')renderCourtCalendar();if(tab==='management')renderManagement();if(tab==='results')renderResults();if(tab==='standings')renderStandings()}
+function setTab(tab){
+  if(tab==='settings')tab='league';
+  if(tab==='league'||tab==='facilities')showResourceArea(tab);
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));
+  document.querySelectorAll('section.panel[id^="admin-"]').forEach(p=>p.classList.remove('active'));
+  const id='admin-'+(tab==='league'||tab==='facilities'?'settings':tab);
+  const panel=$(id);
+  if(!panel){console.warn('Missing tab panel:',id);if(tab!=='dashboard')return setTab('dashboard');return;}
+  panel.classList.add('active');
+  if(tab==='dashboard')renderDashboard();
+  if(tab==='divisions')renderDivisionSetup();
+  if(tab==='board')renderBoard();
+  if(tab==='schedule')renderSchedule();
+  if(tab==='calendar')renderCourtCalendar();
+  if(tab==='management')renderManagement();
+  if(tab==='results')renderResults();
+  if(tab==='standings')renderStandings();
+}
 document.querySelectorAll('.viewbar button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 
 function renderManualDivisionOptions(){
@@ -4246,9 +4305,10 @@ async function runAuditWithConfirmation(allLeague=false){
     await yieldToBrowser();
     const ms=performance.now()-started,stamp=new Date().toLocaleTimeString();
     const runtime=ms<1000?`${ms.toFixed(0)} ms`:`${(ms/1000).toFixed(2)} sec`;
-    setOptimizationStatus('AUDIT COMPLETE',scopeLabel,`Completed ${stamp} • Runtime ${runtime} • FAIL ${result?.fails||0} • WARN ${result?.warns||0}`,100);
-    setOptimizationResults(`<div class="status ${result?.fails?'warn':'ok'}"><b>Audit Complete — ${scopeLabel}</b><br>Completed: ${esc(stamp)}<br>Runtime: ${esc(runtime)}<br>Failed hard rules: ${result?.fails||0}<br>Warnings: ${result?.warns||0}</div>`,true);
-    setGenerationStage(`Audit complete — ${scopeLabel} • ${result?.fails||0} failed rule(s) • ${result?.warns||0} warning(s)`);
+    lastReadinessAudit={result,signature:readinessSignature(),entireLeague:allLeague};
+    setOptimizationStatus(result?.parkedCount?'AUDIT COMPLETE — UNASSIGNED GAMES':'AUDIT COMPLETE',scopeLabel,`Completed ${stamp} • Runtime ${runtime} • FAIL ${result?.fails||0} • WARN ${result?.warns||0} • PARKED ${result?.parkedCount||0}`,100);
+    setOptimizationResults(`<div class="status ${result?.parkedCount?'bad parking-audit-danger':result?.fails||result?.warns?'warn':'ok'}"><b>Audit Complete — ${scopeLabel}${result?.parkedCount?' • ACTION REQUIRED':''}</b><br>Completed: ${esc(stamp)}<br>Runtime: ${esc(runtime)}<br>Failed hard rules: ${result?.fails||0}<br>Warnings: ${result?.warns||0}<br>Parked / unassigned games: ${result?.parkedCount||0}${result?.parkedCount?'<br><b>Schedule incomplete:</b> restore or cancel parked games before publishing.':''}</div>`,true);
+    setGenerationStage(`Audit complete — ${scopeLabel} • ${result?.fails||0} failed rule(s) • ${result?.warns||0} warning(s) • ${result?.parkedCount||0} parked game(s)`);
     $('scheduleAudit')?.scrollIntoView({behavior:'smooth',block:'start'});
     return result;
   }catch(err){
@@ -4523,11 +4583,33 @@ function wouldMakeThreeConsecutiveV73(candidateStamp,otherStamps,slotMinutes=Num
   while(right<all.length-1&&all[right+1]-all[right]<=slot+0.001)right++;
   return right-left+1>=3;
 }
+function parkedAuditGames(scope='ALL',dateSet=null){
+  return (state.parkingLot||[]).filter(g=>g.status!=='Cancelled'&&scopeMatchesGame(scope,g)&&(!dateSet||dateSet.has(g.date)));
+}
+function parkedAuditDetails(games){
+  return games.map(g=>`${g.date||'Unknown date'} — ${divisionLabel(g.division)} — ${teamById(g.aId)?.name||g.aId} vs ${teamById(g.bId)?.name||g.bId} (previous slot: ${g.time?fmtTime(g.time):'not set'}, ${g.court||'no court'})`);
+}
+function parkedAuditBanner(games){
+  if(!games.length)return '';
+  return `<div class="status bad parking-audit-danger" role="alert" style="margin:8px 0"><b>SCHEDULE INCOMPLETE — ${games.length} UNASSIGNED GAME${games.length===1?'':'S'}</b><br>Scheduled games may pass their rule checks, but these matchups are not assigned to active slots. Restore or cancel them before publishing.<details><summary>Show parked games</summary><div class="hint">${parkedAuditDetails(games).map(esc).join('<br>')}</div></details></div>`;
+}
+function auditScopeDates(futureOnly){
+  if(!futureOnly)return null;
+  // Sandbox tests deliberately use completed leagues. Audit the actual sandbox
+  // dates, including parked games, instead of the live future-date selection.
+  if(IS_SANDBOX)return new Set([...(state.games||[]),...(state.parkingLot||[])].map(g=>g.date).filter(Boolean));
+  return new Set(selectedGenerationDates());
+}
 function runScheduleAudit(allLeague=false,futureOnly=false){
   syncSettings();const selected=allLeague?'ALL':($('scheduleFilter').value||'ALL');
-  const auditDateSet=futureOnly?new Set(selectedGenerationDates()):null;
+  const auditDateSet=auditScopeDates(futureOnly);
   const games=state.games.filter(g=>g.status!=='Cancelled'&&scopeMatchesGame(selected,g)&&(!auditDateSet||auditDateSet.has(g.date)));
-  if(!games.length){$('scheduleAudit').innerHTML='<div class="status warn">No scheduled games are available to audit for this scope.</div>';return {fails:0,warns:1,overall:'WARN',results:[]}}
+  const parked=parkedAuditGames(selected,auditDateSet);
+  if(!games.length){
+    const results=parked.length?[auditResult('Unassigned games — Parking Lot','WARN',`${parked.length} game(s) awaiting assignment`,parkedAuditDetails(parked))]:[];
+    $('scheduleAudit').innerHTML='<div class="status warn">No scheduled games are available to audit for this scope.</div>'+parkedAuditBanner(parked);
+    return {fails:0,warns:Math.max(1,results.length),overall:'WARN',results,parkedCount:parked.length};
+  }
   // v86.10: Varsity Boys is an open-pool division. Legacy A/B labels are
   // retained on game records but MUST NOT split team game counts or opponent history.
   const openDivision='div_33vsevu';
@@ -4539,7 +4621,7 @@ function runScheduleAudit(allLeague=false,futureOnly=false){
       }
     }else Object.entries(p.lists).forEach(([pool,ids])=>{if(scopeMatches(selected,d,pool))targetPools.push({d,pool,ids})});
   });
-  const results=[],gameLen=Number(state.settings.gameLength||20),dates=futureOnly?selectedGenerationDates():seasonDates();
+  const results=[],gameLen=Number(state.settings.gameLength||20),dates=futureOnly?[...auditDateSet].sort():seasonDates();
   let self=[],teamDouble=[],courtDouble=[],windowBad=[],courtBad=[],requestBad=[],coachBad=[],maxBad=[],guaranteeBad=[],minimumDateBad=[],overflowWarn=[],overflowCourtInfo=[],immediateBad=[],allBeforeRepeatBad=[],restBad=[],fairnessWarn=[];const immediateKeys=new Map();
   const slotCourt={},slotTeam={},slotCoach={};
   games.forEach(g=>{
@@ -4609,9 +4691,10 @@ function runScheduleAudit(allLeague=false,futureOnly=false){
     return !(n%2===1&&minimum%2===1&&msg.includes(`${minimum+1} games`));
   });
   row('Odd-pool extra games / games above minimum',unexpectedOverflow,overflowWarn.length&&!unexpectedOverflow.length?'Expected odd-pool balancing: extra games are within the configured maximum':'No unexpected overflow games',true);
+  row('Unassigned games — Parking Lot',parkedAuditDetails(parked),'No parked games in this audit scope',true);
   const fails=results.filter(r=>r.status==='FAIL').length,warns=results.filter(r=>r.status==='WARN').length,overall=fails?'FAIL':warns?'WARN':'PASS';
-  $('scheduleAudit').innerHTML=`<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Schedule & Rules Audit</h2><span class="status ${overall==='PASS'?'ok':'warn'}" style="display:inline-block;margin:0">${overall}${fails?` • ${fails} failed rule(s)`:''}${warns?` • ${warns} warning(s)`:''}</span></div><p class="hint">Scope: ${futureOnly?'Selected future dates ('+dates.map(esc).join(', ')+')':selected==='ALL'?'Entire League':esc($('scheduleFilter').selectedOptions[0]?.textContent||selected)}. ${futureOnly?'Historical dates excluded from court, time and double-booking checks.':'Hard rules must PASS before publishing.'} The nightly minimum is a hard rule; games above the minimum are allowed up to the configured maximum.</p>${results.map(r=>`<div class="item"><b>${r.status==='PASS'?'✓':r.status==='WARN'?'!':'✕'} ${esc(r.label)}</b><span class="pill" style="float:right">${r.status}</span><br><span class="hint">${esc(r.detail)}</span>${r.violations.length?`<details><summary>Show details</summary><div class="hint">${r.violations.slice(0,50).map(esc).join('<br>')}${r.violations.length>50?'<br>…and more':''}</div></details>`:''}</div>`).join('')}</div>`;
-  return {fails,warns,overall,results};
+  $('scheduleAudit').innerHTML=parkedAuditBanner(parked)+`<div class="card" style="margin-top:12px"><div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0">Schedule & Rules Audit</h2><span class="status ${parked.length?'bad parking-audit-danger':overall==='PASS'?'ok':'warn'}" style="display:inline-block;margin:0">${overall}${fails?` • ${fails} failed rule(s)`:''}${warns?` • ${warns} warning(s)`:''}</span></div><p class="hint">Scope: ${futureOnly?(IS_SANDBOX?'Sandbox playing dates (':'Selected future dates (')+dates.map(esc).join(', ')+')':selected==='ALL'?'Entire League':esc($('scheduleFilter').selectedOptions[0]?.textContent||selected)}. ${futureOnly&&!IS_SANDBOX?'Historical dates excluded from court, time and double-booking checks.':IS_SANDBOX?'Sandbox audit includes historical test dates and parked games.':'Hard rules must PASS before publishing.'} The nightly minimum is a hard rule; games above the minimum are allowed up to the configured maximum.</p>${results.map(r=>`<div class="item"><b>${r.status==='PASS'?'✓':r.status==='WARN'?'!':'✕'} ${esc(r.label)}</b><span class="pill" style="float:right">${r.status}</span><br><span class="hint">${esc(r.detail)}</span>${r.violations.length?`<details><summary>Show details</summary><div class="hint">${r.violations.slice(0,50).map(esc).join('<br>')}${r.violations.length>50?'<br>…and more':''}</div></details>`:''}</div>`).join('')}</div>`;
+  return {fails,warns,overall,results,parkedCount:parked.length};
 }
 
 function groupOptions(select){const current=select.value||select.dataset.lastValue||'ALL',groups=[];Object.entries(state.pools).forEach(([d,p])=>{const pools=Object.keys(p.lists);if(pools.length>1)groups.push({value:divisionScopeKey(d),label:`${divisionLabel(d)} — Entire Division (${pools.length} pools)`,division:true});pools.forEach(pool=>groups.push({value:poolKey(d,pool),label:`${divisionLabel(d)} — ${poolDisplayName(d,pool)}`}))});select.innerHTML='<option value="ALL">Entire League</option>'+groups.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join('');if(current==='ALL'||groups.some(x=>x.value===current))select.value=current;select.dataset.lastValue=select.value}
@@ -6028,7 +6111,7 @@ setTab('management')}
 function changeSummary(c){const b=c.before||{},a=c.after||{};if(c.kind==='score'||(b.sa!==undefined&&a.sa!==undefined&&(b.sa!==a.sa||b.sb!==a.sb)))return `Score ${b.sa==null?'—':b.sa+'–'+b.sb} → ${a.sa==null?'—':a.sa+'–'+a.sb}`;return `${b.date||''} ${b.time||''} ${b.court||''} → ${a.date||''} ${a.time||''} ${a.court||''} • ${a.status||''}`}
 function canDirectUndo(c){const g=state.games.find(x=>x.id===c.gameId);if(!g)return false;const current=gameSnapshot(g),a=c.after||{};return ['date','time','court','aId','bId','status','sa','sb'].every(k=>(current[k]??null)===(a[k]??null))}
 function restoreHistoryEntry(changeId){const c=state.scheduleChanges.find(x=>x.id===changeId),g=c&&state.games.find(x=>x.id===c.gameId);if(!c||!g)return;const label=canDirectUndo(c)?'Undo this change':'Restore the game to the version before this change';if(!confirm(`${label}? The reversal will be recorded as a new audit-history entry.`))return;const before=gameSnapshot(g),target={...c.before};Object.assign(g,target,{pending:true});state.scheduleChanges.unshift({id:uid('chg'),kind:'undo',gameId:g.id,changedAt:new Date().toISOString(),before,after:gameSnapshot(g),reason:`${canDirectUndo(c)?'Undo':'Restore'} of change made ${new Date(c.changedAt).toLocaleString()}`,warnings:[],sourceChangeId:c.id});persist();renderAll();setTab('management')}
-function publishScheduleChanges(){if(IS_SANDBOX)return alert('Publishing is disabled in the Scheduling Sandbox. Return to Live League to publish.');if((state.parkingLot||[]).length)return alert('Restore all parked games before publishing.');if(!state.games.length)return alert('There is no working schedule to publish.');const audit=safeRunScheduleAudit(true);if(audit&&audit.fails)return alert(`Schedule cannot be published yet. The automatic Rules Audit found ${audit.fails} failed hard rule(s). Review the Schedule & Rules Audit on the Schedule page.`);state.games.forEach(g=>g.pending=false);state.publishedGames=JSON.parse(JSON.stringify(state.games));state.hasPublishedSchedule=true;logActivity('Schedule changes published to the League Portal.');persist();renderAll();setTab('management')}
+function publishScheduleChanges(){if(IS_SANDBOX)return alert('Publishing is disabled in the Scheduling Sandbox. Return to Live League to publish.');if((state.parkingLot||[]).length)return alert(`${state.parkingLot.length} game(s) remain in the Parking Lot. Restore or cancel them before publishing. The schedule is incomplete.`);if(!state.games.length)return alert('There is no working schedule to publish.');const audit=safeRunScheduleAudit(true);if(audit&&audit.fails)return alert(`Schedule cannot be published yet. The automatic Rules Audit found ${audit.fails} failed hard rule(s). Review the Schedule & Rules Audit on the Schedule page.`);state.games.forEach(g=>g.pending=false);state.publishedGames=JSON.parse(JSON.stringify(state.games));state.hasPublishedSchedule=true;logActivity('Schedule changes published to the League Portal.');persist();renderAll();setTab('management')}
 function restorePublishedSchedule(){if(!state.hasPublishedSchedule||!state.publishedGames?.length)return alert('There is no previously published schedule to restore.');if(!confirm('Restore the working schedule to the last published version? Current unpublished changes AND any parked games will be replaced. Export a backup first.'))return;state.parkingLot=[];state.games=JSON.parse(JSON.stringify(state.publishedGames)).map(g=>({...g,pending:false}));logActivity('Working schedule restored to the last published version.');persist();renderAll();setTab('management')}
 function divisionProgressRows(){
   const weeks=seasonDatesRaw().length;
@@ -6054,8 +6137,9 @@ function renderParkingLot(){
   const games=state.parkingLot||[];
   const count=$('parkingLotCount'),area=$('parkingLotItems');if(!count||!area)return;
   count.textContent=`(${games.length} game${games.length===1?'':'s'})`;
-  area.innerHTML=games.length?games.map(g=>`<div class="row" style="align-items:center;gap:10px;border-top:1px solid #d7e0ec;padding:8px 0;flex-wrap:wrap"><b>${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</b><span class="hint">${esc(g.date)} · ${esc(fmtTime(g.time))} · ${esc(g.court)} · ${esc(divisionLabel(g.division))}</span><button type="button" class="secondary" data-restore-park="${esc(g.id)}">Choose slot / Restore</button></div>`).join(''):'<div class="hint" style="padding:6px 0">No games parked.</div>';
-  area.querySelectorAll('[data-restore-park]').forEach(b=>b.addEventListener('click',()=>restoreParkedGame(b.dataset.restorePark)));
+  area.innerHTML=games.length?games.map(g=>`<div class="row" data-parked-game="${esc(g.id)}" tabindex="0" role="button" title="Select to restore this parked game" style="cursor:pointer;align-items:center;gap:10px;border-top:1px solid #d7e0ec;padding:8px 0;flex-wrap:wrap"><b>${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</b><span class="hint">${esc(g.date)} · ${esc(fmtTime(g.time))} · ${esc(g.court)} · ${esc(divisionLabel(g.division))}</span><button type="button" class="secondary" data-restore-park="${esc(g.id)}">Choose slot / Restore</button></div>`).join(''):'<div class="hint" style="padding:6px 0">No games parked.</div>';
+  area.querySelectorAll('[data-restore-park]').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();restoreParkedGame(b.dataset.restorePark)}));
+  area.querySelectorAll('[data-parked-game]').forEach(row=>{row.addEventListener('click',()=>restoreParkedGame(row.dataset.parkedGame));row.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();restoreParkedGame(row.dataset.parkedGame)}})});
 }
 function parkGame(id){
   const g=state.games.find(x=>x.id===id);if(!g)return;
@@ -6120,27 +6204,72 @@ function restoreParkedGame(id){
 }
 
 let visualMovePreview=null;
-let visualLastApplied=null;
+let visualUndoStack=[];let visualRedoStack=[];let visualHistoryWorkspace=IS_SANDBOX;
+function visualMoveEligible(){
+ return state.games.filter(g=>g.status!=='Cancelled'&&!isHistoricalGame(g)&&!g.lockedManual);
+}
+function visualMoveDates(){
+ return [...new Set([...seasonDatesRaw(),...state.games.map(g=>g.date)].filter(Boolean))].sort();
+}
+function visualCourtEligible(g,date,time,court){
+ const len=Number(state.settings.gameLength)||20,st=minutes(time);
+ const windows=courtWindows(court);
+ if(!windows.some(w=>st>=minutes(w.start)&&st+len<=minutes(w.end)))return false;
+ if(!courtExceptionAllows(court.id,date,time,len)&&!courtExceptionAllows(court.name,date,time,len))return false;
+ const cfg=poolResourceConfig(g.division,g.pool);
+ const grp=state.courtGroups.find(x=>x.id===cfg?.courtGroupId);
+ if(grp&&!groupSurfaceIds(grp).includes(court.id))return false;
+ if(cfg?.start&&time<cfg.start||cfg?.end&&st+len>minutes(cfg.end))return false;
+ return true;
+}
+function visualMoveCourtOptions(){
+ const g=state.games.find(x=>x.id===$('visualMoveGame').value);
+ const select=$('visualMoveCourt'),old=select.value,date=$('visualMoveDate').value,time=$('visualMoveTime').value;
+ if(!g||!date||!time){select.innerHTML='<option value="">Select a game, date and time</option>';return}
+ const len=Number(state.settings.gameLength)||20,st=minutes(time);
+ const courts=state.courts.filter(c=>visualCourtEligible(g,date,time,c)).filter(c=>
+   !state.games.some(x=>x.id!==g.id&&x.status!=='Cancelled'&&x.date===date&&x.court===c.name&&st<minutes(x.time)+len&&minutes(x.time)<st+len));
+ select.innerHTML='<option value="">Select an available court</option>'+courts.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+ if(courts.some(c=>c.name===old))select.value=old;
+ else if(courts.some(c=>c.name===g.court))select.value=g.court;
+ else if(courts.length)select.value=courts[0].name;
+ const feedback=$('visualMoveFeedback');
+ if(!courts.length&&feedback)feedback.textContent='No eligible empty courts at this time. Try another start time, or choose a game to swap.';
+}
 function visualMoveOptions(){
  const gSel=$('visualMoveGame');if(!gSel)return;
- const eligible=state.games.filter(g=>g.status!=='Cancelled'&&!isHistoricalGame(g)&&!g.lockedManual);
- const old=gSel.value;gSel.innerHTML='<option value="">Select game</option>'+eligible.map(g=>`<option value="${esc(g.id)}">${esc(g.date)} ${esc(fmtTime(g.time))} ${esc(g.court)} — ${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</option>`).join('');
- if(eligible.some(g=>g.id===old))gSel.value=old;
- const chosen=eligible.find(g=>g.id===gSel.value);
- const dates=[...new Set(state.games.map(g=>g.date).filter(Boolean))].sort();
- const d=$('visualMoveDate'),t=$('visualMoveTime'),c=$('visualMoveCourt'),swap=$('visualSwapGame');
- const selectedDate=d.value,selectedTime=t.value,selectedCourt=c.value,selectedSwap=swap.value;
- d.innerHTML=dates.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
- const length=Math.max(1,Number(state.settings.gameLength||15));
- const times=[];for(let m=0;m<1440;m+=length)times.push(hhmm(m));
+ const eligible=visualMoveEligible(),source=$('visualSourceDate'),division=$('visualSourceDivision');
+ const previousDivision=division.value;
+ const divisionIds=[...new Set(eligible.map(g=>g.division).filter(Boolean))].sort((a,b)=>divisionLabel(a).localeCompare(divisionLabel(b)));
+ division.innerHTML='<option value="">All Divisions</option>'+divisionIds.map(id=>`<option value="${esc(id)}">${esc(divisionLabel(id))}</option>`).join('');
+ division.value=divisionIds.includes(previousDivision)?previousDivision:'';
+ const filtered=eligible.filter(g=>!division.value||g.division===division.value);
+ const dates=[...new Set(filtered.map(g=>g.date).filter(Boolean))].sort();
+ const previousSource=source.value,previousGame=gSel.value;
+ source.innerHTML=dates.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+ source.value=dates.includes(previousSource)?previousSource:(filtered[0]?.date||dates[0]||'');
+ const games=filtered.filter(g=>g.date===source.value);
+ gSel.innerHTML='<option value="">Select game</option>'+games.map(g=>`<option value="${esc(g.id)}">${esc(fmtTime(g.time))} ${esc(g.court)} — ${esc(teamById(g.aId).name)} vs ${esc(teamById(g.bId).name)}</option>`).join('');
+ if(games.some(g=>g.id===previousGame))gSel.value=previousGame;
+ else if(games.length)gSel.value=games[0].id;
+ const chosen=games.find(g=>g.id===gSel.value);
+ const d=$('visualMoveDate'),t=$('visualMoveTime'),swap=$('visualSwapGame'),cross=$('visualCrossDate');
+ const selectedDate=d.value,selectedTime=t.value,selectedSwap=swap.value;
+ const destinationDates=visualMoveDates();
+ d.innerHTML=destinationDates.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+ d.value=cross.checked&&destinationDates.includes(selectedDate)?selectedDate:(chosen?.date||source.value);
+ d.disabled=!cross.checked;
+ const len=Math.max(1,Number(state.settings.gameLength||15));
+ const hhmmLocal=m=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+ const times=[];for(let m=0;m<1440;m+=len)times.push(hhmmLocal(m));
+ if(chosen?.time&&!times.includes(chosen.time))times.push(chosen.time);
+ times.sort();
  t.innerHTML=times.map(x=>`<option value="${x}">${esc(fmtTime(x))}</option>`).join('');
- c.innerHTML=state.courts.map(x=>`<option value="${esc(x.name)}">${esc(x.name)}</option>`).join('');
- swap.innerHTML='<option value="">No swap — move to empty slot</option>'+eligible.filter(x=>x.id!==gSel.value).map(x=>`<option value="${esc(x.id)}">${esc(x.date)} ${esc(fmtTime(x.time))} ${esc(x.court)} — ${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</option>`).join('');
- d.value=dates.includes(selectedDate)?selectedDate:(chosen?.date||dates[0]||'');
  t.value=times.includes(selectedTime)?selectedTime:(chosen?.time||times[0]||'');
- c.value=state.courts.some(x=>x.name===selectedCourt)?selectedCourt:(chosen?.court||state.courts[0]?.name||'');
- if(eligible.some(x=>x.id===selectedSwap&&x.id!==gSel.value))swap.value=selectedSwap;
- for(const id of ['visualMoveDate','visualMoveTime','visualMoveCourt'])$(id).disabled=!!swap.value;
+ swap.innerHTML='<option value="">No swap — move to empty slot</option>'+filtered.filter(x=>x.id!==gSel.value&&x.date===source.value).map(x=>`<option value="${esc(x.id)}">${esc(fmtTime(x.time))} ${esc(x.court)} — ${esc(teamById(x.aId).name)} vs ${esc(teamById(x.bId).name)}</option>`).join('');
+ if(filtered.some(x=>x.id===selectedSwap&&x.id!==gSel.value&&x.date===source.value))swap.value=selectedSwap;
+ visualMoveCourtOptions();
+ for(const id of ['visualMoveDate','visualMoveTime','visualMoveCourt'])$(id).disabled=!!swap.value||(id==='visualMoveDate'&&!cross.checked);
  $('visualPreviewBtn').disabled=!IS_SANDBOX;$('visualApplyBtn').disabled=true;visualMovePreview=null;
  if(!IS_SANDBOX)$('visualMoveFeedback').textContent='Live league protected. Open Scheduling Sandbox to test moves and swaps.';
 }
@@ -6151,6 +6280,8 @@ function visualPreview(){
  if(!g)return alert('Select a game.');
  if(isHistoricalGame(g)||g.lockedManual||swap&&(isHistoricalGame(swap)||swap.lockedManual))return alert('Choose prepared, unlocked test games.');
  const date=$('visualMoveDate').value,time=$('visualMoveTime').value,court=$('visualMoveCourt').value;
+ if(!swap&&date!==g.date&&!$('visualCrossDate').checked)return alert('Enable Move to another playing date first.');
+ if(!swap&&!court)return alert('Choose an eligible destination court and time.');
  const excluded=[g.id,...(swap?[swap.id]:[])];
  const proposed=[{...g,date:swap?swap.date:date,time:swap?swap.time:time,court:swap?swap.court:court},...(swap?[{...swap,date:g.date,time:g.time,court:g.court}]:[])];
  const saved=state.games;state.games=saved.filter(x=>!excluded.includes(x.id));
@@ -6167,6 +6298,32 @@ function visualPreview(){
  const box=$('visualMoveFeedback');box.innerHTML=`<div class="status ${errors.length?'bad':warnings.length?'warn':'ok'}"><b>${errors.length?'Blocked':warnings.length?'Preview — warnings':'Preview — no direct conflicts'}</b><br>${proposed.map(x=>esc(teamById(x.aId).name)+' vs '+esc(teamById(x.bId).name)+' → '+esc(x.date+' '+fmtTime(x.time)+' '+x.court)).join('<br>')}${[...new Set(errors)].map(x=>'<br>BLOCK: '+esc(x)).join('')}${[...new Set(warnings)].map(x=>'<br>WARNING: '+esc(x)).join('')}</div>`;
  if(!errors.length){visualMovePreview={signature:JSON.stringify([g.id,swap?.id||'',date,time,court]),proposed,excluded,original:excluded.map(id=>gameSnapshot(saved.find(x=>x.id===id)))};$('visualApplyBtn').disabled=false;}
 }
+function visualHistorySummary(entry){
+ const before=entry.before||{},after=entry.after||{};
+ const format=slot=>slot.parked?'Parking Lot':slot.date&&slot.time?`${slot.date} ${fmtTime(slot.time)} · ${slot.court||'Unassigned'}`:'Unassigned';
+ return `${format(before)} → ${format(after)}`;
+}
+function renderVisualHistory(){
+ if(visualHistoryWorkspace!==IS_SANDBOX){visualUndoStack=[];visualRedoStack=[];visualHistoryWorkspace=IS_SANDBOX;}
+ const target=$('visualChangeHistory');if(!target)return;
+ const changes=(state.scheduleChanges||[]).filter(x=>['visual-move','visual-swap','visual-undo','visual-redo','parking','restored'].includes(x.kind)).slice(0,12);
+ target.innerHTML=changes.length?changes.map(x=>`<div style="padding:6px 0;border-bottom:1px solid #dce5ef"><b>${esc(x.kind.replace(/-/g,' ').toUpperCase())}</b> · ${esc(x.changedAt||'')} · ${esc(teamById(x.before?.aId||x.after?.aId)?.name||x.gameId||'Game')}<br>${esc(visualHistorySummary(x))}</div>`).join(''):'No scheduling changes recorded.';
+ const undo=$('visualUndoBtn'),redo=$('visualRedoBtn');
+ if(undo)undo.disabled=!IS_SANDBOX||!visualUndoStack.length;
+ if(redo)redo.disabled=!IS_SANDBOX||!visualRedoStack.length;
+}
+function visualSnapshotMatches(action,side){
+ return action.ids.every((id,i)=>{
+  const g=state.games.find(x=>x.id===id);
+  return !!g&&JSON.stringify(gameSnapshot(g))===JSON.stringify(action[side][i]);
+ });
+}
+function applyVisualSnapshots(action,side,kind){
+ const previous=action.ids.map(id=>gameSnapshot(state.games.find(g=>g.id===id)));
+ action.ids.forEach((id,i)=>{const g=state.games.find(x=>x.id===id);Object.assign(g,action[side][i],{pending:true});
+  state.scheduleChanges.unshift({id:uid('chg'),kind,gameId:id,changedAt:new Date().toISOString(),before:previous[i],after:gameSnapshot(g),reason:'Sandbox visual history action'});
+ });
+}
 function visualApply(){
  if(!IS_SANDBOX||!visualMovePreview)return;
  const p=visualMovePreview,signature=JSON.stringify([$('visualMoveGame').value,$('visualSwapGame').value,$('visualMoveDate').value,$('visualMoveTime').value,$('visualMoveCourt').value]);
@@ -6176,32 +6333,41 @@ function visualApply(){
  state.games=state.games.map(g=>{const next=p.proposed.find(x=>x.id===g.id);return next?{...next,pending:true,lockedManual:g.lockedManual}:g});
  state.scheduleChanges=state.scheduleChanges||[];
  for(const g of before){const after=state.games.find(x=>x.id===g.id);state.scheduleChanges.unshift({id:uid('chg'),kind:p.proposed.length>1?'visual-swap':'visual-move',gameId:g.id,changedAt:new Date().toISOString(),before:gameSnapshot(g),after:gameSnapshot(after),reason:'87.8 sandbox previewed change'});}
- visualLastApplied={ids:[...p.excluded],before:p.original,after:p.proposed.map(x=>gameSnapshot(x))};visualMovePreview=null;persist();renderAll();setTab('management');alert('Sandbox change applied. Use Undo Last Visual Change to reverse both sides of a swap. Run Schedule Audit and Safety Checks.');
+ visualUndoStack.push({ids:[...p.excluded],before:p.original,after:p.proposed.map(x=>gameSnapshot(x))});visualRedoStack=[];visualMovePreview=null;persist();renderAll();setTab('management');alert('Sandbox change applied. Use Undo Last Visual Change to reverse both sides of a swap. Run Schedule Audit and Safety Checks.');
 }
 function undoLastVisualChange(){
- if(!IS_SANDBOX||!visualLastApplied)return alert('No visual move or swap available to undo in this sandbox session.');
- const action=visualLastApplied;
- for(let i=0;i<action.ids.length;i++){
-   const g=state.games.find(x=>x.id===action.ids[i]);
-   if(!g||JSON.stringify(gameSnapshot(g))!==JSON.stringify(action.after[i]))return alert('One of the games changed since the visual move. Undo was blocked to protect those changes.');
- }
- if(!confirm('Undo the last visual move or swap? This restores all involved games to their prior slots.'))return;
- for(let i=0;i<action.ids.length;i++){
-   const g=state.games.find(x=>x.id===action.ids[i]),before=gameSnapshot(g);
-   Object.assign(g,action.before[i],{pending:true});
-   state.scheduleChanges.unshift({id:uid('chg'),kind:'visual-undo',gameId:g.id,changedAt:new Date().toISOString(),before,after:gameSnapshot(g),reason:'Undo last visual move or swap',warnings:[]});
- }
- visualLastApplied=null;persist();renderAll();setTab('management');alert('Last visual move or swap reversed in the sandbox.');
+ if(!IS_SANDBOX||!visualUndoStack.length)return alert('No visual move or swap available to undo in this sandbox session.');
+ const action=visualUndoStack[visualUndoStack.length-1];
+ if(!visualSnapshotMatches(action,'after'))return alert('A game has changed since this move or swap. Undo blocked to protect later edits.');
+ if(!confirm('Undo this sandbox move or swap, restoring all involved games?'))return;
+ applyVisualSnapshots(action,'before','visual-undo');
+ visualUndoStack.pop();visualRedoStack.push(action);
+ persist();renderAll();setTab('management');renderVisualHistory();
+}
+function redoLastVisualChange(){
+ if(!IS_SANDBOX||!visualRedoStack.length)return alert('No visual change available to redo.');
+ const action=visualRedoStack[visualRedoStack.length-1];
+ if(!visualSnapshotMatches(action,'before'))return alert('A game has changed since undo. Redo blocked to protect later edits.');
+ if(!confirm('Redo this sandbox move or swap?'))return;
+ applyVisualSnapshots(action,'after','visual-redo');
+ visualRedoStack.pop();visualUndoStack.push(action);
+ persist();renderAll();setTab('management');renderVisualHistory();
 }
 function initVisualMove(){
- const el=$('visualMoveGame');if(!el)return;
- el.addEventListener('change',()=>{visualMoveOptions();const g=state.games.find(x=>x.id===el.value);if(g){$('visualMoveDate').value=g.date;$('visualMoveTime').value=g.time;$('visualMoveCourt').value=g.court;}});
- for(const id of ['visualMoveDate','visualMoveTime','visualMoveCourt','visualSwapGame'])$(id).addEventListener('change',()=>{visualMovePreview=null;$('visualApplyBtn').disabled=true;const swapping=!!$('visualSwapGame').value;for(const field of ['visualMoveDate','visualMoveTime','visualMoveCourt'])$(field).disabled=swapping;});
- $('visualPreviewBtn').addEventListener('click',visualPreview);$('visualApplyBtn').addEventListener('click',visualApply);$('visualUndoBtn').addEventListener('click',undoLastVisualChange);
+ const reset=()=>{visualMovePreview=null;$('visualApplyBtn').disabled=true;};
+ $('visualSourceDivision').addEventListener('change',()=>{reset();$('visualMoveGame').value='';visualMoveOptions();});
+ $('visualSourceDate').addEventListener('change',()=>{reset();$('visualMoveGame').value='';visualMoveOptions();});
+ $('visualMoveGame').addEventListener('change',()=>{reset();const g=state.games.find(x=>x.id===$('visualMoveGame').value);if(g){$('visualMoveDate').value=g.date;$('visualMoveTime').value=g.time;}visualMoveOptions();});
+ $('visualCrossDate').addEventListener('change',()=>{reset();if(!$('visualCrossDate').checked)$('visualMoveDate').value=$('visualSourceDate').value;visualMoveOptions();});
+ $('visualMoveDate').addEventListener('change',()=>{reset();visualMoveCourtOptions();});
+ $('visualMoveTime').addEventListener('change',()=>{reset();visualMoveCourtOptions();});
+ $('visualMoveCourt').addEventListener('change',reset);
+ $('visualSwapGame').addEventListener('change',()=>{reset();const swapping=!!$('visualSwapGame').value;for(const field of ['visualMoveDate','visualMoveTime','visualMoveCourt'])$(field).disabled=swapping||(field==='visualMoveDate'&&!$('visualCrossDate').checked);});
+ $('visualPreviewBtn').addEventListener('click',visualPreview);$('visualApplyBtn').addEventListener('click',visualApply);$('visualUndoBtn').addEventListener('click',undoLastVisualChange);$('visualRedoBtn').addEventListener('click',redoLastVisualChange);
 }
 document.addEventListener('DOMContentLoaded',initVisualMove);
 function renderManagement(){
-  renderParkingLot();visualMoveOptions();
+  renderParkingLot();visualMoveOptions();renderVisualHistory();
   const pending=state.games.filter(g=>g.pending).length;
   groupOptions($('managementDivision'));
   const divisionValue=$('managementDivision').value||'ALL';
@@ -6592,6 +6758,21 @@ function loadCompleteDemo(){
 function minToClock(m){return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')}
 
 async function resetAll(){return resetSavedLeagueStorage()}
+let lastReadinessAudit=null;
+function readinessSignature(){
+  // An in-session verification key: never persisted as an approval.
+  return JSON.stringify({games:(state.games||[]).map(g=>[g.id,g.date,g.time,g.court,g.status,g.aId,g.bId]),parked:(state.parkingLot||[]).map(g=>[g.id,g.date,g.status]),settings:state.settings,divisionConfig:state.divisionConfig});
+}
+function directorReadiness(){
+  const parked=(state.parkingLot||[]).filter(g=>g.status!=='Cancelled').length;
+  if(parked)return {cls:'not-ready',label:'NOT READY TO PUBLISH',detail:`${parked} parked / unassigned game${parked===1?'':'s'}. Restore or cancel before publishing.`};
+  if(!state.games?.length)return {cls:'not-ready',label:'NOT READY TO PUBLISH',detail:'No games are scheduled.'};
+  const audit=lastReadinessAudit;
+  if(!audit||!audit.entireLeague||audit.signature!==readinessSignature())return {cls:'unverified',label:'AUDIT REQUIRED',detail:'Run an Entire League audit to verify readiness after changes. An old or partial audit cannot certify this schedule.'};
+  if(audit.result.fails)return {cls:'not-ready',label:'NOT READY TO PUBLISH',detail:`${audit.result.fails} hard-rule failure(s) must be resolved.`};
+  if(audit.result.warns)return {cls:'review',label:'WARNINGS TO REVIEW',detail:`${audit.result.warns} audit warning(s). Review before publishing.`};
+  return {cls:'ready',label:'READY TO PUBLISH',detail:'Entire League audit passed with no blocking failures, warnings, or parked games.'};
+}
 function renderDashboard(){
   const rows=divisionProgressRows(),divisionCount=allDivisionKeys().length,poolCount=Object.values(state.pools||{}).reduce((n,p)=>n+Object.keys(p.lists||{}).length,0),divisions=divisionCount;
   const completed=state.games.filter(g=>g.sa!=null&&g.sb!=null).length,pending=state.games.filter(g=>g.pending).length,cancelled=state.games.filter(g=>g.status==='Cancelled').length,activeGames=state.games.length-cancelled,published=(state.publishedGames||[]).length;
@@ -6609,7 +6790,8 @@ function renderDashboard(){
   $('dashboardSetup').innerHTML=setupItems.map(([label,ok,detail,tab])=>`<div class="item"><b>${ok?'✓':'○'} ${label}</b><br><span class="hint">${esc(detail)}</span> <button class="team-link" data-dashboard-tab="${tab}">${ok?'Review':'Complete'}</button></div>`).join('');
   $('dashboardDivisionStatus').innerHTML='<thead><tr><th>Division / Pool</th><th>Teams</th><th>Games</th><th>Completed</th><th>Published</th><th>Status</th><th>Actions</th></tr></thead><tbody>'+rows.map(r=>`<tr><td><b>${esc(r.label)}</b></td><td>${r.teams}</td><td>${r.games}/${r.target}</td><td>${r.completed}/${r.games}</td><td>${r.published}</td><td><span class="status ${r.cls}" style="display:inline-block;margin:0;padding:5px 8px">${esc(r.status)}</span></td><td><button class="team-link" data-open-division="${esc(r.key)}" data-target-tab="management">Manage</button> · <button class="team-link" data-open-division="${esc(r.key)}" data-target-tab="schedule">Schedule</button> · <button class="team-link" data-open-division="${esc(r.key)}" data-target-tab="standings">Standings</button></td></tr>`).join('')+'</tbody>';
   $('dashboardScheduleStatus').innerHTML=`<div class="item"><b>Divisions scheduled</b><br>${scheduledDivisions}/${divisions}</div><div class="item"><b>Games scheduled</b><br>${activeGames}</div><div class="item"><b>Minimum required</b><br>${totalTarget||0}</div><div class="item"><b>Extra games</b><br>${extraGames}</div><div class="item"><b>Games completed</b><br>${completed}/${activeGames}</div><div class="item"><b>Divisions complete</b><br>${completeDivisions}/${divisions}</div><div class="item"><b>Divisions published</b><br>${publishedDivisions}/${divisions}</div>`;
-  $('dashboardPublishStatus').innerHTML=pending?`<div class="status warn"><b>${pending} change(s) are not yet public.</b><br>The League Portal still displays the last published schedule.</div><button class="primary" data-dashboard-tab="management">Review & Publish</button>`:`<div class="status ok"><b>Working and published schedules match.</b><br>${published} game(s) are available in the League Portal.</div><button class="secondary" data-dashboard-tab="management">Schedule Management</button>`;
+  const readiness=directorReadiness();
+  $('dashboardPublishStatus').innerHTML=`<div class="readiness-badge ${readiness.cls}">${readiness.label}</div><div class="hint" style="margin:0 0 12px">${esc(readiness.detail)}</div>`+(pending?`<div class="status warn"><b>${pending} change(s) are not yet public.</b><br>The League Portal still displays the last published schedule.</div><button class="primary" data-dashboard-tab="management">Review & Publish</button>`:`<div class="status ok"><b>Working and published schedules match.</b><br>${published} game(s) are available in the League Portal.</div><button class="secondary" data-dashboard-tab="management">Schedule Management</button>`);
   const wizard=[['Define season dates & playing days',!!state.settings.seasonStart&&!!state.settings.seasonEnd&&(state.settings.days||[]).length>0,'settings'],['Import registrations',state.teams.length>0,'registrations'],['Set up divisions & assign teams',state.teams.length>0&&state.teams.every(t=>t.divisionId),'divisions'],['Approve divisions & pools',allDivisionKeys().length>0&&allDivisionKeys().every(d=>state.pools[d]?.approved),'board'],['Configure surfaces and court groups',state.courts.length>0&&state.courtGroups.length>0,'settings'],['Complete division scheduling',divisions>0&&configuredDivisions===allDivisionKeys().length,'settings'],['Generate schedules',divisions>0&&scheduledDivisions===divisions,'schedule'],['Publish league schedule',state.games.length>0&&pending===0&&published>0,'management']];
   const firstOpen=Math.max(0,wizard.findIndex(x=>!x[1]));
   $('dashboardWizard').innerHTML=wizard.map((x,i)=>`<div class="wizard-step"><div class="step-dot ${x[1]?'done':i===firstOpen?'current':''}">${x[1]?'✓':i+1}</div><div><b>${esc(x[0])}</b><br><button class="team-link" data-dashboard-tab="${x[2]}">${x[1]?'Review':i===firstOpen?'Do this next':'Open'}</button></div></div>`).join('');
