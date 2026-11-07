@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MSS League Scheduler v11.11.87.8.8</title>
+<title>MSS League Scheduler v11.11.87.8.9</title>
 <style>
 :root{--navy:#13264d;--blue:#1f73c9;--lime:#a7c63b;--bg:#f3f6fb;--card:#fff;--line:#d7e0ec;--text:#1e293b;--muted:#667085;--danger:#b42318;--ok:#08783e;--warn:#9a6700}
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
@@ -44,9 +44,9 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
 <body>
 <header>
   <img src="logo.png" alt="My Sport Space logo">
-  <div><h1>MSS League Scheduler v11.11.87.8.8</h1><div class="sub">League Setup → Registrations → Divisions & Pools → Courts & Fields → Schedule → League Operations</div></div>
+  <div><h1>MSS League Scheduler v11.11.87.8.9</h1><div class="sub">League Setup → Registrations → Divisions & Pools → Courts & Fields → Schedule → League Operations</div></div>
   <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end">
-    <button type="button" id="buildInfoButton" style="background:#eef4ff;color:#14254c;border:1px solid #a8c0e5;font-size:11px;padding:6px 9px" title="Identify the exact running application and data storage">Build 87.8.8 · Details</button>
+    <button type="button" id="buildInfoButton" style="background:#eef4ff;color:#14254c;border:1px solid #a8c0e5;font-size:11px;padding:6px 9px" title="Identify the exact running application and data storage">Build 87.8.9 · Details</button>
     <div id="saveStatus" class="save-status"><b>Starting storage…</b><span>IndexedDB</span></div>
   </div>
 </header>
@@ -55,8 +55,8 @@ label{display:block;font-size:13px;font-weight:700;margin:8px 0 4px}input,select
   <h2 style="margin-top:0">Application &amp; Storage Information</h2>
   <p class="hint">Use this information to distinguish an old browser tab from a newer deployed file. This panel is read-only.</p>
   <dl style="display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;font-size:13px">
-    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.8.8</dd>
-    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.8.8-20261105-H</dd>
+    <dt><b>Application</b></dt><dd style="margin:0" id="buildVersionText">v11.11.87.8.9</dd>
+    <dt><b>Build ID</b></dt><dd style="margin:0" id="buildIdText">MSS-87.8.9-20261107-I</dd>
     <dt><b>Loaded from</b></dt><dd style="margin:0;overflow-wrap:anywhere" id="buildSourceText"></dd>
     <dt><b>Storage</b></dt><dd style="margin:0" id="buildStorageText">IndexedDB · browser and origin specific</dd>
   </dl>
@@ -673,7 +673,7 @@ function initializeReadOnlySafety(){
   });
 }
 document.addEventListener('DOMContentLoaded',initializeReadOnlySafety);
-const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.8.8',id:'MSS-87.8.8-20261105-H'});
+const MSS_BUILD_INFO=Object.freeze({version:'11.11.87.8.9',id:'MSS-87.8.9-20261107-I'});
 function getMssBuildDetails(){
   const origin=location.protocol==='file:'?'Local file (file://)':location.origin;
   return `MSS League Scheduler v${MSS_BUILD_INFO.version}\nBuild: ${MSS_BUILD_INFO.id}\nSource: ${location.href}\nStorage: IndexedDB, isolated by browser and origin (${origin}); record: ${IS_SANDBOX?"sandbox-87-5":"current (live)"}`;
@@ -6270,9 +6270,15 @@ function visualMoveOptions(){
  if(filtered.some(x=>x.id===selectedSwap&&x.id!==gSel.value&&x.date===source.value))swap.value=selectedSwap;
  visualMoveCourtOptions();
  for(const id of ['visualMoveDate','visualMoveTime','visualMoveCourt'])$(id).disabled=!!swap.value||(id==='visualMoveDate'&&!cross.checked);
- $('visualPreviewBtn').disabled=!IS_SANDBOX;$('visualApplyBtn').disabled=true;visualMovePreview=null;
+ $('visualPreviewBtn').disabled=!IS_SANDBOX;$('visualApplyBtn').disabled=true;visualMovePreview=null;const feedback=$('visualMoveFeedback');if(feedback)feedback.textContent=IS_SANDBOX?'Select a game and click Preview Move / Swap to verify both teams and placements.':'Live league protected. Open Scheduling Sandbox to test moves and swaps.';
  if(!IS_SANDBOX)$('visualMoveFeedback').textContent='Live league protected. Open Scheduling Sandbox to test moves and swaps.';
 }
+function visualSelectionSignature(){
+ return JSON.stringify(['visualSourceDivision','visualSourceDate','visualMoveGame','visualCrossDate','visualSwapGame','visualMoveDate','visualMoveTime','visualMoveCourt'].map(id=>id==='visualCrossDate'?$(id).checked:$(id).value));
+}
+function visualMatchup(g){return `${teamById(g.aId)?.name||g.aId||'Unknown team'} vs ${teamById(g.bId)?.name||g.bId||'Unknown team'}`;}
+function visualGameLabel(g){return `${visualMatchup(g)} (Game ID: ${g.id})`;}
+function visualSlotLabel(g){return `${g.date} ${fmtTime(g.time)} · ${g.court||'Unassigned'}`;}
 function visualPreview(){
  visualMovePreview=null;$('visualApplyBtn').disabled=true;
  if(!IS_SANDBOX)return alert('Open Scheduling Sandbox first.');
@@ -6295,19 +6301,26 @@ function visualPreview(){
      }
    }
  }finally{state.games=saved;}
- const box=$('visualMoveFeedback');box.innerHTML=`<div class="status ${errors.length?'bad':warnings.length?'warn':'ok'}"><b>${errors.length?'Blocked':warnings.length?'Preview — warnings':'Preview — no direct conflicts'}</b><br>${proposed.map(x=>esc(teamById(x.aId).name)+' vs '+esc(teamById(x.bId).name)+' → '+esc(x.date+' '+fmtTime(x.time)+' '+x.court)).join('<br>')}${[...new Set(errors)].map(x=>'<br>BLOCK: '+esc(x)).join('')}${[...new Set(warnings)].map(x=>'<br>WARNING: '+esc(x)).join('')}</div>`;
- if(!errors.length){visualMovePreview={signature:JSON.stringify([g.id,swap?.id||'',date,time,court]),proposed,excluded,original:excluded.map(id=>gameSnapshot(saved.find(x=>x.id===id)))};$('visualApplyBtn').disabled=false;}
+ const box=$('visualMoveFeedback');box.innerHTML=`<div class="status ${errors.length?'bad':warnings.length?'warn':'ok'}"><b>${errors.length?'Blocked':warnings.length?'Preview — warnings':'Preview — no direct conflicts'}</b><br>${proposed.map((x,i)=>'<br><b>'+esc(visualGameLabel(saved.find(g=>g.id===x.id)||x))+'</b><br>FROM: '+esc(visualSlotLabel(saved.find(g=>g.id===x.id)||x))+'<br>TO: '+esc(visualSlotLabel(x))).join('<br>')}${[...new Set(errors)].map(x=>'<br>BLOCK: '+esc(x)).join('')}${[...new Set(warnings)].map(x=>'<br>WARNING: '+esc(x)).join('')}</div>`;
+ if(!errors.length){visualMovePreview={signature:visualSelectionSignature(),proposed,excluded,original:excluded.map(id=>gameSnapshot(saved.find(x=>x.id===id)))};$('visualApplyBtn').disabled=false;}
 }
 function visualHistorySummary(entry){
  const before=entry.before||{},after=entry.after||{};
  const format=slot=>slot.parked?'Parking Lot':slot.date&&slot.time?`${slot.date} ${fmtTime(slot.time)} · ${slot.court||'Unassigned'}`:'Unassigned';
  return `${format(before)} → ${format(after)}`;
 }
+function visualHistoryMatchup(entry){
+ if(entry.matchup)return entry.matchup;
+ const g=entry.before?.aId&&entry.before?.bId?entry.before:entry.after?.aId&&entry.after?.bId?entry.after:null;
+ if(g)return visualMatchup(g);
+ const current=state.games.find(g=>g.id===entry.gameId)||(state.parkingLot||[]).find(g=>g.id===entry.gameId);
+ return current?visualMatchup(current):'Matchup unavailable (older history entry)';
+}
 function renderVisualHistory(){
  if(visualHistoryWorkspace!==IS_SANDBOX){visualUndoStack=[];visualRedoStack=[];visualHistoryWorkspace=IS_SANDBOX;}
  const target=$('visualChangeHistory');if(!target)return;
- const changes=(state.scheduleChanges||[]).filter(x=>['visual-move','visual-swap','visual-undo','visual-redo','parking','restored'].includes(x.kind)).slice(0,12);
- target.innerHTML=changes.length?changes.map(x=>`<div style="padding:6px 0;border-bottom:1px solid #dce5ef"><b>${esc(x.kind.replace(/-/g,' ').toUpperCase())}</b> · ${esc(x.changedAt||'')} · ${esc(teamById(x.before?.aId||x.after?.aId)?.name||x.gameId||'Game')}<br>${esc(visualHistorySummary(x))}</div>`).join(''):'No scheduling changes recorded.';
+ const changes=(state.scheduleChanges||[]).filter(x=>['visual-move','visual-swap','visual-undo','visual-redo','parking','parking-restore','restored'].includes(x.kind)).slice(0,12);
+ target.innerHTML=changes.length?changes.map(x=>`<div style="padding:8px 0;border-bottom:1px solid #dce5ef"><b>${esc(x.kind.replace(/-/g,' ').toUpperCase())}</b> · ${esc(x.changedAt||'')}<br><b>${esc(visualHistoryMatchup(x))}</b> <span style="font-size:11px;color:#64748b">Game ID: ${esc(x.gameId||'Unavailable')}</span><br>${esc(visualHistorySummary(x))}</div>`).join(''):'No scheduling changes recorded.';
  const undo=$('visualUndoBtn'),redo=$('visualRedoBtn');
  if(undo)undo.disabled=!IS_SANDBOX||!visualUndoStack.length;
  if(redo)redo.disabled=!IS_SANDBOX||!visualRedoStack.length;
@@ -6321,19 +6334,20 @@ function visualSnapshotMatches(action,side){
 function applyVisualSnapshots(action,side,kind){
  const previous=action.ids.map(id=>gameSnapshot(state.games.find(g=>g.id===id)));
  action.ids.forEach((id,i)=>{const g=state.games.find(x=>x.id===id);Object.assign(g,action[side][i],{pending:true});
-  state.scheduleChanges.unshift({id:uid('chg'),kind,gameId:id,changedAt:new Date().toISOString(),before:previous[i],after:gameSnapshot(g),reason:'Sandbox visual history action'});
+  state.scheduleChanges.unshift({id:uid('chg'),kind,gameId:id,matchup:visualMatchup(g),changedAt:new Date().toISOString(),before:previous[i],after:gameSnapshot(g),reason:'Sandbox visual history action'});
  });
 }
 function visualApply(){
  if(!IS_SANDBOX||!visualMovePreview)return;
- const p=visualMovePreview,signature=JSON.stringify([$('visualMoveGame').value,$('visualSwapGame').value,$('visualMoveDate').value,$('visualMoveTime').value,$('visualMoveCourt').value]);
- if(signature!==p.signature)return alert('Selections changed. Preview again.');
+ const p=visualMovePreview,signature=visualSelectionSignature();
+ if(signature!==p.signature){visualMovePreview=null;$('visualApplyBtn').disabled=true;return alert('Selections changed. Preview again.');}
+ if(!p.excluded.every((id,i)=>{const current=state.games.find(g=>g.id===id);return current&&JSON.stringify(gameSnapshot(current))===JSON.stringify(p.original[i]);})){visualMovePreview=null;$('visualApplyBtn').disabled=true;return alert('A selected game changed since preview. Run Preview again.');}
  if(!confirm('Apply this sandbox-only change? The games will be marked unpublished. You can undo the entire move or swap using Undo Last Visual Change.'))return;
  const before=state.games.filter(g=>p.excluded.includes(g.id));
  state.games=state.games.map(g=>{const next=p.proposed.find(x=>x.id===g.id);return next?{...next,pending:true,lockedManual:g.lockedManual}:g});
  state.scheduleChanges=state.scheduleChanges||[];
- for(const g of before){const after=state.games.find(x=>x.id===g.id);state.scheduleChanges.unshift({id:uid('chg'),kind:p.proposed.length>1?'visual-swap':'visual-move',gameId:g.id,changedAt:new Date().toISOString(),before:gameSnapshot(g),after:gameSnapshot(after),reason:'87.8 sandbox previewed change'});}
- visualUndoStack.push({ids:[...p.excluded],before:p.original,after:p.proposed.map(x=>gameSnapshot(x))});visualRedoStack=[];visualMovePreview=null;persist();renderAll();setTab('management');alert('Sandbox change applied. Use Undo Last Visual Change to reverse both sides of a swap. Run Schedule Audit and Safety Checks.');
+ for(const g of before){const after=state.games.find(x=>x.id===g.id);state.scheduleChanges.unshift({id:uid('chg'),kind:p.proposed.length>1?'visual-swap':'visual-move',gameId:g.id,matchup:visualMatchup(g),changedAt:new Date().toISOString(),before:gameSnapshot(g),after:gameSnapshot(after),reason:'87.8 sandbox previewed change'});}
+ visualUndoStack.push({ids:[...p.excluded],before:p.original,after:p.proposed.map(x=>gameSnapshot(x))});visualRedoStack=[];visualMovePreview=null;persist();renderAll();setTab('management');alert('Sandbox change applied. Use Undo Visual Change to reverse both sides of a swap. Run Schedule Audit and Safety Checks.');
 }
 function undoLastVisualChange(){
  if(!IS_SANDBOX||!visualUndoStack.length)return alert('No visual move or swap available to undo in this sandbox session.');
@@ -6354,7 +6368,7 @@ function redoLastVisualChange(){
  persist();renderAll();setTab('management');renderVisualHistory();
 }
 function initVisualMove(){
- const reset=()=>{visualMovePreview=null;$('visualApplyBtn').disabled=true;};
+ const reset=()=>{visualMovePreview=null;$('visualApplyBtn').disabled=true;const feedback=$('visualMoveFeedback');if(feedback)feedback.textContent='Selections changed — preview the selected matchup again before applying.';};
  $('visualSourceDivision').addEventListener('change',()=>{reset();$('visualMoveGame').value='';visualMoveOptions();});
  $('visualSourceDate').addEventListener('change',()=>{reset();$('visualMoveGame').value='';visualMoveOptions();});
  $('visualMoveGame').addEventListener('change',()=>{reset();const g=state.games.find(x=>x.id===$('visualMoveGame').value);if(g){$('visualMoveDate').value=g.date;$('visualMoveTime').value=g.time;}visualMoveOptions();});
